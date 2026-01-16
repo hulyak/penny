@@ -27,6 +27,7 @@ export default function DashboardScreen() {
     agentsProcessing,
     updateFocusProgress,
     hasOnboarded,
+    isLoading,
   } = useApp();
 
   const [refreshing, setRefreshing] = React.useState(false);
@@ -35,18 +36,19 @@ export default function DashboardScreen() {
 
   React.useEffect(() => {
     if (!rootNavigationState?.key) return;
+    if (isLoading) return;
     
     if (!hasOnboarded) {
       router.replace('/onboarding' as any);
     }
-  }, [hasOnboarded, router, rootNavigationState?.key]);
+  }, [hasOnboarded, router, rootNavigationState?.key, isLoading]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 1000);
   }, []);
 
-  if (!snapshot) {
+  if (isLoading || !snapshot) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.secondary} />
