@@ -5,33 +5,23 @@ import {
   StyleSheet, 
   ScrollView,
   Pressable,
+  Image,
 } from 'react-native';
 import { 
   ChevronDown,
   ChevronUp,
-  Target,
-  Zap,
   Shield,
+  Zap,
+  Target,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { Card } from '@/components/Card';
-import { WhyPanel } from '@/components/WhyPanel';
 import Colors from '@/constants/colors';
 
-const SCENARIO_ICONS = {
-  conservative: Shield,
-  balanced: Target,
-  accelerated: Zap,
-};
-
-const RISK_COLORS = {
-  low: Colors.success,
-  medium: Colors.warning,
-  high: Colors.danger,
-};
+const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
 
 export default function ScenariosScreen() {
-  const { scenarios, financials, scenarioOutput } = useApp();
+  const { scenarios, financials } = useApp();
   const [expandedScenario, setExpandedScenario] = useState<string | null>(null);
 
   const emergencyGap = financials.emergencyFundGoal - financials.savings;
@@ -42,13 +32,18 @@ export default function ScenariosScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Scenarios</Text>
-        <Text style={styles.subtitle}>
-          Explore different paths to reach your financial goals
-        </Text>
+      {/* Mascot Header */}
+      <View style={styles.mascotCard}>
+        <Image source={{ uri: MASCOT_URL }} style={styles.mascotImage} />
+        <View style={styles.mascotContent}>
+          <Text style={styles.mascotTitle}>Your Scenarios</Text>
+          <Text style={styles.mascotMessage}>
+            Explore different paths to your goals!
+          </Text>
+        </View>
       </View>
 
+      {/* Summary Card */}
       <Card style={styles.summaryCard}>
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
@@ -60,75 +55,73 @@ export default function ScenariosScreen() {
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Current Savings</Text>
-            <Text style={styles.summaryValue}>
+            <Text style={[styles.summaryValue, { color: Colors.success }]}>
               ${financials.savings.toLocaleString()}
             </Text>
           </View>
         </View>
       </Card>
 
+      {/* Scenarios */}
       {scenarios.map((scenario) => {
-        const Icon = SCENARIO_ICONS[scenario.id as keyof typeof SCENARIO_ICONS] || Target;
         const isExpanded = expandedScenario === scenario.id;
-        const riskColor = RISK_COLORS[scenario.riskLevel] || Colors.accent;
+        const Icon = getScenarioIcon(scenario.id);
+        const color = getScenarioColor(scenario.riskLevel);
 
         return (
-          <Card key={scenario.id} style={styles.scenarioCard}>
-            <Pressable 
-              style={styles.scenarioHeader}
-              onPress={() => setExpandedScenario(isExpanded ? null : scenario.id)}
-            >
-              <View style={[styles.iconContainer, { backgroundColor: riskColor + '15' }]}>
-                <Icon size={22} color={riskColor} />
+          <Pressable 
+            key={scenario.id}
+            style={styles.scenarioCard}
+            onPress={() => setExpandedScenario(isExpanded ? null : scenario.id)}
+          >
+            <View style={styles.scenarioHeader}>
+              <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
+                <Icon size={22} color={color} />
               </View>
-
               <View style={styles.scenarioInfo}>
                 <Text style={styles.scenarioName}>{scenario.name}</Text>
-                <Text style={styles.scenarioDescription} numberOfLines={2}>
+                <Text style={styles.scenarioDesc} numberOfLines={isExpanded ? undefined : 1}>
                   {scenario.description}
                 </Text>
               </View>
-
               {isExpanded ? (
                 <ChevronUp size={20} color={Colors.textMuted} />
               ) : (
                 <ChevronDown size={20} color={Colors.textMuted} />
               )}
-            </Pressable>
+            </View>
 
+            {/* Metrics Row */}
             <View style={styles.metricsRow}>
               <View style={styles.metric}>
+                <Text style={styles.metricValue}>${scenario.monthlyContribution}</Text>
                 <Text style={styles.metricLabel}>Monthly</Text>
-                <Text style={styles.metricValue}>
-                  ${scenario.monthlyContribution}
-                </Text>
               </View>
               <View style={styles.metric}>
+                <Text style={styles.metricValue}>{scenario.monthsToGoal}mo</Text>
                 <Text style={styles.metricLabel}>Timeline</Text>
-                <Text style={styles.metricValue}>
-                  {scenario.monthsToGoal} mo
-                </Text>
               </View>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>Risk</Text>
-                <View style={[styles.riskBadge, { backgroundColor: riskColor + '15' }]}>
-                  <Text style={[styles.riskText, { color: riskColor }]}>
+                <View style={[styles.riskBadge, { backgroundColor: color + '15' }]}>
+                  <Text style={[styles.riskText, { color }]}>
                     {scenario.riskLevel}
                   </Text>
                 </View>
+                <Text style={styles.metricLabel}>Risk</Text>
               </View>
             </View>
 
+            {/* Expanded Content */}
             {isExpanded && (
               <View style={styles.expandedContent}>
-                <View style={styles.reasoningSection}>
-                  <Text style={styles.sectionLabel}>Analysis</Text>
+                <View style={styles.reasoningBox}>
+                  <Image source={{ uri: MASCOT_URL }} style={styles.miniMascot} />
                   <Text style={styles.reasoningText}>{scenario.reasoning}</Text>
                 </View>
 
                 {scenario.tradeoffs && scenario.tradeoffs.length > 0 && (
                   <View style={styles.tradeoffsSection}>
-                    <Text style={styles.sectionLabel}>Trade-offs</Text>
+                    <Text style={styles.tradeoffsTitle}>Trade-offs</Text>
                     {scenario.tradeoffs.map((tradeoff, index) => (
                       <View key={index} style={styles.tradeoffItem}>
                         <View style={styles.bullet} />
@@ -139,38 +132,43 @@ export default function ScenariosScreen() {
                 )}
 
                 <View style={styles.projectionCard}>
-                  <Text style={styles.projectionLabel}>Projected Outcome (3 years)</Text>
+                  <Text style={styles.projectionLabel}>3-Year Projection</Text>
                   <Text style={styles.projectionValue}>
-                    ${scenario.projectedSavings?.toLocaleString() || scenario.projectedOutcome?.toLocaleString()}
+                    ${(scenario.projectedSavings || scenario.projectedOutcome || 0).toLocaleString()}
                   </Text>
                 </View>
               </View>
             )}
-          </Card>
+          </Pressable>
         );
       })}
 
-      {scenarioOutput && (
-        <View style={styles.whyContainer}>
-          <WhyPanel
-            title="About These Scenarios"
-            summary={scenarioOutput.summary}
-            reasoning={scenarioOutput.reasoning}
-            assumptions={scenarioOutput.assumptions}
-            whatWouldChange={scenarioOutput.whatWouldChange}
-            confidence={scenarioOutput.confidence}
-          />
-        </View>
-      )}
-
+      {/* Disclaimer */}
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
-          These projections are educational simulations based on your inputs. 
-          Actual results will vary. This is not financial advice.
+          These are educational projections, not financial advice. Actual results may vary.
         </Text>
       </View>
     </ScrollView>
   );
+}
+
+function getScenarioIcon(id: string) {
+  const icons: Record<string, typeof Shield> = {
+    conservative: Shield,
+    balanced: Target,
+    accelerated: Zap,
+  };
+  return icons[id] || Target;
+}
+
+function getScenarioColor(risk: string): string {
+  const colors: Record<string, string> = {
+    low: Colors.success,
+    medium: Colors.warning,
+    high: Colors.danger,
+  };
+  return colors[risk] || Colors.accent;
 }
 
 const styles = StyleSheet.create({
@@ -182,22 +180,38 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  header: {
-    marginBottom: 20,
+  mascotCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  title: {
-    fontSize: 28,
+  mascotImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  mascotContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  mascotTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  subtitle: {
-    fontSize: 15,
+  mascotMessage: {
+    fontSize: 14,
     color: Colors.textSecondary,
   },
   summaryCard: {
-    marginBottom: 20,
     padding: 16,
+    marginBottom: 20,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -224,8 +238,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   scenarioCard: {
-    marginBottom: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
     padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   scenarioHeader: {
     flexDirection: 'row',
@@ -248,7 +266,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 2,
   },
-  scenarioDescription: {
+  scenarioDesc: {
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 18,
@@ -264,21 +282,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  metricLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
   metricValue: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
+    marginBottom: 4,
+  },
+  metricLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
   },
   riskBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   riskText: {
     fontSize: 12,
@@ -291,17 +309,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
-  reasoningSection: {
+  reasoningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.accentMuted,
+    padding: 12,
+    borderRadius: 12,
     marginBottom: 16,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 8,
-    textTransform: 'uppercase',
+  miniMascot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 10,
   },
   reasoningText: {
+    flex: 1,
     fontSize: 14,
     color: Colors.text,
     lineHeight: 20,
@@ -309,10 +332,16 @@ const styles = StyleSheet.create({
   tradeoffsSection: {
     marginBottom: 16,
   },
+  tradeoffsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
   tradeoffItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: 6,
+    marginBottom: 6,
   },
   bullet: {
     width: 6,
@@ -329,14 +358,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   projectionCard: {
-    backgroundColor: Colors.surfaceSecondary,
+    backgroundColor: Colors.successMuted,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   projectionLabel: {
     fontSize: 12,
-    color: Colors.textMuted,
+    color: Colors.success,
     marginBottom: 4,
   },
   projectionValue: {
@@ -344,14 +373,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.success,
   },
-  whyContainer: {
-    marginTop: 8,
-  },
   disclaimer: {
-    marginTop: 20,
+    marginTop: 8,
     padding: 12,
     backgroundColor: Colors.surfaceSecondary,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   disclaimerText: {
     fontSize: 12,

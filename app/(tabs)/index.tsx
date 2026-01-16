@@ -6,21 +6,22 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
-  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
   ChevronRight,
-  Target,
+  TrendingUp,
+  Wallet,
   PiggyBank,
+  Target,
+  Sparkles,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { Card } from '@/components/Card';
-import { WhyPanel } from '@/components/WhyPanel';
 import Colors from '@/constants/colors';
+
+const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
 
 export default function OverviewScreen() {
   const router = useRouter();
@@ -28,7 +29,6 @@ export default function OverviewScreen() {
     snapshot, 
     financials, 
     weeklyFocuses,
-    financialRealityOutput,
     agentsProcessing,
     isLoading,
     hasOnboarded,
@@ -50,14 +50,28 @@ export default function OverviewScreen() {
   if (isLoading || !snapshot) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.accent} />
-        <Text style={styles.loadingText}>Analyzing your finances...</Text>
+        <Image source={{ uri: MASCOT_URL }} style={styles.loadingMascot} />
+        <Text style={styles.loadingText}>Crunching numbers...</Text>
       </View>
     );
   }
 
   const emergencyProgress = Math.min(100, (financials.savings / financials.emergencyFundGoal) * 100);
   const healthColor = getHealthColor(snapshot.healthLabel);
+  
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning!';
+    if (hour < 17) return 'Good afternoon!';
+    return 'Good evening!';
+  };
+
+  const getMascotMessage = () => {
+    if (snapshot.healthScore >= 80) return "You're doing great! Keep it up! 🎉";
+    if (snapshot.healthScore >= 60) return "Nice progress! Let's keep building.";
+    if (snapshot.healthScore >= 40) return "We've got a solid plan for you.";
+    return "Let's work on this together!";
+  };
 
   return (
     <ScrollView 
@@ -68,151 +82,137 @@ export default function OverviewScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      {/* Mascot Greeting */}
+      <View style={styles.greetingCard}>
+        <Image source={{ uri: MASCOT_URL }} style={styles.mascotImage} />
+        <View style={styles.greetingContent}>
+          <Text style={styles.greetingTitle}>{getGreeting()}</Text>
+          <Text style={styles.greetingMessage}>{getMascotMessage()}</Text>
+        </View>
+        {agentsProcessing && (
+          <View style={styles.processingDot} />
+        )}
+      </View>
+
       {/* Health Score Card */}
       <Card style={styles.healthCard}>
         <View style={styles.healthHeader}>
           <Text style={styles.healthLabel}>Financial Health</Text>
-          {agentsProcessing && (
-            <View style={styles.processingBadge}>
-              <Text style={styles.processingText}>Updating...</Text>
-            </View>
-          )}
+          <View style={[styles.healthBadge, { backgroundColor: healthColor + '15' }]}>
+            <Text style={[styles.healthBadgeText, { color: healthColor }]}>
+              {snapshot.healthLabel}
+            </Text>
+          </View>
         </View>
         
-        <View style={styles.healthScore}>
-          <Text style={[styles.scoreNumber, { color: healthColor }]}>
-            {snapshot.healthScore}
-          </Text>
-          <Text style={styles.scoreMax}>/100</Text>
-        </View>
-        
-        <View style={[styles.healthBadge, { backgroundColor: healthColor + '15' }]}>
-          <Text style={[styles.healthBadgeText, { color: healthColor }]}>
-            {snapshot.healthLabel}
-          </Text>
-        </View>
-
-        <View style={styles.metricsGrid}>
-          <MetricItem 
-            label="Disposable" 
-            value={`$${snapshot.disposableIncome.toLocaleString()}`}
-            trend={snapshot.disposableIncome > 500 ? 'up' : 'neutral'}
-          />
-          <MetricItem 
-            label="Savings Rate" 
-            value={`${snapshot.savingsRate.toFixed(0)}%`}
-            trend={snapshot.savingsRate >= 20 ? 'up' : snapshot.savingsRate >= 10 ? 'neutral' : 'down'}
-          />
-          <MetricItem 
-            label="Runway" 
-            value={`${snapshot.monthsOfRunway.toFixed(1)}mo`}
-            trend={snapshot.monthsOfRunway >= 3 ? 'up' : snapshot.monthsOfRunway >= 1 ? 'neutral' : 'down'}
-          />
-          <MetricItem 
-            label="Fixed Costs" 
-            value={`${snapshot.fixedCostRatio.toFixed(0)}%`}
-            trend={snapshot.fixedCostRatio <= 50 ? 'up' : snapshot.fixedCostRatio <= 70 ? 'neutral' : 'down'}
-          />
+        <View style={styles.scoreRow}>
+          <View style={styles.scoreCircle}>
+            <Text style={[styles.scoreNumber, { color: healthColor }]}>
+              {snapshot.healthScore}
+            </Text>
+            <Text style={styles.scoreMax}>/100</Text>
+          </View>
+          
+          <View style={styles.metricsColumn}>
+            <MetricRow 
+              icon={<Wallet size={16} color={Colors.accent} />}
+              label="Disposable" 
+              value={`$${snapshot.disposableIncome.toLocaleString()}/mo`}
+            />
+            <MetricRow 
+              icon={<TrendingUp size={16} color={Colors.success} />}
+              label="Savings Rate" 
+              value={`${snapshot.savingsRate.toFixed(0)}%`}
+            />
+            <MetricRow 
+              icon={<Target size={16} color={Colors.warning} />}
+              label="Runway" 
+              value={`${snapshot.monthsOfRunway.toFixed(1)} months`}
+            />
+          </View>
         </View>
       </Card>
-
-      {/* Why Panel for Financial Reality */}
-      {financialRealityOutput && (
-        <View style={styles.whyContainer}>
-          <WhyPanel
-            title="Why this score?"
-            summary={financialRealityOutput.summary}
-            reasoning={financialRealityOutput.reasoning}
-            assumptions={financialRealityOutput.assumptions}
-            whatWouldChange={financialRealityOutput.whatWouldChange}
-            confidence={financialRealityOutput.confidence}
-          />
-        </View>
-      )}
 
       {/* Emergency Fund Progress */}
-      <Card style={styles.progressCard}>
-        <View style={styles.progressHeader}>
-          <View style={styles.progressTitleRow}>
+      <Card style={styles.fundCard}>
+        <View style={styles.fundHeader}>
+          <View style={styles.fundTitleRow}>
             <PiggyBank size={20} color={Colors.success} />
-            <Text style={styles.progressTitle}>Emergency Fund</Text>
+            <Text style={styles.fundTitle}>Emergency Fund</Text>
           </View>
-          <Text style={styles.progressPercent}>{emergencyProgress.toFixed(0)}%</Text>
+          <Text style={styles.fundPercent}>{emergencyProgress.toFixed(0)}%</Text>
         </View>
         
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${emergencyProgress}%` }]} />
+        <View style={styles.fundProgress}>
+          <View style={[styles.fundProgressFill, { width: `${emergencyProgress}%` }]} />
         </View>
         
-        <View style={styles.progressDetails}>
-          <Text style={styles.progressAmount}>
-            ${financials.savings.toLocaleString()} of ${financials.emergencyFundGoal.toLocaleString()}
-          </Text>
-          <Text style={styles.progressRunway}>
-            {snapshot.monthsOfRunway.toFixed(1)} months runway
-          </Text>
-        </View>
+        <Text style={styles.fundDetails}>
+          ${financials.savings.toLocaleString()} of ${financials.emergencyFundGoal.toLocaleString()}
+        </Text>
       </Card>
+
+      {/* This Week Section */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>This Week</Text>
+        <Pressable onPress={() => router.push('/plan')}>
+          <Text style={styles.seeAll}>See all</Text>
+        </Pressable>
+      </View>
+
+      {weeklyFocuses.slice(0, 2).map((focus) => (
+        <Pressable 
+          key={focus.id}
+          style={styles.taskCard}
+          onPress={() => router.push('/plan')}
+        >
+          <View style={[styles.taskIcon, { backgroundColor: getPriorityColor(focus.priority) + '15' }]}>
+            <Target size={18} color={getPriorityColor(focus.priority)} />
+          </View>
+          <View style={styles.taskContent}>
+            <Text style={styles.taskTitle}>{focus.title}</Text>
+            <Text style={styles.taskDescription} numberOfLines={1}>
+              {focus.description}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </Pressable>
+      ))}
 
       {/* Quick Actions */}
       <View style={styles.quickActions}>
-        <Text style={styles.sectionTitle}>This Week</Text>
-        
-        {weeklyFocuses.slice(0, 2).map((focus) => (
-          <Pressable 
-            key={focus.id} 
-            style={styles.actionCard}
-            onPress={() => router.push('/plan' as never)}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: getPriorityColor(focus.priority) + '15' }]}>
-              <Target size={18} color={getPriorityColor(focus.priority)} />
-            </View>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>{focus.title}</Text>
-              <Text style={styles.actionDescription} numberOfLines={1}>
-                {focus.description}
-              </Text>
-            </View>
-            <ChevronRight size={18} color={Colors.textMuted} />
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Quick Stats */}
-      <View style={styles.statsRow}>
         <Pressable 
-          style={styles.statCard}
+          style={styles.quickAction}
           onPress={() => router.push('/(tabs)/scenarios')}
         >
-          <Text style={styles.statLabel}>View Scenarios</Text>
-          <Text style={styles.statValue}>3 paths</Text>
-          <ChevronRight size={16} color={Colors.accent} style={styles.statArrow} />
+          <View style={[styles.quickIcon, { backgroundColor: Colors.accentMuted }]}>
+            <Sparkles size={20} color={Colors.accent} />
+          </View>
+          <Text style={styles.quickLabel}>Explore</Text>
+          <Text style={styles.quickSubLabel}>Scenarios</Text>
         </Pressable>
         
         <Pressable 
-          style={styles.statCard}
-          onPress={() => router.push('/learn' as never)}
+          style={styles.quickAction}
+          onPress={() => router.push('/(tabs)/learn')}
         >
-          <Text style={styles.statLabel}>Learn</Text>
-          <Text style={styles.statValue}>4 topics</Text>
-          <ChevronRight size={16} color={Colors.accent} style={styles.statArrow} />
+          <View style={[styles.quickIcon, { backgroundColor: Colors.successMuted }]}>
+            <TrendingUp size={20} color={Colors.success} />
+          </View>
+          <Text style={styles.quickLabel}>Learn</Text>
+          <Text style={styles.quickSubLabel}>Finance tips</Text>
         </Pressable>
       </View>
     </ScrollView>
   );
 }
 
-function MetricItem({ label, value, trend }: { label: string; value: string; trend: 'up' | 'down' | 'neutral' }) {
-  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-  const trendColor = trend === 'up' ? Colors.success : trend === 'down' ? Colors.danger : Colors.textMuted;
-  
+function MetricRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <View style={styles.metricItem}>
+    <View style={styles.metricRow}>
+      {icon}
       <Text style={styles.metricLabel}>{label}</Text>
-      <View style={styles.metricValueRow}>
-        <Text style={styles.metricValue}>{value}</Text>
-        <TrendIcon size={14} color={trendColor} />
-      </View>
+      <Text style={styles.metricValue}>{value}</Text>
     </View>
   );
 }
@@ -225,7 +225,7 @@ function getHealthColor(label: string): string {
     'Needs Attention': Colors.warning,
     'Critical': Colors.danger,
   };
-  return colors[label] || Colors.textMuted;
+  return colors[label] || Colors.accent;
 }
 
 function getPriorityColor(priority: string): string {
@@ -234,7 +234,7 @@ function getPriorityColor(priority: string): string {
     'medium': Colors.warning,
     'low': Colors.accent,
   };
-  return colors[priority] || Colors.textMuted;
+  return colors[priority] || Colors.accent;
 }
 
 const styles = StyleSheet.create({
@@ -252,13 +252,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.background,
   },
+  loadingMascot: {
+    width: 80,
+    height: 80,
+    marginBottom: 16,
+  },
   loadingText: {
-    marginTop: 16,
-    fontSize: 15,
+    fontSize: 16,
     color: Colors.textSecondary,
   },
+  greetingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  mascotImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  greetingContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  greetingTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  greetingMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  processingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.accent,
+  },
   healthCard: {
-    padding: 20,
+    padding: 16,
+    marginBottom: 12,
   },
   healthHeader: {
     flexDirection: 'row',
@@ -270,135 +310,115 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  processingBadge: {
-    backgroundColor: Colors.accent + '15',
-    paddingHorizontal: 8,
+  healthBadge: {
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
-  processingText: {
+  healthBadgeText: {
     fontSize: 12,
-    color: Colors.accent,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  healthScore: {
+  scoreRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 12,
+    alignItems: 'center',
+  },
+  scoreCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   scoreNumber: {
-    fontSize: 56,
+    fontSize: 32,
     fontWeight: '700',
   },
   scoreMax: {
-    fontSize: 20,
-    color: Colors.textMuted,
-    marginLeft: 4,
-  },
-  healthBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginBottom: 20,
-  },
-  healthBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-    gap: 12,
-  },
-  metricItem: {
-    width: '47%',
-    backgroundColor: Colors.surfaceSecondary,
-    padding: 12,
-    borderRadius: 10,
-  },
-  metricLabel: {
     fontSize: 12,
     color: Colors.textMuted,
-    marginBottom: 4,
+    marginTop: -4,
   },
-  metricValueRow: {
+  metricsColumn: {
+    flex: 1,
+    gap: 8,
+  },
+  metricRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
+  },
+  metricLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
   metricValue: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.text,
   },
-  whyContainer: {
-    marginTop: 16,
-  },
-  progressCard: {
-    marginTop: 16,
+  fundCard: {
     padding: 16,
+    marginBottom: 20,
   },
-  progressHeader: {
+  fundHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  progressTitleRow: {
+  fundTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  progressTitle: {
-    fontSize: 16,
+  fundTitle: {
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
-    marginLeft: 8,
   },
-  progressPercent: {
-    fontSize: 18,
+  fundPercent: {
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.success,
   },
-  progressBar: {
+  fundProgress: {
     height: 8,
     backgroundColor: Colors.border,
     borderRadius: 4,
     overflow: 'hidden',
+    marginBottom: 8,
   },
-  progressFill: {
+  fundProgressFill: {
     height: '100%',
     backgroundColor: Colors.success,
     borderRadius: 4,
   },
-  progressDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  progressAmount: {
+  fundDetails: {
     fontSize: 13,
     color: Colors.textSecondary,
   },
-  progressRunway: {
-    fontSize: 13,
-    color: Colors.accent,
-    fontWeight: '500',
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 12,
   },
-  quickActions: {
-    marginTop: 24,
+  seeAll: {
+    fontSize: 14,
+    color: Colors.accent,
+    fontWeight: '500',
   },
-  actionCard: {
+  taskCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
@@ -408,7 +428,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  actionIcon: {
+  taskIcon: {
     width: 40,
     height: 40,
     borderRadius: 10,
@@ -416,45 +436,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  actionContent: {
+  taskContent: {
     flex: 1,
   },
-  actionTitle: {
+  taskTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
     marginBottom: 2,
   },
-  actionDescription: {
+  taskDescription: {
     fontSize: 13,
     color: Colors.textSecondary,
   },
-  statsRow: {
+  quickActions: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 16,
   },
-  statCard: {
+  quickAction: {
     flex: 1,
     backgroundColor: Colors.surface,
     padding: 16,
     borderRadius: 12,
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  statLabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 4,
+  quickIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  statValue: {
-    fontSize: 18,
+  quickLabel: {
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
   },
-  statArrow: {
-    position: 'absolute' as const,
-    right: 12,
-    top: 16,
+  quickSubLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });

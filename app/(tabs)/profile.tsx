@@ -7,9 +7,9 @@ import {
   Pressable,
   TextInput,
   Alert,
+  Image,
 } from 'react-native';
 import { 
-  User,
   DollarSign,
   Home,
   Car,
@@ -23,6 +23,8 @@ import {
 import { useApp } from '@/context/AppContext';
 import { Card } from '@/components/Card';
 import Colors from '@/constants/colors';
+
+const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
 
 export default function ProfileScreen() {
   const { financials, updateFinancials, resetDemo } = useApp();
@@ -95,16 +97,18 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <User size={32} color={Colors.accent} />
+      {/* Mascot Header */}
+      <View style={styles.mascotCard}>
+        <Image source={{ uri: MASCOT_URL }} style={styles.mascotImage} />
+        <View style={styles.mascotContent}>
+          <Text style={styles.mascotTitle}>Your Profile</Text>
+          <Text style={styles.mascotMessage}>
+            {isEditing ? "Make your updates - I'll recalculate!" : "Update anytime, I'll adjust your plan!"}
+          </Text>
         </View>
-        <Text style={styles.title}>Your Profile</Text>
-        <Text style={styles.subtitle}>
-          Update your numbers anytime. Agents will recalculate automatically.
-        </Text>
       </View>
 
+      {/* Income & Expenses Card */}
       <Card style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Income & Expenses</Text>
@@ -137,12 +141,13 @@ export default function ProfileScreen() {
           <Car size={18} color={Colors.warning} />
         )}
         {renderField('Essentials', 'essentialsCost', 
-          <ShoppingCart size={18} color={Colors.agents.scenarioLearning} />
+          <ShoppingCart size={18} color={Colors.textSecondary} />
         )}
       </Card>
 
+      {/* Savings & Goals Card */}
       <Card style={styles.card}>
-        <Text style={styles.cardTitle}>Savings & Debt</Text>
+        <Text style={styles.cardTitle}>Savings & Goals</Text>
         
         {renderField('Current Savings', 'savings', 
           <PiggyBank size={18} color={Colors.success} />
@@ -155,16 +160,21 @@ export default function ProfileScreen() {
         )}
       </Card>
 
+      {/* Reset Button */}
       <Pressable style={styles.resetButton} onPress={handleReset}>
         <RefreshCw size={18} color={Colors.danger} />
         <Text style={styles.resetText}>Reset to Demo Data</Text>
       </Pressable>
 
-      <View style={styles.disclaimer}>
-        <Text style={styles.disclaimerText}>
-          Your data stays on your device. ClearPath is an educational tool 
-          and does not provide financial advice.
-        </Text>
+      {/* Tip Card */}
+      <View style={styles.tipCard}>
+        <Image source={{ uri: MASCOT_URL }} style={styles.tipMascot} />
+        <View style={styles.tipContent}>
+          <Text style={styles.tipTitle}>Your Data is Private</Text>
+          <Text style={styles.tipText}>
+            Everything stays on your device. This is an educational tool, not financial advice.
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -179,33 +189,38 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  header: {
+  mascotCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  avatarContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.accent + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  title: {
-    fontSize: 24,
+  mascotImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  mascotContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  mascotTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  subtitle: {
+  mascotMessage: {
     fontSize: 14,
     color: Colors.textSecondary,
-    textAlign: 'center',
   },
   card: {
-    marginBottom: 16,
     padding: 16,
+    marginBottom: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -224,13 +239,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: Colors.accent + '15',
-    borderRadius: 6,
+    borderRadius: 8,
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.accent,
-    marginLeft: 4,
+    marginLeft: 6,
   },
   saveButton: {
     flexDirection: 'row',
@@ -238,13 +253,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: Colors.success,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   saveButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
-    marginLeft: 4,
+    marginLeft: 6,
   },
   fieldRow: {
     flexDirection: 'row',
@@ -275,7 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceSecondary,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 8,
     minWidth: 100,
     textAlign: 'right',
   },
@@ -285,10 +300,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     backgroundColor: Colors.danger + '10',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.danger + '30',
-    marginTop: 8,
+    marginBottom: 16,
   },
   resetText: {
     fontSize: 15,
@@ -296,16 +311,31 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     marginLeft: 8,
   },
-  disclaimer: {
-    marginTop: 20,
-    padding: 12,
-    backgroundColor: Colors.surfaceSecondary,
-    borderRadius: 8,
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accentMuted,
+    padding: 16,
+    borderRadius: 12,
   },
-  disclaimerText: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: 'center',
+  tipMascot: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.accent,
+    marginBottom: 2,
+  },
+  tipText: {
+    fontSize: 13,
+    color: Colors.text,
     lineHeight: 18,
   },
 });
