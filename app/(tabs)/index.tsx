@@ -8,7 +8,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useRootNavigationState } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowRight, Sparkles, TrendingUp } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
@@ -31,11 +31,15 @@ export default function DashboardScreen() {
 
   const [refreshing, setRefreshing] = React.useState(false);
 
+  const rootNavigationState = useRootNavigationState();
+
   React.useEffect(() => {
+    if (!rootNavigationState?.key) return;
+    
     if (!hasOnboarded) {
       router.replace('/onboarding' as any);
     }
-  }, [hasOnboarded, router]);
+  }, [hasOnboarded, router, rootNavigationState?.key]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
