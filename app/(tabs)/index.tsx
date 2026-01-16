@@ -33,7 +33,7 @@ export default function DashboardScreen() {
 
   React.useEffect(() => {
     if (!hasOnboarded) {
-      router.replace('/onboarding');
+      router.replace('/onboarding' as any);
     }
   }, [hasOnboarded, router]);
 
@@ -120,7 +120,7 @@ export default function DashboardScreen() {
 
       <Pressable 
         style={styles.marketCard}
-        onPress={() => router.push('/insights')}
+        onPress={() => router.push('/(tabs)/insights')}
       >
         <LinearGradient
           colors={[Colors.secondary + '15', Colors.accent + '10']}
@@ -158,7 +158,7 @@ export default function DashboardScreen() {
 
       <Pressable 
         style={styles.scenariosCta}
-        onPress={() => router.push('/scenarios')}
+        onPress={() => router.push('/(tabs)/scenarios')}
       >
         <Text style={styles.ctaText}>Explore What-If Scenarios</Text>
         <ArrowRight size={18} color={Colors.secondary} />
