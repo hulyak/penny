@@ -1,0 +1,141 @@
+import { UserFinancials, MarketContext, WeeklyFocus, Scenario, AgentInsight } from '@/types';
+
+export const DEMO_FINANCIALS: UserFinancials = {
+  monthlyIncome: 5500,
+  housingCost: 1800,
+  carCost: 450,
+  essentialsCost: 800,
+  savings: 3200,
+  debts: 12000,
+  emergencyFundGoal: 16500,
+};
+
+export const DEMO_MARKET_CONTEXT: MarketContext = {
+  overallSentiment: 'neutral',
+  stocksDescription: 'Markets have shown mixed signals this quarter. Major indices are trading within typical ranges with moderate volatility.',
+  bondsDescription: 'Bond yields have stabilized after recent adjustments. This typically reflects a period of economic recalibration.',
+  inflationDescription: 'Consumer prices have been gradually moderating. Everyday costs for groceries and services remain elevated compared to historical norms.',
+  goldDescription: 'Precious metals have maintained steady value, often seen as a reflection of global economic uncertainty.',
+  lastUpdated: new Date().toISOString(),
+  educationalNote: 'Market conditions change frequently. Understanding these patterns can help you think about timing for major financial decisions, but they should not drive day-to-day choices.',
+};
+
+export const DEMO_WEEKLY_FOCUSES: WeeklyFocus[] = [
+  {
+    id: '1',
+    title: 'Build Your Buffer',
+    description: 'Set aside $200 this week toward your emergency fund. You\'re 19% of the way to your 3-month safety net.',
+    priority: 'high',
+    category: 'buffer',
+    progress: 0,
+    agentReasoning: 'Based on your current savings of $3,200 and monthly expenses of $3,050, building a 3-month emergency fund is the highest priority. This provides security before considering other financial moves.',
+  },
+  {
+    id: '2',
+    title: 'Track Daily Spending',
+    description: 'Note your non-essential purchases for 7 days. This builds awareness without requiring immediate changes.',
+    priority: 'medium',
+    category: 'learn',
+    progress: 0,
+    agentReasoning: 'Awareness precedes change. Before optimizing spending, understanding patterns helps identify opportunities unique to your lifestyle.',
+  },
+  {
+    id: '3',
+    title: 'Review One Subscription',
+    description: 'Look at one recurring charge and decide if it still serves you well.',
+    priority: 'low',
+    category: 'reduce',
+    progress: 0,
+    agentReasoning: 'Small recurring costs compound over time. A single $15/month subscription equals $180/year. This is a low-effort way to potentially increase savings capacity.',
+  },
+];
+
+export const DEMO_SCENARIOS: Scenario[] = [
+  {
+    id: 'conservative',
+    name: 'Safety First',
+    description: 'Focus entirely on building your emergency fund before anything else.',
+    monthlyContribution: 400,
+    duration: 36,
+    projectedOutcome: 16500,
+    riskLevel: 'low',
+    reasoning: 'This path prioritizes security. By directing all available funds to savings, you build a complete 3-month emergency fund in approximately 33 months. This approach minimizes risk and provides a solid foundation.',
+  },
+  {
+    id: 'balanced',
+    name: 'Balanced Growth',
+    description: 'Split between emergency fund and learning about long-term options.',
+    monthlyContribution: 300,
+    duration: 36,
+    projectedOutcome: 14000,
+    riskLevel: 'medium',
+    reasoning: 'This path balances immediate security with future preparation. You build savings while also educating yourself about investment concepts for when you\'re ready.',
+  },
+  {
+    id: 'accelerated',
+    name: 'Aggressive Buffer',
+    description: 'Maximize savings rate by identifying additional cost reductions.',
+    monthlyContribution: 550,
+    duration: 36,
+    projectedOutcome: 23000,
+    riskLevel: 'medium',
+    reasoning: 'This path requires lifestyle adjustments but accelerates your timeline significantly. Reaching your emergency fund goal in ~24 months leaves room for other goals sooner.',
+  },
+];
+
+export const DEMO_AGENT_INSIGHTS: AgentInsight[] = [
+  {
+    id: '1',
+    agentName: 'Financial Reality',
+    agentType: 'financial-reality',
+    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+    title: 'Snapshot Updated',
+    message: 'Your financial health score is 62/100, categorized as "Stable". Your biggest opportunity is building your emergency buffer.',
+    reasoning: 'I calculated your health score using: savings rate (22%), debt-to-income ratio (18%), and emergency fund progress (19%). The weighted average indicates stability with room for improvement.',
+    actionTaken: 'Updated dashboard metrics and recalculated weekly priorities.',
+    confidence: 0.94,
+    icon: 'wallet',
+  },
+  {
+    id: '2',
+    agentName: 'Market Context',
+    agentType: 'market-context',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+    title: 'Economic Context Refreshed',
+    message: 'Current economic conditions suggest this is a reasonable time to focus on building savings rather than rushing into market exposure.',
+    reasoning: 'Market volatility indicators are moderate. For someone building an emergency fund, this environment reinforces the value of liquid savings. No action required on your part.',
+    confidence: 0.87,
+    icon: 'trending-up',
+  },
+  {
+    id: '3',
+    agentName: 'Scenario & Learning',
+    agentType: 'scenario-learning',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    title: 'Projections Recalculated',
+    message: 'Based on your current pace, you\'ll reach your emergency fund goal in approximately 33 months.',
+    reasoning: 'With $400/month toward savings and a $16,500 goal, simple arithmetic shows 33 months. I\'ve also modeled alternative paths if you adjust your contribution rate.',
+    actionTaken: 'Generated 3 scenario comparisons for your review.',
+    confidence: 0.91,
+    icon: 'git-branch',
+  },
+  {
+    id: '4',
+    agentName: 'Adaptation',
+    agentType: 'adaptation',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    title: 'Weekly Plan Adjusted',
+    message: 'I noticed you completed last week\'s tracking goal. This week, I\'ve added a new focus on reviewing subscriptions.',
+    reasoning: 'Your engagement pattern shows you respond well to small, specific tasks. Building on last week\'s success, I\'m introducing the next logical step in expense awareness.',
+    actionTaken: 'Updated weekly focus list with new priority item.',
+    confidence: 0.89,
+    icon: 'refresh-cw',
+  },
+];
+
+export const ONBOARDING_TIPS = {
+  income: 'Include your regular take-home pay after taxes. If it varies, use an average.',
+  housing: 'Include rent or mortgage, plus utilities, insurance, and any HOA fees.',
+  car: 'Include payment, insurance, gas, and estimated maintenance costs.',
+  essentials: 'Include groceries, healthcare, phone, internet, and other necessary expenses.',
+};
