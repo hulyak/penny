@@ -10,57 +10,54 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
-  ArrowRight, 
-  Sparkles, 
-  DollarSign, 
-  Home, 
-  Car, 
-  ShoppingBag,
-  Bot,
+  ArrowRight,
+  DollarSign,
+  Home,
+  Car,
+  ShoppingCart,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import Colors from '@/constants/colors';
-import { ONBOARDING_TIPS, DEMO_FINANCIALS } from '@/constants/mockData';
 
 const STEPS = [
-  { 
-    key: 'welcome', 
+  {
+    id: 'welcome',
     title: 'Welcome to ClearPath',
-    subtitle: 'Your AI-powered financial clarity companion',
+    subtitle: 'Get clarity on your finances in just a few steps.',
   },
-  { 
-    key: 'income', 
+  {
+    id: 'income',
     title: 'Monthly Income',
-    subtitle: ONBOARDING_TIPS.income,
+    subtitle: 'Your take-home pay after taxes',
     field: 'monthlyIncome',
     icon: DollarSign,
     placeholder: '5500',
   },
-  { 
-    key: 'housing', 
+  {
+    id: 'housing',
     title: 'Housing Costs',
-    subtitle: ONBOARDING_TIPS.housing,
+    subtitle: 'Rent/mortgage, utilities, insurance',
     field: 'housingCost',
     icon: Home,
     placeholder: '1800',
   },
-  { 
-    key: 'car', 
+  {
+    id: 'transportation',
     title: 'Transportation',
-    subtitle: ONBOARDING_TIPS.car,
+    subtitle: 'Car payment, insurance, gas, transit',
     field: 'carCost',
     icon: Car,
     placeholder: '450',
   },
-  { 
-    key: 'essentials', 
-    title: 'Essential Expenses',
-    subtitle: ONBOARDING_TIPS.essentials,
+  {
+    id: 'essentials',
+    title: 'Other Essentials',
+    subtitle: 'Groceries, healthcare, phone, etc.',
     field: 'essentialsCost',
-    icon: ShoppingBag,
+    icon: ShoppingCart,
     placeholder: '800',
   },
 ];
@@ -69,7 +66,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { completeOnboarding } = useApp();
-  const [step, setStep] = useState(0);
+  
+  const [currentStep, setCurrentStep] = useState(0);
   const [values, setValues] = useState({
     monthlyIncome: '',
     housingCost: '',
@@ -77,352 +75,364 @@ export default function OnboardingScreen() {
     essentialsCost: '',
   });
 
-  const currentStep = STEPS[step];
-  const isWelcome = step === 0;
-  const isLastStep = step === STEPS.length - 1;
+  const step = STEPS[currentStep];
+  const isWelcome = currentStep === 0;
+  const isLastStep = currentStep === STEPS.length - 1;
+  const progress = ((currentStep) / (STEPS.length - 1)) * 100;
 
   const handleNext = () => {
     if (isLastStep) {
       const financials = {
-        monthlyIncome: parseInt(values.monthlyIncome, 10) || DEMO_FINANCIALS.monthlyIncome,
-        housingCost: parseInt(values.housingCost, 10) || DEMO_FINANCIALS.housingCost,
-        carCost: parseInt(values.carCost, 10) || DEMO_FINANCIALS.carCost,
-        essentialsCost: parseInt(values.essentialsCost, 10) || DEMO_FINANCIALS.essentialsCost,
-        savings: DEMO_FINANCIALS.savings,
-        debts: DEMO_FINANCIALS.debts,
-        emergencyFundGoal: (parseInt(values.housingCost, 10) || DEMO_FINANCIALS.housingCost) * 3 + 
-                          (parseInt(values.carCost, 10) || DEMO_FINANCIALS.carCost) * 3 + 
-                          (parseInt(values.essentialsCost, 10) || DEMO_FINANCIALS.essentialsCost) * 3,
+        monthlyIncome: parseInt(values.monthlyIncome, 10) || 5500,
+        housingCost: parseInt(values.housingCost, 10) || 1800,
+        carCost: parseInt(values.carCost, 10) || 450,
+        essentialsCost: parseInt(values.essentialsCost, 10) || 800,
+        savings: 3200,
+        debts: 12000,
+        emergencyFundGoal: 
+          ((parseInt(values.housingCost, 10) || 1800) +
+          (parseInt(values.carCost, 10) || 450) +
+          (parseInt(values.essentialsCost, 10) || 800)) * 3,
       };
       completeOnboarding(financials);
       router.replace('/(tabs)');
     } else {
-      setStep(step + 1);
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
     }
   };
 
   const handleSkip = () => {
-    completeOnboarding(DEMO_FINANCIALS);
+    completeOnboarding({
+      monthlyIncome: 5500,
+      housingCost: 1800,
+      carCost: 450,
+      essentialsCost: 800,
+      savings: 3200,
+      debts: 12000,
+      emergencyFundGoal: 9150,
+    });
     router.replace('/(tabs)');
   };
 
   const updateValue = (field: string, value: string) => {
-    setValues({ ...values, [field]: value.replace(/[^0-9]/g, '') });
+    setValues(prev => ({ ...prev, [field]: value.replace(/[^0-9]/g, '') }));
   };
 
+  const currentValue = step.field ? values[step.field as keyof typeof values] : '';
+
   return (
-    <LinearGradient
-      colors={[Colors.primary, Colors.primaryLight]}
-      style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Progress Bar */}
+      <View style={styles.progressContainer}>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        </View>
+        <Text style={styles.progressText}>
+          {currentStep} of {STEPS.length - 1}
+        </Text>
+      </View>
+
       <KeyboardAvoidingView 
+        style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
+          {/* Header */}
           <View style={styles.header}>
-            <View style={styles.progressContainer}>
-              {STEPS.map((_, index) => (
-                <View 
-                  key={index}
-                  style={[
-                    styles.progressDot,
-                    index <= step && styles.progressDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-            
-            {!isWelcome && (
-              <Pressable onPress={handleSkip}>
-                <Text style={styles.skipText}>Use Demo Data</Text>
+            {currentStep > 0 && (
+              <Pressable style={styles.backButton} onPress={handleBack}>
+                <ChevronLeft size={24} color={Colors.text} />
               </Pressable>
             )}
           </View>
 
-          <View style={styles.content}>
+          {/* Content */}
+          <View style={styles.mainContent}>
             {isWelcome ? (
-              <>
-                <View style={styles.welcomeIcon}>
-                  <Sparkles size={48} color={Colors.warning} />
+              <View style={styles.welcomeContent}>
+                <View style={styles.logo}>
+                  <Text style={styles.logoText}>CP</Text>
                 </View>
-                <Text style={styles.welcomeTitle}>{currentStep.title}</Text>
-                <Text style={styles.welcomeSubtitle}>{currentStep.subtitle}</Text>
+                <Text style={styles.welcomeTitle}>ClearPath</Text>
+                <Text style={styles.welcomeSubtitle}>
+                  Financial clarity, simplified
+                </Text>
                 
-                <View style={styles.agentsPreview}>
-                  <Text style={styles.agentsTitle}>Meet Your AI Agents</Text>
-                  
-                  <View style={styles.agentRow}>
-                    <View style={[styles.agentDot, { backgroundColor: Colors.agents.financialReality }]} />
-                    <Text style={styles.agentName}>Financial Reality Agent</Text>
+                <View style={styles.features}>
+                  <View style={styles.feature}>
+                    <View style={styles.featureDot} />
+                    <Text style={styles.featureText}>Track your financial health</Text>
                   </View>
-                  <View style={styles.agentRow}>
-                    <View style={[styles.agentDot, { backgroundColor: Colors.agents.marketContext }]} />
-                    <Text style={styles.agentName}>Market Context Agent</Text>
+                  <View style={styles.feature}>
+                    <View style={styles.featureDot} />
+                    <Text style={styles.featureText}>Explore different scenarios</Text>
                   </View>
-                  <View style={styles.agentRow}>
-                    <View style={[styles.agentDot, { backgroundColor: Colors.agents.scenarioLearning }]} />
-                    <Text style={styles.agentName}>Scenario & Learning Agent</Text>
+                  <View style={styles.feature}>
+                    <View style={styles.featureDot} />
+                    <Text style={styles.featureText}>Get personalized weekly plans</Text>
                   </View>
-                  <View style={styles.agentRow}>
-                    <View style={[styles.agentDot, { backgroundColor: Colors.agents.adaptation }]} />
-                    <Text style={styles.agentName}>Adaptation Agent</Text>
+                  <View style={styles.feature}>
+                    <View style={styles.featureDot} />
+                    <Text style={styles.featureText}>Learn financial basics</Text>
                   </View>
                 </View>
 
-                <View style={styles.disclaimerBox}>
-                  <Text style={styles.disclaimerTitle}>Important Note</Text>
+                <View style={styles.disclaimer}>
                   <Text style={styles.disclaimerText}>
-                    ClearPath is an educational tool. It does not provide financial advice 
-                    or investment recommendations.
+                    ClearPath is an educational tool. It does not provide 
+                    financial advice or recommendations.
                   </Text>
                 </View>
-              </>
+              </View>
             ) : (
-              <>
-                <View style={[styles.inputIcon, { backgroundColor: Colors.secondary + '30' }]}>
-                  {currentStep.icon && <currentStep.icon size={32} color={Colors.secondary} />}
-                </View>
+              <View style={styles.inputContent}>
+                {step.icon && (
+                  <View style={styles.iconContainer}>
+                    <step.icon size={32} color={Colors.accent} />
+                  </View>
+                )}
                 
-                <Text style={styles.inputTitle}>{currentStep.title}</Text>
-                <Text style={styles.inputSubtitle}>{currentStep.subtitle}</Text>
-                
+                <Text style={styles.stepTitle}>{step.title}</Text>
+                <Text style={styles.stepSubtitle}>{step.subtitle}</Text>
+
                 <View style={styles.inputContainer}>
                   <Text style={styles.currencySymbol}>$</Text>
                   <TextInput
                     style={styles.input}
-                    value={values[currentStep.field as keyof typeof values]}
-                    onChangeText={(text) => updateValue(currentStep.field!, text)}
-                    placeholder={currentStep.placeholder}
+                    value={currentValue}
+                    onChangeText={(text) => updateValue(step.field!, text)}
+                    placeholder={step.placeholder}
                     placeholderTextColor={Colors.textMuted}
                     keyboardType="numeric"
                     autoFocus
                   />
-                  <Text style={styles.perMonth}>/month</Text>
+                  <Text style={styles.perMonth}>/mo</Text>
                 </View>
-              </>
+              </View>
             )}
           </View>
 
+          {/* Footer */}
           <View style={styles.footer}>
             <Pressable 
-              style={styles.nextButton}
+              style={styles.primaryButton}
               onPress={handleNext}
             >
-              <Text style={styles.nextButtonText}>
-                {isWelcome ? 'Get Started' : isLastStep ? 'See My Dashboard' : 'Continue'}
+              <Text style={styles.primaryButtonText}>
+                {isWelcome ? 'Get Started' : isLastStep ? 'Finish' : 'Continue'}
               </Text>
               <ArrowRight size={20} color="#fff" />
             </Pressable>
-            
+
             {isWelcome && (
-              <Pressable style={styles.demoButton} onPress={handleSkip}>
-                <Bot size={18} color={Colors.textLight} />
-                <Text style={styles.demoButtonText}>Try Demo Mode</Text>
+              <Pressable style={styles.skipButton} onPress={handleSkip}>
+                <Text style={styles.skipButtonText}>Use Demo Data</Text>
               </Pressable>
             )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
-  keyboardView: {
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.accent,
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    width: 40,
+    textAlign: 'right',
+  },
+  content: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 24,
+    paddingHorizontal: 20,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    height: 44,
+    justifyContent: 'center',
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
+    marginLeft: -12,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  progressDotActive: {
-    backgroundColor: Colors.secondary,
-    width: 24,
-  },
-  skipText: {
-    fontSize: 14,
-    color: Colors.textLight,
-    opacity: 0.8,
-  },
-  content: {
+  mainContent: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
   },
-  welcomeIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  welcomeContent: {
+    alignItems: 'center',
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: Colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
   },
   welcomeTitle: {
     fontSize: 32,
     fontWeight: '700',
-    color: Colors.textLight,
-    textAlign: 'center',
-    marginBottom: 12,
+    color: Colors.text,
+    marginBottom: 8,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: Colors.textLight,
-    opacity: 0.8,
-    textAlign: 'center',
+    color: Colors.textSecondary,
     marginBottom: 32,
   },
-  agentsPreview: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
+  features: {
+    alignSelf: 'stretch',
     marginBottom: 24,
   },
-  agentsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textLight,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  agentRow: {
+  feature: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
   },
-  agentDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  featureDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
     marginRight: 12,
   },
-  agentName: {
-    fontSize: 14,
-    color: Colors.textLight,
-    opacity: 0.9,
+  featureText: {
+    fontSize: 15,
+    color: Colors.text,
   },
-  disclaimerBox: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 12,
+  disclaimer: {
+    backgroundColor: Colors.surfaceSecondary,
     padding: 16,
-    width: '100%',
-  },
-  disclaimerTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.warning,
-    marginBottom: 4,
+    borderRadius: 12,
+    alignSelf: 'stretch',
   },
   disclaimerText: {
     fontSize: 13,
-    color: Colors.textLight,
-    opacity: 0.7,
+    color: Colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 18,
   },
-  inputIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  inputContent: {
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: Colors.accent + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
   },
-  inputTitle: {
-    fontSize: 28,
+  stepTitle: {
+    fontSize: 24,
     fontWeight: '700',
-    color: Colors.textLight,
+    color: Colors.text,
+    marginBottom: 8,
     textAlign: 'center',
-    marginBottom: 12,
   },
-  inputSubtitle: {
+  stepSubtitle: {
     fontSize: 15,
-    color: Colors.textLight,
-    opacity: 0.8,
-    textAlign: 'center',
+    color: Colors.textSecondary,
     marginBottom: 32,
-    paddingHorizontal: 20,
-    lineHeight: 22,
+    textAlign: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.accent,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   currencySymbol: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '600',
-    color: Colors.textLight,
-    marginRight: 8,
+    color: Colors.text,
+    marginRight: 4,
   },
   input: {
     flex: 1,
     fontSize: 32,
     fontWeight: '700',
-    color: Colors.textLight,
-    minWidth: 100,
+    color: Colors.text,
+    padding: 0,
   },
   perMonth: {
     fontSize: 16,
-    color: Colors.textLight,
-    opacity: 0.6,
+    color: Colors.textMuted,
     marginLeft: 8,
   },
   footer: {
-    paddingTop: 24,
+    paddingVertical: 20,
   },
-  nextButton: {
+  primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.accent,
     paddingVertical: 16,
     borderRadius: 12,
-    gap: 8,
   },
-  nextButtonText: {
+  primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+    marginRight: 8,
   },
-  demoButton: {
-    flexDirection: 'row',
+  skipButton: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-    paddingVertical: 14,
-    gap: 8,
+    paddingVertical: 16,
+    marginTop: 8,
   },
-  demoButtonText: {
+  skipButtonText: {
     fontSize: 15,
-    color: Colors.textLight,
-    opacity: 0.8,
+    color: Colors.textSecondary,
   },
 });

@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
   },
   reasoningContainer: {
-    backgroundColor: Colors.backgroundDark + '08',
+    backgroundColor: Colors.primary + '08',
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,

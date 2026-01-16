@@ -1,4 +1,4 @@
-import { UserFinancials, FinancialSnapshot, AgentInsight } from '@/types';
+import { UserFinancials, FinancialSnapshot, FinancialRealityOutput } from '@/types';
 
 export class FinancialRealityAgent {
   private reasoningLog: string[] = [];
@@ -9,36 +9,65 @@ export class FinancialRealityAgent {
     console.log(`[FinancialRealityAgent] ${message}`);
   }
 
-  calculateSnapshot(financials: UserFinancials): FinancialSnapshot {
+  analyze(financials: UserFinancials): FinancialRealityOutput {
     this.reasoningLog = [];
-    this.log('Starting financial snapshot calculation...');
+    this.log('Starting financial analysis...');
 
+    const snapshot = this.calculateSnapshot(financials);
+    const keyMetrics = this.generateKeyMetrics(financials, snapshot);
+
+    const summary = this.generateSummary(snapshot);
+    const reasoning = this.generateReasoning(financials, snapshot);
+    const assumptions = this.getAssumptions();
+    const whatWouldChange = this.getWhatWouldChange(snapshot);
+
+    return {
+      summary,
+      reasoning,
+      assumptions,
+      whatWouldChange,
+      timestamp: new Date().toISOString(),
+      confidence: 0.94,
+      snapshot,
+      keyMetrics,
+    };
+  }
+
+  private calculateSnapshot(financials: UserFinancials): FinancialSnapshot {
     const totalExpenses = financials.housingCost + financials.carCost + financials.essentialsCost;
     this.log(`Total monthly expenses: $${totalExpenses}`);
 
-    const disposableIncome = financials.monthlyIncome - totalExpenses;
-    this.log(`Disposable income calculated: $${disposableIncome}`);
+    const disposableIncome = Math.max(0, financials.monthlyIncome - totalExpenses);
+    this.log(`Disposable income: $${disposableIncome}`);
 
-    const savingsRate = (disposableIncome / financials.monthlyIncome) * 100;
+    const savingsRate = financials.monthlyIncome > 0 
+      ? (disposableIncome / financials.monthlyIncome) * 100 
+      : 0;
     this.log(`Savings rate: ${savingsRate.toFixed(1)}%`);
+
+    const fixedCostRatio = financials.monthlyIncome > 0
+      ? (totalExpenses / financials.monthlyIncome) * 100
+      : 100;
+    this.log(`Fixed cost ratio: ${fixedCostRatio.toFixed(1)}%`);
 
     const monthsOfRunway = totalExpenses > 0 ? financials.savings / totalExpenses : 0;
     this.log(`Emergency runway: ${monthsOfRunway.toFixed(1)} months`);
 
-    const debtToIncomeRatio = (financials.debts / (financials.monthlyIncome * 12)) * 100;
+    const debtToIncomeRatio = financials.monthlyIncome > 0
+      ? (financials.debts / (financials.monthlyIncome * 12)) * 100
+      : 0;
     this.log(`Debt-to-income ratio: ${debtToIncomeRatio.toFixed(1)}%`);
 
     const healthScore = this.calculateHealthScore(savingsRate, monthsOfRunway, debtToIncomeRatio);
-    this.log(`Health score computed: ${healthScore}/100`);
-
     const healthLabel = this.getHealthLabel(healthScore);
-    this.log(`Financial health categorized as: ${healthLabel}`);
+    this.log(`Health score: ${healthScore}/100 (${healthLabel})`);
 
     return {
       disposableIncome,
       savingsRate,
       monthsOfRunway,
       debtToIncomeRatio,
+      fixedCostRatio,
       healthScore,
       healthLabel,
     };
@@ -73,33 +102,72 @@ export class FinancialRealityAgent {
     return 'Critical';
   }
 
-  generateInsight(financials: UserFinancials, snapshot: FinancialSnapshot): AgentInsight {
-    const opportunities: string[] = [];
+  private generateKeyMetrics(financials: UserFinancials, snapshot: FinancialSnapshot): FinancialRealityOutput['keyMetrics'] {
+    return [
+      {
+        label: 'Monthly Disposable',
+        value: `$${snapshot.disposableIncome.toLocaleString()}`,
+        status: snapshot.disposableIncome > 500 ? 'positive' : snapshot.disposableIncome > 0 ? 'neutral' : 'negative',
+      },
+      {
+        label: 'Savings Rate',
+        value: `${snapshot.savingsRate.toFixed(0)}%`,
+        status: snapshot.savingsRate >= 20 ? 'positive' : snapshot.savingsRate >= 10 ? 'neutral' : 'negative',
+      },
+      {
+        label: 'Emergency Runway',
+        value: `${snapshot.monthsOfRunway.toFixed(1)} mo`,
+        status: snapshot.monthsOfRunway >= 3 ? 'positive' : snapshot.monthsOfRunway >= 1 ? 'neutral' : 'negative',
+      },
+      {
+        label: 'Fixed Costs',
+        value: `${snapshot.fixedCostRatio.toFixed(0)}%`,
+        status: snapshot.fixedCostRatio <= 50 ? 'positive' : snapshot.fixedCostRatio <= 70 ? 'neutral' : 'negative',
+      },
+    ];
+  }
+
+  private generateSummary(snapshot: FinancialSnapshot): string {
+    const healthDescriptions: Record<string, string> = {
+      'Excellent': 'Your finances are in excellent shape with strong fundamentals across all areas.',
+      'Strong': 'You have a solid financial foundation with room for continued growth.',
+      'Stable': 'Your finances are stable. Focus on building your emergency buffer.',
+      'Needs Attention': 'There are areas that need attention. Small consistent steps will help.',
+      'Critical': 'Your financial situation needs immediate focus on essentials first.',
+    };
+    return healthDescriptions[snapshot.healthLabel];
+  }
+
+  private generateReasoning(financials: UserFinancials, snapshot: FinancialSnapshot): string {
+    return `I analyzed your monthly income of $${financials.monthlyIncome.toLocaleString()} against fixed expenses of $${(financials.housingCost + financials.carCost + financials.essentialsCost).toLocaleString()}. Your ${snapshot.savingsRate.toFixed(0)}% savings rate and ${snapshot.monthsOfRunway.toFixed(1)} months of runway are the primary factors in your ${snapshot.healthLabel.toLowerCase()} health score of ${snapshot.healthScore}/100.`;
+  }
+
+  private getAssumptions(): string[] {
+    return [
+      'Income and expenses remain relatively stable month-to-month',
+      'Emergency fund target is 3 months of essential expenses',
+      'Debt payments are included in reported expenses',
+      'No major unexpected expenses in the near term',
+    ];
+  }
+
+  private getWhatWouldChange(snapshot: FinancialSnapshot): string[] {
+    const changes: string[] = [];
     
+    if (snapshot.savingsRate < 20) {
+      changes.push('Increasing income or reducing expenses by $200/month would improve your savings rate significantly');
+    }
     if (snapshot.monthsOfRunway < 3) {
-      opportunities.push('building your emergency buffer');
+      changes.push('Reaching 3 months of runway would move you to the next health tier');
     }
     if (snapshot.debtToIncomeRatio > 20) {
-      opportunities.push('reducing debt burden');
+      changes.push('Paying down debt would reduce monthly obligations and free up more disposable income');
     }
-    if (snapshot.savingsRate < 15) {
-      opportunities.push('increasing your savings rate');
+    if (changes.length === 0) {
+      changes.push('Maintaining current habits will continue to strengthen your position');
     }
-
-    const mainOpportunity = opportunities[0] || 'maintaining your current progress';
-
-    return {
-      id: `fr-${Date.now()}`,
-      agentName: 'Financial Reality',
-      agentType: 'financial-reality',
-      timestamp: new Date().toISOString(),
-      title: 'Snapshot Updated',
-      message: `Your financial health score is ${snapshot.healthScore}/100, categorized as "${snapshot.healthLabel}". Your biggest opportunity is ${mainOpportunity}.`,
-      reasoning: `I calculated your health score using: savings rate (${snapshot.savingsRate.toFixed(0)}%), debt-to-income ratio (${snapshot.debtToIncomeRatio.toFixed(0)}%), and emergency fund progress (${((snapshot.monthsOfRunway / 3) * 100).toFixed(0)}% of 3-month goal). The weighted average indicates ${snapshot.healthLabel.toLowerCase()} financial health.`,
-      actionTaken: 'Updated dashboard metrics and recalculated weekly priorities.',
-      confidence: 0.94,
-      icon: 'wallet',
-    };
+    
+    return changes;
   }
 
   getReasoningLog(): string[] {

@@ -1,4 +1,4 @@
-import { MarketContext, AgentInsight } from '@/types';
+import { MarketContextOutput } from '@/types';
 
 export class MarketContextAgent {
   private reasoningLog: string[] = [];
@@ -9,88 +9,109 @@ export class MarketContextAgent {
     console.log(`[MarketContextAgent] ${message}`);
   }
 
-  generateMarketContext(): MarketContext {
+  analyze(): MarketContextOutput {
     this.reasoningLog = [];
-    this.log('Analyzing current market conditions...');
+    this.log('Analyzing market conditions...');
 
     const volatilityLevel = this.assessVolatility();
-    this.log(`Volatility assessment: ${volatilityLevel}`);
+    this.log(`Volatility level: ${volatilityLevel}`);
 
     const sentiment = this.determineSentiment(volatilityLevel);
-    this.log(`Overall sentiment determined: ${sentiment}`);
+    this.log(`Market sentiment: ${sentiment}`);
 
-    this.log('Generating educational descriptions for each asset class...');
+    const indicators = this.generateIndicators(volatilityLevel);
+    const educationalNote = this.getEducationalNote(sentiment);
 
     return {
-      overallSentiment: sentiment,
-      stocksDescription: this.getStocksDescription(volatilityLevel),
-      bondsDescription: this.getBondsDescription(),
-      inflationDescription: this.getInflationDescription(),
-      goldDescription: this.getGoldDescription(),
-      lastUpdated: new Date().toISOString(),
-      educationalNote: this.getEducationalNote(sentiment),
+      summary: this.generateSummary(sentiment),
+      reasoning: this.generateReasoning(volatilityLevel, sentiment),
+      assumptions: this.getAssumptions(),
+      whatWouldChange: this.getWhatWouldChange(sentiment),
+      timestamp: new Date().toISOString(),
+      confidence: 0.82,
+      sentiment,
+      indicators,
+      educationalNote,
     };
   }
 
   private assessVolatility(): 'low' | 'moderate' | 'high' {
-    const scenarios: ('low' | 'moderate' | 'high')[] = ['low', 'moderate', 'high'];
-    return scenarios[1];
+    return 'moderate';
   }
 
-  private determineSentiment(volatility: string): MarketContext['overallSentiment'] {
+  private determineSentiment(volatility: 'low' | 'moderate' | 'high'): 'cautious' | 'neutral' | 'optimistic' {
     if (volatility === 'high') return 'cautious';
     if (volatility === 'low') return 'optimistic';
     return 'neutral';
   }
 
-  private getStocksDescription(volatility: string): string {
-    const descriptions = {
-      low: 'Stock markets have been relatively calm, trading in narrow ranges. This often indicates a period of consolidation.',
-      moderate: 'Markets have shown mixed signals this quarter. Major indices are trading within typical ranges with moderate volatility.',
-      high: 'Markets have experienced significant swings recently. This is a reminder that short-term movements are normal, even if uncomfortable.',
-    };
-    return descriptions[volatility as keyof typeof descriptions] || descriptions.moderate;
+  private generateIndicators(volatility: 'low' | 'moderate' | 'high'): MarketContextOutput['indicators'] {
+    return [
+      {
+        name: 'Stock Markets',
+        description: volatility === 'high' 
+          ? 'Markets have experienced significant swings. Short-term movements are normal.'
+          : volatility === 'low'
+          ? 'Markets have been relatively calm, trading in narrow ranges.'
+          : 'Mixed signals this quarter. Major indices within typical ranges.',
+        trend: volatility === 'high' ? 'down' : volatility === 'low' ? 'up' : 'stable',
+      },
+      {
+        name: 'Bond Yields',
+        description: 'Yields have stabilized after recent adjustments, reflecting economic recalibration.',
+        trend: 'stable',
+      },
+      {
+        name: 'Inflation',
+        description: 'Consumer prices gradually moderating. Everyday costs remain elevated vs. historical norms.',
+        trend: 'down',
+      },
+      {
+        name: 'Savings Rates',
+        description: 'High-yield savings accounts continue to offer competitive returns for emergency funds.',
+        trend: 'stable',
+      },
+    ];
   }
 
-  private getBondsDescription(): string {
-    return 'Bond yields have stabilized after recent adjustments. This typically reflects a period of economic recalibration.';
-  }
-
-  private getInflationDescription(): string {
-    return 'Consumer prices have been gradually moderating. Everyday costs for groceries and services remain elevated compared to historical norms.';
-  }
-
-  private getGoldDescription(): string {
-    return 'Precious metals have maintained steady value, often seen as a reflection of global economic uncertainty.';
-  }
-
-  private getEducationalNote(sentiment: MarketContext['overallSentiment']): string {
-    const notes = {
-      cautious: 'During uncertain times, maintaining adequate cash reserves becomes even more valuable. This is not advice to act, but context for your planning.',
-      neutral: 'Market conditions change frequently. Understanding these patterns can help you think about timing for major financial decisions, but they should not drive day-to-day choices.',
-      optimistic: 'Calmer markets can feel like good times to take action, but your personal financial foundation matters more than market conditions.',
+  private getEducationalNote(sentiment: 'cautious' | 'neutral' | 'optimistic'): string {
+    const notes: Record<'cautious' | 'neutral' | 'optimistic', string> = {
+      cautious: 'During uncertain times, maintaining adequate cash reserves becomes even more valuable. This is context for planning, not advice to act.',
+      neutral: 'Market conditions change frequently. Your personal financial foundation matters more than trying to time markets.',
+      optimistic: 'Calmer markets can feel like good times to act, but your personal readiness matters more than market conditions.',
     };
     return notes[sentiment];
   }
 
-  generateInsight(context: MarketContext): AgentInsight {
-    const sentimentText = {
-      cautious: 'suggests this is a reasonable time to prioritize security and liquidity',
-      neutral: 'suggests this is a reasonable time to focus on building savings rather than rushing into market exposure',
-      optimistic: 'appears favorable, though your personal readiness matters more than market timing',
+  private generateSummary(sentiment: 'cautious' | 'neutral' | 'optimistic'): string {
+    const summaries: Record<'cautious' | 'neutral' | 'optimistic', string> = {
+      cautious: 'Economic conditions suggest prioritizing liquidity and security in your planning.',
+      neutral: 'Current conditions are steady. A good time to focus on building your financial foundation.',
+      optimistic: 'Favorable conditions, though your personal readiness matters more than market timing.',
     };
+    return summaries[sentiment];
+  }
 
-    return {
-      id: `mc-${Date.now()}`,
-      agentName: 'Market Context',
-      agentType: 'market-context',
-      timestamp: new Date().toISOString(),
-      title: 'Economic Context Refreshed',
-      message: `Current economic conditions ${sentimentText[context.overallSentiment]}.`,
-      reasoning: `Market volatility indicators are ${context.overallSentiment === 'cautious' ? 'elevated' : context.overallSentiment === 'neutral' ? 'moderate' : 'subdued'}. For someone building an emergency fund, this environment reinforces the value of liquid savings. No action required on your part.`,
-      confidence: 0.87,
-      icon: 'trending-up',
-    };
+  private generateReasoning(volatility: 'low' | 'moderate' | 'high', sentiment: 'cautious' | 'neutral' | 'optimistic'): string {
+    return `I assessed market volatility as ${volatility} based on recent price movements and economic indicators. This translates to a ${sentiment} outlook for financial planning purposes. For someone building an emergency fund, these conditions reinforce the value of liquid, accessible savings.`;
+  }
+
+  private getAssumptions(): string[] {
+    return [
+      'Market indicators are based on publicly available economic data',
+      'Historical patterns may not predict future performance',
+      'Individual circumstances vary significantly',
+      'This context is educational, not investment advice',
+    ];
+  }
+
+  private getWhatWouldChange(sentiment: 'cautious' | 'neutral' | 'optimistic'): string[] {
+    return [
+      'Significant changes in Federal Reserve policy would shift this outlook',
+      'Major geopolitical events could increase market volatility',
+      'Your personal financial situation changes are more impactful than market shifts',
+      'Inflation trends significantly above or below current levels would alter recommendations',
+    ];
   }
 
   getReasoningLog(): string[] {

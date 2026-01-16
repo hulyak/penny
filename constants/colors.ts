@@ -1,48 +1,63 @@
 const Colors = {
-  primary: '#0F172A',
-  primaryLight: '#1E293B',
-  secondary: '#0EA5E9',
-  secondaryLight: '#38BDF8',
-  accent: '#10B981',
-  accentLight: '#34D399',
-  warning: '#F59E0B',
-  warningLight: '#FBBF24',
-  danger: '#EF4444',
-  dangerLight: '#F87171',
+  primary: '#1A1F36',
+  primaryLight: '#2D3348',
   
-  background: '#F8FAFC',
-  backgroundDark: '#0F172A',
+  secondary: '#0066CC',
+  secondaryLight: '#3385D6',
+  
+  accent: '#2563EB',
+  accentLight: '#3B82F6',
+  accentMuted: '#DBEAFE',
+  
+  success: '#059669',
+  successLight: '#10B981',
+  successMuted: '#D1FAE5',
+  
+  warning: '#D97706',
+  warningLight: '#F59E0B',
+  warningMuted: '#FEF3C7',
+  
+  danger: '#DC2626',
+  dangerLight: '#EF4444',
+  dangerMuted: '#FEE2E2',
+  
+  neutral: '#6B7280',
+  neutralLight: '#9CA3AF',
+  neutralMuted: '#F3F4F6',
+  
+  background: '#FAFBFC',
   surface: '#FFFFFF',
-  surfaceDark: '#1E293B',
+  surfaceSecondary: '#F8FAFC',
   
-  text: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  textLight: '#F8FAFC',
+  text: '#111827',
+  textSecondary: '#4B5563',
+  textMuted: '#9CA3AF',
+  textLight: '#FFFFFF',
   
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
-  
-  gradient: {
-    primary: ['#0F172A', '#1E293B'],
-    accent: ['#0EA5E9', '#10B981'],
-    warm: ['#F59E0B', '#EF4444'],
-    cool: ['#0EA5E9', '#8B5CF6'],
-  },
+  border: '#E5E7EB',
+  borderLight: '#F3F4F6',
+  divider: '#E5E7EB',
   
   agents: {
-    financialReality: '#10B981',
-    marketContext: '#0EA5E9',
-    scenarioLearning: '#8B5CF6',
-    adaptation: '#F59E0B',
+    financialReality: '#059669',
+    marketContext: '#2563EB',
+    scenarioLearning: '#7C3AED',
+    adaptation: '#D97706',
   },
   
   health: {
-    critical: '#EF4444',
-    needsAttention: '#F59E0B',
-    stable: '#0EA5E9',
-    strong: '#10B981',
-    excellent: '#059669',
+    critical: '#DC2626',
+    needsAttention: '#D97706',
+    stable: '#2563EB',
+    strong: '#059669',
+    excellent: '#047857',
+  },
+  
+  chart: {
+    primary: '#2563EB',
+    secondary: '#7C3AED',
+    tertiary: '#059669',
+    quaternary: '#D97706',
   },
 };
 

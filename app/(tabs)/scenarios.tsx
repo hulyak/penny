@@ -4,17 +4,35 @@ import {
   Text, 
   StyleSheet, 
   ScrollView,
+  Pressable,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Info, Lightbulb } from 'lucide-react-native';
+import { 
+  ChevronDown,
+  ChevronUp,
+  Target,
+  Zap,
+  Shield,
+} from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
-import { ScenarioCard } from '@/components/ScenarioCard';
 import { Card } from '@/components/Card';
+import { WhyPanel } from '@/components/WhyPanel';
 import Colors from '@/constants/colors';
 
+const SCENARIO_ICONS = {
+  conservative: Shield,
+  balanced: Target,
+  accelerated: Zap,
+};
+
+const RISK_COLORS = {
+  low: Colors.success,
+  medium: Colors.warning,
+  high: Colors.danger,
+};
+
 export default function ScenariosScreen() {
-  const { scenarios, financials, snapshot } = useApp();
-  const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
+  const { scenarios, financials, scenarioOutput } = useApp();
+  const [expandedScenario, setExpandedScenario] = useState<string | null>(null);
 
   const emergencyGap = financials.emergencyFundGoal - financials.savings;
 
@@ -24,71 +42,131 @@ export default function ScenariosScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <LinearGradient
-        colors={[Colors.agents.scenarioLearning + '20', Colors.background]}
-        style={styles.headerGradient}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>What-If Explorer</Text>
-          <Text style={styles.subtitle}>
-            Compare different paths to reach your financial goals
-          </Text>
-        </View>
-      </LinearGradient>
-
-      <Card style={styles.contextCard} variant="elevated">
-        <View style={styles.contextHeader}>
-          <Info size={18} color={Colors.secondary} />
-          <Text style={styles.contextTitle}>Your Current Situation</Text>
-        </View>
-        <View style={styles.contextStats}>
-          <View style={styles.contextStat}>
-            <Text style={styles.contextLabel}>Emergency Fund Gap</Text>
-            <Text style={styles.contextValue}>${emergencyGap.toLocaleString()}</Text>
-          </View>
-          <View style={styles.contextDivider} />
-          <View style={styles.contextStat}>
-            <Text style={styles.contextLabel}>Available Monthly</Text>
-            <Text style={styles.contextValue}>${snapshot?.disposableIncome.toFixed(0) || '0'}</Text>
-          </View>
-        </View>
-      </Card>
-
-      <View style={styles.scenariosSection}>
-        <Text style={styles.sectionTitle}>Explore Your Options</Text>
-        <Text style={styles.sectionSubtitle}>
-          Each scenario is personalized based on your financial reality
+      <View style={styles.header}>
+        <Text style={styles.title}>Scenarios</Text>
+        <Text style={styles.subtitle}>
+          Explore different paths to reach your financial goals
         </Text>
-
-        {scenarios.map((scenario) => (
-          <ScenarioCard
-            key={scenario.id}
-            scenario={scenario}
-            isSelected={selectedScenario === scenario.id}
-            onSelect={() => setSelectedScenario(
-              selectedScenario === scenario.id ? null : scenario.id
-            )}
-          />
-        ))}
       </View>
 
-      <Card style={styles.educationCard}>
-        <View style={styles.educationHeader}>
-          <Lightbulb size={20} color={Colors.warning} />
-          <Text style={styles.educationTitle}>Understanding Scenarios</Text>
+      <Card style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Gap to Goal</Text>
+            <Text style={styles.summaryValue}>
+              ${emergencyGap.toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Current Savings</Text>
+            <Text style={styles.summaryValue}>
+              ${financials.savings.toLocaleString()}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.educationText}>
-          These projections are educational simulations, not predictions. 
-          Real outcomes depend on many factors including consistency, 
-          unexpected expenses, and life changes. The goal is to help you 
-          think through trade-offs, not to tell you what to do.
-        </Text>
       </Card>
+
+      {scenarios.map((scenario) => {
+        const Icon = SCENARIO_ICONS[scenario.id as keyof typeof SCENARIO_ICONS] || Target;
+        const isExpanded = expandedScenario === scenario.id;
+        const riskColor = RISK_COLORS[scenario.riskLevel] || Colors.accent;
+
+        return (
+          <Card key={scenario.id} style={styles.scenarioCard}>
+            <Pressable 
+              style={styles.scenarioHeader}
+              onPress={() => setExpandedScenario(isExpanded ? null : scenario.id)}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: riskColor + '15' }]}>
+                <Icon size={22} color={riskColor} />
+              </View>
+
+              <View style={styles.scenarioInfo}>
+                <Text style={styles.scenarioName}>{scenario.name}</Text>
+                <Text style={styles.scenarioDescription} numberOfLines={2}>
+                  {scenario.description}
+                </Text>
+              </View>
+
+              {isExpanded ? (
+                <ChevronUp size={20} color={Colors.textMuted} />
+              ) : (
+                <ChevronDown size={20} color={Colors.textMuted} />
+              )}
+            </Pressable>
+
+            <View style={styles.metricsRow}>
+              <View style={styles.metric}>
+                <Text style={styles.metricLabel}>Monthly</Text>
+                <Text style={styles.metricValue}>
+                  ${scenario.monthlyContribution}
+                </Text>
+              </View>
+              <View style={styles.metric}>
+                <Text style={styles.metricLabel}>Timeline</Text>
+                <Text style={styles.metricValue}>
+                  {scenario.monthsToGoal} mo
+                </Text>
+              </View>
+              <View style={styles.metric}>
+                <Text style={styles.metricLabel}>Risk</Text>
+                <View style={[styles.riskBadge, { backgroundColor: riskColor + '15' }]}>
+                  <Text style={[styles.riskText, { color: riskColor }]}>
+                    {scenario.riskLevel}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {isExpanded && (
+              <View style={styles.expandedContent}>
+                <View style={styles.reasoningSection}>
+                  <Text style={styles.sectionLabel}>Analysis</Text>
+                  <Text style={styles.reasoningText}>{scenario.reasoning}</Text>
+                </View>
+
+                {scenario.tradeoffs && scenario.tradeoffs.length > 0 && (
+                  <View style={styles.tradeoffsSection}>
+                    <Text style={styles.sectionLabel}>Trade-offs</Text>
+                    {scenario.tradeoffs.map((tradeoff, index) => (
+                      <View key={index} style={styles.tradeoffItem}>
+                        <View style={styles.bullet} />
+                        <Text style={styles.tradeoffText}>{tradeoff}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.projectionCard}>
+                  <Text style={styles.projectionLabel}>Projected Outcome (3 years)</Text>
+                  <Text style={styles.projectionValue}>
+                    ${scenario.projectedSavings?.toLocaleString() || scenario.projectedOutcome?.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </Card>
+        );
+      })}
+
+      {scenarioOutput && (
+        <View style={styles.whyContainer}>
+          <WhyPanel
+            title="About These Scenarios"
+            summary={scenarioOutput.summary}
+            reasoning={scenarioOutput.reasoning}
+            assumptions={scenarioOutput.assumptions}
+            whatWouldChange={scenarioOutput.whatWouldChange}
+            confidence={scenarioOutput.confidence}
+          />
+        </View>
+      )}
 
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
-          This is an educational tool. It does not provide financial advice, 
-          investment recommendations, or predictions about market performance.
+          These projections are educational simulations based on your inputs. 
+          Actual results will vary. This is not financial advice.
         </Text>
       </View>
     </ScrollView>
@@ -101,108 +179,179 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    padding: 16,
     paddingBottom: 32,
   },
-  headerGradient: {
-    paddingTop: 16,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-  },
   header: {
-    marginBottom: 8,
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 15,
     color: Colors.textSecondary,
-    lineHeight: 22,
   },
-  contextCard: {
-    marginHorizontal: 16,
-    marginTop: -8,
+  summaryCard: {
+    marginBottom: 20,
+    padding: 16,
   },
-  contextHeader: {
+  summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  contextTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  contextStats: {
-    flexDirection: 'row',
-  },
-  contextStat: {
+  summaryItem: {
     flex: 1,
     alignItems: 'center',
   },
-  contextDivider: {
-    width: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: 16,
-  },
-  contextLabel: {
+  summaryLabel: {
     fontSize: 12,
     color: Colors.textMuted,
     marginBottom: 4,
   },
-  contextValue: {
+  summaryValue: {
     fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
   },
-  scenariosSection: {
-    paddingHorizontal: 16,
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginBottom: 16,
-  },
-  educationCard: {
+  summaryDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: Colors.border,
     marginHorizontal: 16,
-    marginTop: 8,
-    backgroundColor: Colors.warning + '10',
-    borderWidth: 1,
-    borderColor: Colors.warning + '30',
   },
-  educationHeader: {
+  scenarioCard: {
+    marginBottom: 12,
+    padding: 16,
+  },
+  scenarioHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  educationTitle: {
-    fontSize: 15,
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  scenarioInfo: {
+    flex: 1,
+  },
+  scenarioName: {
+    fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginLeft: 8,
+    marginBottom: 2,
   },
-  educationText: {
+  scenarioDescription: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  metric: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  metricLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  metricValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  riskBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  riskText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  expandedContent: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  reasoningSection: {
+    marginBottom: 16,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  reasoningText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  tradeoffsSection: {
+    marginBottom: 16,
+  },
+  tradeoffItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+  },
+  bullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.warning,
+    marginTop: 6,
+    marginRight: 10,
+  },
+  tradeoffText: {
+    flex: 1,
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
   },
-  disclaimer: {
-    marginHorizontal: 16,
-    marginTop: 24,
+  projectionCard: {
+    backgroundColor: Colors.surfaceSecondary,
     padding: 16,
-    backgroundColor: Colors.border,
-    borderRadius: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  projectionLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginBottom: 4,
+  },
+  projectionValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.success,
+  },
+  whyContainer: {
+    marginTop: 8,
+  },
+  disclaimer: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 8,
   },
   disclaimerText: {
     fontSize: 12,

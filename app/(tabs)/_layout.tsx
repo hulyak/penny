@@ -1,53 +1,65 @@
-import { Tabs } from "expo-router";
-import { Home, GitBranch, Bot, User } from "lucide-react-native";
-import React from "react";
-import Colors from "@/constants/colors";
+import { Tabs } from 'expo-router';
+import { Home, GitBranch, BookOpen, User, ListChecks } from 'lucide-react-native';
+import Colors from '@/constants/colors';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.secondary,
+        tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
-          paddingTop: 4,
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
         },
         headerStyle: {
           backgroundColor: Colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: Colors.border,
         },
-        headerTintColor: Colors.text,
         headerTitleStyle: {
           fontWeight: '600',
+          color: Colors.text,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: 'Overview',
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="plan"
+        options={{
+          title: 'Plan',
+          tabBarIcon: ({ color, size }) => <ListChecks size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="scenarios"
         options={{
-          title: "Scenarios",
+          title: 'Scenarios',
           tabBarIcon: ({ color, size }) => <GitBranch size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="insights"
+        name="learn"
         options={{
-          title: "Agents",
-          tabBarIcon: ({ color, size }) => <Bot size={size} color={color} />,
+          title: 'Learn',
+          tabBarIcon: ({ color, size }) => <BookOpen size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />

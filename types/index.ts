@@ -13,20 +13,42 @@ export interface FinancialSnapshot {
   savingsRate: number;
   monthsOfRunway: number;
   debtToIncomeRatio: number;
+  fixedCostRatio: number;
   healthScore: number;
   healthLabel: 'Critical' | 'Needs Attention' | 'Stable' | 'Strong' | 'Excellent';
 }
 
-export interface WeeklyFocus {
-  id: string;
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  category: 'save' | 'reduce' | 'learn' | 'buffer';
-  progress: number;
-  agentReasoning: string;
+export interface AgentOutput {
+  summary: string;
+  reasoning: string;
+  assumptions: string[];
+  whatWouldChange: string[];
+  timestamp: string;
+  confidence: number;
 }
 
+export interface FinancialRealityOutput extends AgentOutput {
+  snapshot: FinancialSnapshot;
+  keyMetrics: {
+    label: string;
+    value: string;
+    status: 'positive' | 'neutral' | 'negative';
+  }[];
+}
+
+export interface MarketIndicator {
+  name: string;
+  description: string;
+  trend: 'up' | 'stable' | 'down';
+}
+
+export interface MarketContextOutput extends AgentOutput {
+  sentiment: 'cautious' | 'neutral' | 'optimistic';
+  indicators: MarketIndicator[];
+  educationalNote: string;
+}
+
+// Legacy MarketContext type for backwards compatibility
 export interface MarketContext {
   overallSentiment: 'cautious' | 'neutral' | 'optimistic';
   stocksDescription: string;
@@ -43,15 +65,57 @@ export interface Scenario {
   description: string;
   monthlyContribution: number;
   duration: number;
+  projectedSavings: number;
   projectedOutcome: number;
+  monthsToGoal: number;
   riskLevel: 'low' | 'medium' | 'high';
+  tradeoffs: string[];
   reasoning: string;
+}
+
+export interface ScenarioOutput extends AgentOutput {
+  scenarios: Scenario[];
+  recommendation: string;
+}
+
+export interface WeeklyFocus {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  category: 'save' | 'reduce' | 'learn' | 'buffer';
+  progress: number;
+  agentReasoning: string;
+}
+
+export interface WeeklyAction {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  category: 'save' | 'reduce' | 'learn' | 'buffer';
+  targetAmount?: number;
+  completed: boolean;
+  reasoning: string;
+}
+
+export interface Intervention {
+  id: string;
+  type: 'income_change' | 'goal_reached' | 'low_engagement' | 'disruption';
+  title: string;
+  message: string;
+  actionRequired: boolean;
+}
+
+export interface AdaptationOutput extends AgentOutput {
+  weeklyPlan: WeeklyAction[];
+  interventions: Intervention[];
 }
 
 export interface AgentInsight {
   id: string;
   agentName: string;
-  agentType: 'financial-reality' | 'market-context' | 'scenario-learning' | 'adaptation';
+  agentType: AgentType;
   timestamp: string;
   title: string;
   message: string;
@@ -60,6 +124,33 @@ export interface AgentInsight {
   confidence: number;
   icon: string;
 }
+
+export interface LearningCard {
+  id: string;
+  title: string;
+  summary: string;
+  content: string;
+  category: 'basics' | 'saving' | 'budgeting' | 'planning';
+  readTime: number;
+  completed: boolean;
+}
+
+export interface AgentState {
+  financialReality: FinancialRealityOutput | null;
+  marketContext: MarketContextOutput | null;
+  scenarios: ScenarioOutput | null;
+  adaptation: AdaptationOutput | null;
+  lastOrchestration: string | null;
+  isProcessing: boolean;
+}
+
+export interface DemoState {
+  isActive: boolean;
+  currentDisruption: 'none' | 'income_drop' | 'expense_spike' | 'goal_reached';
+  disruptionApplied: boolean;
+}
+
+export type AgentType = 'financial-reality' | 'market-context' | 'scenario-learning' | 'adaptation';
 
 export interface OnboardingData {
   step: number;
@@ -70,12 +161,4 @@ export interface OnboardingData {
   essentialsCost: number;
   savings: number;
   debts: number;
-}
-
-export type AgentType = 'financial-reality' | 'market-context' | 'scenario-learning' | 'adaptation';
-
-export interface AgentState {
-  isProcessing: boolean;
-  lastRun: string | null;
-  reasoningLog: string[];
 }

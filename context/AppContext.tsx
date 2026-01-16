@@ -5,21 +5,25 @@ import {
   UserFinancials, 
   FinancialSnapshot, 
   WeeklyFocus, 
-  MarketContext, 
-  Scenario, 
-  AgentInsight 
+  MarketContext,
+  Scenario,
+  AgentInsight,
+  FinancialRealityOutput,
+  MarketContextOutput,
+  ScenarioOutput,
+  AdaptationOutput,
 } from '@/types';
 import { 
-  financialRealityAgent, 
-  marketContextAgent, 
-  scenarioLearningAgent, 
-  adaptationAgent 
+  financialRealityAgent,
+  marketContextAgent,
+  scenarioLearningAgent,
+  adaptationAgent,
 } from '@/agents';
 import { 
   DEMO_FINANCIALS, 
-  DEMO_MARKET_CONTEXT, 
-  DEMO_WEEKLY_FOCUSES, 
-  DEMO_AGENT_INSIGHTS 
+  DEMO_MARKET_CONTEXT,
+  DEMO_WEEKLY_FOCUSES,
+  DEMO_AGENT_INSIGHTS,
 } from '@/constants/mockData';
 
 const STORAGE_KEYS = {
@@ -37,6 +41,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [agentInsights, setAgentInsights] = useState<AgentInsight[]>(DEMO_AGENT_INSIGHTS);
   const [agentsProcessing, setAgentsProcessing] = useState(false);
+  
+  // Store full agent outputs for detailed views
+  const [financialRealityOutput, setFinancialRealityOutput] = useState<FinancialRealityOutput | null>(null);
+  const [marketContextOutput, setMarketContextOutput] = useState<MarketContextOutput | null>(null);
+  const [scenarioOutput, setScenarioOutput] = useState<ScenarioOutput | null>(null);
+  const [adaptationOutput, setAdaptationOutput] = useState<AdaptationOutput | null>(null);
 
   useEffect(() => {
     loadStoredData();
@@ -45,7 +55,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   const loadStoredData = async () => {
     try {
-      console.log('[AppContext] Loading stored data...');
       const [storedFinancials, storedOnboarded] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.FINANCIALS),
         AsyncStorage.getItem(STORAGE_KEYS.ONBOARDED),
@@ -75,29 +84,103 @@ export const [AppProvider, useApp] = createContextHook(() => {
     setAgentsProcessing(true);
 
     try {
-      console.log('[FinancialRealityAgent] Calculating snapshot...');
-      const newSnapshot = financialRealityAgent.calculateSnapshot(currentFinancials);
-      setSnapshot(newSnapshot);
+      // Financial Reality Agent
+      console.log('[FinancialRealityAgent] Analyzing...');
+      const frOutput = financialRealityAgent.analyze(currentFinancials);
+      setFinancialRealityOutput(frOutput);
+      setSnapshot(frOutput.snapshot);
 
-      console.log('[MarketContextAgent] Generating market context...');
-      const newMarketContext = marketContextAgent.generateMarketContext();
-      setMarketContext(newMarketContext);
+      // Market Context Agent
+      console.log('[MarketContextAgent] Analyzing...');
+      const mcOutput = marketContextAgent.analyze();
+      setMarketContextOutput(mcOutput);
+      
+      // Convert to legacy MarketContext format for backwards compatibility
+      const legacyMarketContext: MarketContext = {
+        overallSentiment: mcOutput.sentiment,
+        stocksDescription: mcOutput.indicators.find(i => i.name === 'Stock Markets')?.description || '',
+        bondsDescription: mcOutput.indicators.find(i => i.name === 'Bond Yields')?.description || '',
+        inflationDescription: mcOutput.indicators.find(i => i.name === 'Inflation')?.description || '',
+        goldDescription: mcOutput.indicators.find(i => i.name === 'Precious Metals')?.description || '',
+        lastUpdated: mcOutput.timestamp,
+        educationalNote: mcOutput.educationalNote,
+      };
+      setMarketContext(legacyMarketContext);
 
-      console.log('[ScenarioLearningAgent] Generating scenarios...');
-      const newScenarios = scenarioLearningAgent.generateScenarios(currentFinancials, newSnapshot);
-      setScenarios(newScenarios);
+      // Scenario Learning Agent
+      console.log('[ScenarioLearningAgent] Analyzing...');
+      const slOutput = scenarioLearningAgent.analyze(currentFinancials, frOutput.snapshot);
+      setScenarioOutput(slOutput);
+      setScenarios(slOutput.scenarios);
 
-      console.log('[AdaptationAgent] Generating weekly focuses...');
-      const newFocuses = adaptationAgent.generateWeeklyFocuses(currentFinancials, newSnapshot);
-      setWeeklyFocuses(newFocuses);
+      // Adaptation Agent
+      console.log('[AdaptationAgent] Analyzing...');
+      const adOutput = adaptationAgent.analyze(currentFinancials, frOutput.snapshot);
+      setAdaptationOutput(adOutput);
+      
+      // Convert weekly actions to weekly focuses format
+      const weeklyFocuses: WeeklyFocus[] = adOutput.weeklyPlan.map(action => ({
+        id: action.id,
+        title: action.title,
+        description: action.description,
+        priority: action.priority,
+        category: action.category,
+        progress: action.completed ? 100 : 0,
+        agentReasoning: action.reasoning,
+      }));
+      setWeeklyFocuses(weeklyFocuses);
 
-      const newInsights: AgentInsight[] = [
-        financialRealityAgent.generateInsight(currentFinancials, newSnapshot),
-        marketContextAgent.generateInsight(newMarketContext),
-        scenarioLearningAgent.generateInsight(currentFinancials, newSnapshot),
-        adaptationAgent.generateInsight(0),
+      // Generate insights from each agent
+      const insights: AgentInsight[] = [
+        {
+          id: `fr-${Date.now()}`,
+          agentName: 'Financial Reality',
+          agentType: 'financial-reality',
+          timestamp: frOutput.timestamp,
+          title: 'Snapshot Updated',
+          message: frOutput.summary,
+          reasoning: frOutput.reasoning,
+          actionTaken: 'Updated dashboard metrics and recalculated weekly priorities.',
+          confidence: frOutput.confidence,
+          icon: 'wallet',
+        },
+        {
+          id: `mc-${Date.now()}`,
+          agentName: 'Market Context',
+          agentType: 'market-context',
+          timestamp: mcOutput.timestamp,
+          title: 'Economic Context Refreshed',
+          message: mcOutput.summary,
+          reasoning: mcOutput.reasoning,
+          confidence: mcOutput.confidence,
+          icon: 'trending-up',
+        },
+        {
+          id: `sl-${Date.now()}`,
+          agentName: 'Scenario & Learning',
+          agentType: 'scenario-learning',
+          timestamp: slOutput.timestamp,
+          title: 'Projections Recalculated',
+          message: slOutput.summary,
+          reasoning: slOutput.reasoning,
+          actionTaken: 'Generated 3 scenario comparisons for review.',
+          confidence: slOutput.confidence,
+          icon: 'git-branch',
+        },
+        {
+          id: `ad-${Date.now()}`,
+          agentName: 'Adaptation',
+          agentType: 'adaptation',
+          timestamp: adOutput.timestamp,
+          title: 'Weekly Plan Updated',
+          message: adOutput.summary,
+          reasoning: adOutput.reasoning,
+          actionTaken: 'Generated personalized weekly action plan.',
+          confidence: adOutput.confidence,
+          icon: 'refresh-cw',
+        },
       ];
-      setAgentInsights(newInsights);
+      setAgentInsights(insights);
 
       console.log('[AppContext] Agent pipeline completed');
     } catch (error) {
@@ -164,6 +247,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
     scenarios,
     agentInsights,
     agentsProcessing,
+    financialRealityOutput,
+    marketContextOutput,
+    scenarioOutput,
+    adaptationOutput,
     updateFinancials,
     completeOnboarding,
     updateFocusProgress,

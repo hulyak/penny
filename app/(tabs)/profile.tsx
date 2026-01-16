@@ -8,28 +8,26 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { 
-  User, 
-  DollarSign, 
-  Home, 
-  Car, 
-  ShoppingBag,
+  User,
+  DollarSign,
+  Home,
+  Car,
+  ShoppingCart,
   PiggyBank,
   CreditCard,
   RefreshCw,
   Save,
-  Info,
+  Edit3,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { Card } from '@/components/Card';
 import Colors from '@/constants/colors';
-import { UserFinancials } from '@/types';
 
 export default function ProfileScreen() {
   const { financials, updateFinancials, resetDemo } = useApp();
   const [isEditing, setIsEditing] = useState(false);
-  const [editedFinancials, setEditedFinancials] = useState<UserFinancials>(financials);
+  const [editedFinancials, setEditedFinancials] = useState({ ...financials });
 
   const handleSave = () => {
     updateFinancials(editedFinancials);
@@ -38,7 +36,7 @@ export default function ProfileScreen() {
 
   const handleReset = () => {
     Alert.alert(
-      'Reset to Demo Mode',
+      'Reset to Demo',
       'This will reset all your data to demo values. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -47,43 +45,49 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: () => {
             resetDemo();
-            setEditedFinancials(financials);
+            setIsEditing(false);
           },
         },
       ]
     );
   };
 
-  const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
-
-  const updateField = (field: keyof UserFinancials, value: string) => {
+  const updateField = (field: string, value: string) => {
     const numValue = parseInt(value.replace(/[^0-9]/g, ''), 10) || 0;
-    setEditedFinancials({ ...editedFinancials, [field]: numValue });
+    setEditedFinancials(prev => ({ ...prev, [field]: numValue }));
   };
 
   const renderField = (
     label: string,
-    field: keyof UserFinancials,
+    field: string,
     icon: React.ReactNode
-  ) => (
-    <View style={styles.fieldRow}>
-      <View style={styles.fieldLabel}>
-        {icon}
-        <Text style={styles.labelText}>{label}</Text>
+  ) => {
+    const value = isEditing 
+      ? editedFinancials[field as keyof typeof editedFinancials]
+      : financials[field as keyof typeof financials];
+
+    return (
+      <View style={styles.fieldRow}>
+        <View style={styles.fieldLeft}>
+          {icon}
+          <Text style={styles.fieldLabel}>{label}</Text>
+        </View>
+        {isEditing ? (
+          <TextInput
+            style={styles.input}
+            value={String(value)}
+            onChangeText={(text) => updateField(field, text)}
+            keyboardType="numeric"
+            placeholder="0"
+          />
+        ) : (
+          <Text style={styles.fieldValue}>
+            ${(value as number).toLocaleString()}
+          </Text>
+        )}
       </View>
-      {isEditing ? (
-        <TextInput
-          style={styles.input}
-          value={editedFinancials[field].toString()}
-          onChangeText={(text) => updateField(field, text)}
-          keyboardType="numeric"
-          placeholder="0"
-        />
-      ) : (
-        <Text style={styles.fieldValue}>{formatCurrency(financials[field])}</Text>
-      )}
-    </View>
-  );
+    );
+  };
 
   return (
     <ScrollView 
@@ -91,30 +95,32 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <LinearGradient
-        colors={[Colors.primary, Colors.primaryLight]}
-        style={styles.headerGradient}
-      >
+      <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <User size={32} color={Colors.textLight} />
-          </View>
+          <User size={32} color={Colors.accent} />
         </View>
-        <Text style={styles.title}>Your Financial Profile</Text>
+        <Text style={styles.title}>Your Profile</Text>
         <Text style={styles.subtitle}>
           Update your numbers anytime. Agents will recalculate automatically.
         </Text>
-      </LinearGradient>
+      </View>
 
-      <Card style={styles.card} variant="elevated">
+      <Card style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Monthly Finances</Text>
+          <Text style={styles.cardTitle}>Income & Expenses</Text>
           {!isEditing ? (
-            <Pressable style={styles.editButton} onPress={() => setIsEditing(true)}>
+            <Pressable 
+              style={styles.editButton}
+              onPress={() => setIsEditing(true)}
+            >
+              <Edit3 size={16} color={Colors.accent} />
               <Text style={styles.editButtonText}>Edit</Text>
             </Pressable>
           ) : (
-            <Pressable style={styles.saveButton} onPress={handleSave}>
+            <Pressable 
+              style={styles.saveButton}
+              onPress={handleSave}
+            >
               <Save size={16} color="#fff" />
               <Text style={styles.saveButtonText}>Save</Text>
             </Pressable>
@@ -122,54 +128,42 @@ export default function ProfileScreen() {
         </View>
 
         {renderField('Monthly Income', 'monthlyIncome', 
-          <DollarSign size={18} color={Colors.accent} />
+          <DollarSign size={18} color={Colors.success} />
         )}
-        {renderField('Housing Cost', 'housingCost', 
-          <Home size={18} color={Colors.secondary} />
+        {renderField('Housing', 'housingCost', 
+          <Home size={18} color={Colors.accent} />
         )}
-        {renderField('Car Cost', 'carCost', 
+        {renderField('Transportation', 'carCost', 
           <Car size={18} color={Colors.warning} />
         )}
         {renderField('Essentials', 'essentialsCost', 
-          <ShoppingBag size={18} color={Colors.agents.scenarioLearning} />
+          <ShoppingCart size={18} color={Colors.agents.scenarioLearning} />
         )}
       </Card>
 
-      <Card style={styles.card} variant="elevated">
-        <Text style={styles.cardTitle}>Savings & Debts</Text>
+      <Card style={styles.card}>
+        <Text style={styles.cardTitle}>Savings & Debt</Text>
         
         {renderField('Current Savings', 'savings', 
-          <PiggyBank size={18} color={Colors.accent} />
+          <PiggyBank size={18} color={Colors.success} />
         )}
-        {renderField('Total Debts', 'debts', 
+        {renderField('Total Debt', 'debts', 
           <CreditCard size={18} color={Colors.danger} />
         )}
         {renderField('Emergency Goal', 'emergencyFundGoal', 
-          <DollarSign size={18} color={Colors.secondary} />
+          <DollarSign size={18} color={Colors.accent} />
         )}
-      </Card>
-
-      <Card style={styles.infoCard}>
-        <View style={styles.infoHeader}>
-          <Info size={18} color={Colors.secondary} />
-          <Text style={styles.infoTitle}>How Agents Use Your Data</Text>
-        </View>
-        <Text style={styles.infoText}>
-          Your financial data stays on your device. Our AI agents analyze it locally 
-          to generate personalized insights, scenarios, and weekly focus items. 
-          No data is shared or sold.
-        </Text>
       </Card>
 
       <Pressable style={styles.resetButton} onPress={handleReset}>
         <RefreshCw size={18} color={Colors.danger} />
-        <Text style={styles.resetText}>Reset to Demo Mode</Text>
+        <Text style={styles.resetText}>Reset to Demo Data</Text>
       </Pressable>
 
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
-          ClearPath is an educational tool. It does not provide financial advice, 
-          investment recommendations, or predictions.
+          Your data stays on your device. ClearPath is an educational tool 
+          and does not provide financial advice.
         </Text>
       </View>
     </ScrollView>
@@ -182,42 +176,36 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    padding: 16,
     paddingBottom: 32,
   },
-  headerGradient: {
-    paddingTop: 24,
-    paddingBottom: 32,
-    paddingHorizontal: 20,
+  header: {
     alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    marginBottom: 24,
   },
   avatarContainer: {
-    marginBottom: 16,
-  },
-  avatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.accent + '15',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.textLight,
-    marginBottom: 8,
+    color: Colors.text,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.textLight,
-    opacity: 0.8,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   card: {
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginBottom: 16,
+    padding: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -231,23 +219,26 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: Colors.secondary + '15',
-    borderRadius: 8,
+    backgroundColor: Colors.accent + '15',
+    borderRadius: 6,
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.secondary,
+    color: Colors.accent,
+    marginLeft: 4,
   },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: Colors.accent,
-    borderRadius: 8,
+    backgroundColor: Colors.success,
+    borderRadius: 6,
   },
   saveButtonText: {
     fontSize: 14,
@@ -263,14 +254,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  fieldLabel: {
+  fieldLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  labelText: {
+  fieldLabel: {
     fontSize: 15,
     color: Colors.text,
-    marginLeft: 10,
+    marginLeft: 12,
   },
   fieldValue: {
     fontSize: 16,
@@ -281,47 +272,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.surfaceSecondary,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
     minWidth: 100,
     textAlign: 'right',
-  },
-  infoCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: Colors.secondary + '10',
-    borderWidth: 1,
-    borderColor: Colors.secondary + '30',
-  },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.secondary,
-    marginLeft: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
   },
   resetButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 16,
-    marginTop: 24,
     paddingVertical: 14,
     backgroundColor: Colors.danger + '10',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.danger + '30',
+    marginTop: 8,
   },
   resetText: {
     fontSize: 15,
@@ -330,11 +297,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   disclaimer: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: Colors.border,
-    borderRadius: 12,
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 8,
   },
   disclaimerText: {
     fontSize: 12,

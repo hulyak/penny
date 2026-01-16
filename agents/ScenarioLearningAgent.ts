@@ -1,4 +1,4 @@
-import { UserFinancials, FinancialSnapshot, Scenario, AgentInsight } from '@/types';
+import { UserFinancials, FinancialSnapshot, Scenario, ScenarioOutput } from '@/types';
 
 export class ScenarioLearningAgent {
   private reasoningLog: string[] = [];
@@ -9,95 +9,136 @@ export class ScenarioLearningAgent {
     console.log(`[ScenarioLearningAgent] ${message}`);
   }
 
-  generateScenarios(financials: UserFinancials, snapshot: FinancialSnapshot): Scenario[] {
+  analyze(financials: UserFinancials, snapshot: FinancialSnapshot): ScenarioOutput {
     this.reasoningLog = [];
-    this.log('Generating personalized scenarios based on financial snapshot...');
+    this.log('Generating scenarios based on financial snapshot...');
 
+    const scenarios = this.generateScenarios(financials, snapshot);
+    const recommendation = this.generateRecommendation(financials, snapshot, scenarios);
+
+    return {
+      summary: this.generateSummary(financials, snapshot),
+      reasoning: this.generateReasoning(financials, snapshot),
+      assumptions: this.getAssumptions(),
+      whatWouldChange: this.getWhatWouldChange(snapshot),
+      timestamp: new Date().toISOString(),
+      confidence: 0.88,
+      scenarios,
+      recommendation,
+    };
+  }
+
+  private generateScenarios(financials: UserFinancials, snapshot: FinancialSnapshot): Scenario[] {
     const availableForSaving = snapshot.disposableIncome;
-    this.log(`Available monthly savings capacity: $${availableForSaving.toFixed(0)}`);
+    this.log(`Available monthly savings: $${availableForSaving.toFixed(0)}`);
 
-    const emergencyGap = financials.emergencyFundGoal - financials.savings;
+    const emergencyGap = Math.max(0, financials.emergencyFundGoal - financials.savings);
     this.log(`Emergency fund gap: $${emergencyGap.toFixed(0)}`);
 
     const scenarios: Scenario[] = [];
 
-    const conservativeContribution = Math.min(availableForSaving * 0.3, 400);
-    const conservativeMonths = Math.ceil(emergencyGap / conservativeContribution);
-    this.log(`Conservative path: $${conservativeContribution}/month = ${conservativeMonths} months to goal`);
-
+    const conservativeContribution = Math.round(Math.min(availableForSaving * 0.3, 400));
+    const conservativeMonths = conservativeContribution > 0 ? Math.ceil(emergencyGap / conservativeContribution) : 999;
+    
     scenarios.push({
       id: 'conservative',
-      name: 'Steady & Safe',
-      description: 'A comfortable pace that leaves room for life\'s surprises.',
-      monthlyContribution: Math.round(conservativeContribution),
+      name: 'Steady & Sustainable',
+      description: 'A comfortable pace that leaves room for life\'s surprises and enjoyment.',
+      monthlyContribution: conservativeContribution,
       duration: 36,
+      projectedSavings: financials.savings + (conservativeContribution * 36),
       projectedOutcome: financials.savings + (conservativeContribution * 36),
+      monthsToGoal: conservativeMonths,
       riskLevel: 'low',
-      reasoning: `Contributing $${Math.round(conservativeContribution)}/month uses about ${((conservativeContribution / availableForSaving) * 100).toFixed(0)}% of your disposable income. This sustainable pace means you'll reach your emergency fund goal in approximately ${conservativeMonths} months while maintaining flexibility.`,
+      tradeoffs: [
+        'Slower progress toward emergency fund goal',
+        'More flexibility for unexpected expenses',
+        'Less lifestyle sacrifice required',
+      ],
+      reasoning: `Contributing $${conservativeContribution}/month uses ${((conservativeContribution / availableForSaving) * 100).toFixed(0)}% of your disposable income. You'll reach your goal in ~${conservativeMonths} months while maintaining flexibility.`,
     });
 
-    const balancedContribution = Math.min(availableForSaving * 0.5, 600);
-    const balancedMonths = Math.ceil(emergencyGap / balancedContribution);
-    this.log(`Balanced path: $${balancedContribution}/month = ${balancedMonths} months to goal`);
+    const balancedContribution = Math.round(Math.min(availableForSaving * 0.5, 600));
+    const balancedMonths = balancedContribution > 0 ? Math.ceil(emergencyGap / balancedContribution) : 999;
 
     scenarios.push({
       id: 'balanced',
-      name: 'Balanced Growth',
+      name: 'Balanced Progress',
       description: 'A middle path that accelerates progress without major sacrifice.',
-      monthlyContribution: Math.round(balancedContribution),
+      monthlyContribution: balancedContribution,
       duration: 36,
+      projectedSavings: financials.savings + (balancedContribution * 36),
       projectedOutcome: financials.savings + (balancedContribution * 36),
+      monthsToGoal: balancedMonths,
       riskLevel: 'medium',
-      reasoning: `At $${Math.round(balancedContribution)}/month, you're committing half your disposable income to savings. This gets you to your emergency fund in about ${balancedMonths} months. You'll feel the commitment but shouldn't feel squeezed.`,
+      tradeoffs: [
+        'Moderate lifestyle adjustments needed',
+        'Faster progress toward security',
+        'Some buffer for small unexpected costs',
+      ],
+      reasoning: `At $${balancedContribution}/month, you're committing half your disposable income. Goal reached in ~${balancedMonths} months with moderate effort.`,
     });
 
-    const aggressiveContribution = Math.min(availableForSaving * 0.75, 900);
-    const aggressiveMonths = Math.ceil(emergencyGap / aggressiveContribution);
-    this.log(`Aggressive path: $${aggressiveContribution}/month = ${aggressiveMonths} months to goal`);
+    const aggressiveContribution = Math.round(Math.min(availableForSaving * 0.75, 900));
+    const aggressiveMonths = aggressiveContribution > 0 ? Math.ceil(emergencyGap / aggressiveContribution) : 999;
 
     scenarios.push({
       id: 'aggressive',
-      name: 'Accelerated',
-      description: 'Maximum focus on building your safety net quickly.',
-      monthlyContribution: Math.round(aggressiveContribution),
+      name: 'Accelerated Focus',
+      description: 'Maximum focus on building your safety net as quickly as possible.',
+      monthlyContribution: aggressiveContribution,
       duration: 36,
+      projectedSavings: financials.savings + (aggressiveContribution * 36),
       projectedOutcome: financials.savings + (aggressiveContribution * 36),
+      monthsToGoal: aggressiveMonths,
       riskLevel: 'high',
-      reasoning: `Contributing $${Math.round(aggressiveContribution)}/month is ambitious—about ${((aggressiveContribution / availableForSaving) * 100).toFixed(0)}% of your disposable income. You'd reach your emergency fund goal in just ${aggressiveMonths} months, but this leaves little room for unexpected expenses or enjoyment.`,
+      tradeoffs: [
+        'Significant lifestyle adjustments required',
+        'Fastest path to financial security',
+        'Little room for discretionary spending',
+      ],
+      reasoning: `Contributing $${aggressiveContribution}/month is ambitious—${((aggressiveContribution / availableForSaving) * 100).toFixed(0)}% of disposable income. Goal reached in just ~${aggressiveMonths} months.`,
     });
 
-    this.log('All scenarios generated successfully');
+    this.log('All scenarios generated');
     return scenarios;
   }
 
-  compareScenarios(scenarios: Scenario[]): string {
-    this.log('Comparing scenario outcomes...');
-    
-    const sorted = [...scenarios].sort((a, b) => b.projectedOutcome - a.projectedOutcome);
-    const fastest = scenarios.reduce((min, s) => 
-      s.monthlyContribution > 0 && s.projectedOutcome >= 16500 ? 
-        (min.monthlyContribution > s.monthlyContribution ? s : min) : min
-    , scenarios[0]);
-
-    return `The "${sorted[0].name}" path projects the highest outcome at $${sorted[0].projectedOutcome.toLocaleString()}, while "${fastest.name}" offers the most sustainable approach at $${fastest.monthlyContribution}/month.`;
+  private generateRecommendation(financials: UserFinancials, snapshot: FinancialSnapshot, scenarios: Scenario[]): string {
+    if (snapshot.monthsOfRunway < 1) {
+      return 'Given your current runway, the Balanced approach provides a good mix of urgency and sustainability.';
+    }
+    if (snapshot.monthsOfRunway >= 3) {
+      return 'With your solid foundation, the Steady approach lets you build further while maintaining quality of life.';
+    }
+    return 'The Balanced approach typically works well for building an emergency fund while maintaining some flexibility.';
   }
 
-  generateInsight(financials: UserFinancials, snapshot: FinancialSnapshot): AgentInsight {
-    const emergencyGap = financials.emergencyFundGoal - financials.savings;
-    const monthsToGoal = Math.ceil(emergencyGap / (snapshot.disposableIncome * 0.3));
+  private generateSummary(financials: UserFinancials, snapshot: FinancialSnapshot): string {
+    const monthsToGoal = Math.ceil((financials.emergencyFundGoal - financials.savings) / (snapshot.disposableIncome * 0.3));
+    return `At your current pace, you'll reach your emergency fund goal in approximately ${monthsToGoal} months. I've modeled three paths with different intensity levels.`;
+  }
 
-    return {
-      id: `sl-${Date.now()}`,
-      agentName: 'Scenario & Learning',
-      agentType: 'scenario-learning',
-      timestamp: new Date().toISOString(),
-      title: 'Projections Recalculated',
-      message: `Based on your current pace, you'll reach your emergency fund goal in approximately ${monthsToGoal} months.`,
-      reasoning: `With $${Math.round(snapshot.disposableIncome * 0.3)}/month toward savings and a $${financials.emergencyFundGoal.toLocaleString()} goal, simple arithmetic shows ${monthsToGoal} months. I've also modeled alternative paths if you adjust your contribution rate.`,
-      actionTaken: 'Generated 3 scenario comparisons for your review.',
-      confidence: 0.91,
-      icon: 'git-branch',
-    };
+  private generateReasoning(financials: UserFinancials, snapshot: FinancialSnapshot): string {
+    return `With $${snapshot.disposableIncome.toLocaleString()} monthly disposable income and a $${financials.emergencyFundGoal.toLocaleString()} emergency fund goal, I calculated three paths at 30%, 50%, and 75% of available income. Each path represents a different balance between speed and sustainability.`;
+  }
+
+  private getAssumptions(): string[] {
+    return [
+      'Income and expenses remain stable during the projection period',
+      'No major unexpected expenses occur',
+      'Contributions are made consistently each month',
+      'Savings earn minimal interest (not factored into projections)',
+    ];
+  }
+
+  private getWhatWouldChange(snapshot: FinancialSnapshot): string[] {
+    return [
+      'A $500/month income increase would significantly accelerate all timelines',
+      'Reducing fixed costs would increase disposable income for saving',
+      'An unexpected expense would extend the timeline proportionally',
+      'Starting with more savings would reduce time to goal',
+    ];
   }
 
   getReasoningLog(): string[] {
