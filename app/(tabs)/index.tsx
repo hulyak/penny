@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -16,11 +16,14 @@ import {
   PiggyBank,
   Target,
   Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { useCoach } from '@/context/CoachContext';
 import { Card } from '@/components/Card';
 import { ScreenCoachCard } from '@/components/CoachCard';
+import { WhatWouldChange } from '@/components/WhatWouldChange';
 import Colors from '@/constants/colors';
 
 const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
@@ -33,10 +36,12 @@ export default function OverviewScreen() {
     weeklyFocuses,
     isLoading,
     hasOnboarded,
+    financialRealityOutput,
   } = useApp();
   const { triggerDailyCheckIn } = useCoach();
   
   const [refreshing, setRefreshing] = React.useState(false);
+  const [showHealthDetails, setShowHealthDetails] = useState(false);
   const hasTriggeredCheckIn = React.useRef(false);
 
   React.useEffect(() => {
@@ -86,41 +91,69 @@ export default function OverviewScreen() {
 
       {/* Health Score Card */}
       <Card style={styles.healthCard}>
-        <View style={styles.healthHeader}>
-          <Text style={styles.healthLabel}>Financial Health</Text>
-          <View style={[styles.healthBadge, { backgroundColor: healthColor + '15' }]}>
-            <Text style={[styles.healthBadgeText, { color: healthColor }]}>
-              {snapshot.healthLabel}
-            </Text>
+        <Pressable onPress={() => setShowHealthDetails(!showHealthDetails)}>
+          <View style={styles.healthHeader}>
+            <Text style={styles.healthLabel}>Financial Health</Text>
+            <View style={styles.healthHeaderRight}>
+              <View style={[styles.healthBadge, { backgroundColor: healthColor + '15' }]}>
+                <Text style={[styles.healthBadgeText, { color: healthColor }]}>
+                  {snapshot.healthLabel}
+                </Text>
+              </View>
+              {showHealthDetails ? (
+                <ChevronUp size={18} color={Colors.textMuted} style={{ marginLeft: 8 }} />
+              ) : (
+                <ChevronDown size={18} color={Colors.textMuted} style={{ marginLeft: 8 }} />
+              )}
+            </View>
           </View>
-        </View>
         
-        <View style={styles.scoreRow}>
-          <View style={styles.scoreCircle}>
-            <Text style={[styles.scoreNumber, { color: healthColor }]}>
-              {snapshot.healthScore}
-            </Text>
-            <Text style={styles.scoreMax}>/100</Text>
-          </View>
+          <View style={styles.scoreRow}>
+            <View style={styles.scoreCircle}>
+              <Text style={[styles.scoreNumber, { color: healthColor }]}>
+                {snapshot.healthScore}
+              </Text>
+              <Text style={styles.scoreMax}>/100</Text>
+            </View>
           
-          <View style={styles.metricsColumn}>
-            <MetricRow 
-              icon={<Wallet size={16} color={Colors.accent} />}
-              label="Disposable" 
-              value={`$${snapshot.disposableIncome.toLocaleString()}/mo`}
-            />
-            <MetricRow 
-              icon={<TrendingUp size={16} color={Colors.success} />}
-              label="Savings Rate" 
-              value={`${snapshot.savingsRate.toFixed(0)}%`}
-            />
-            <MetricRow 
-              icon={<Target size={16} color={Colors.warning} />}
-              label="Runway" 
-              value={`${snapshot.monthsOfRunway.toFixed(1)} months`}
+            <View style={styles.metricsColumn}>
+              <MetricRow 
+                icon={<Wallet size={16} color={Colors.accent} />}
+                label="Disposable" 
+                value={`${snapshot.disposableIncome.toLocaleString()}/mo`}
+              />
+              <MetricRow 
+                icon={<TrendingUp size={16} color={Colors.success} />}
+                label="Savings Rate" 
+                value={`${snapshot.savingsRate.toFixed(0)}%`}
+              />
+              <MetricRow 
+                icon={<Target size={16} color={Colors.warning} />}
+                label="Runway" 
+                value={`${snapshot.monthsOfRunway.toFixed(1)} months`}
+              />
+            </View>
+          </View>
+        </Pressable>
+
+        {showHealthDetails && (
+          <View style={styles.healthDetailsSection}>
+            {financialRealityOutput?.reasoning && (
+              <View style={styles.reasoningBox}>
+                <Text style={styles.reasoningLabel}>Why this score?</Text>
+                <Text style={styles.reasoningText}>{financialRealityOutput.reasoning}</Text>
+              </View>
+            )}
+            
+            <WhatWouldChange 
+              items={financialRealityOutput?.whatWouldChange || [
+                'Increasing your savings rate by 5%',
+                'Reducing fixed costs below 50% of income',
+                'Building 3+ months of emergency runway',
+              ]}
             />
           </View>
-        </View>
+        )}
       </Card>
 
       {/* Emergency Fund Progress */}
@@ -262,6 +295,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  healthHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  healthDetailsSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  reasoningBox: {
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    padding: 12,
+  },
+  reasoningLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  reasoningText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
   },
   healthLabel: {
     fontSize: 14,

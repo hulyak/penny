@@ -133,33 +133,50 @@ function MessagesTab({
       <View style={styles.emptyState}>
         <MessageCircle size={32} color={Colors.textMuted} />
         <Text style={styles.emptyText}>No messages yet</Text>
+        <Text style={styles.emptySubtext}>Check back later for insights!</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.messagesList}>
-      {messages.map((msg) => (
+      {messages.map((msg, index) => (
         <Pressable 
           key={msg.id} 
-          style={[styles.messageCard, !msg.read && styles.messageUnread]}
+          style={[
+            styles.messageCard, 
+            !msg.read && styles.messageUnread,
+            index === 0 && !msg.read && styles.messageLatest
+          ]}
           onPress={() => onMarkRead(msg.id)}
         >
           <View style={styles.messageHeader}>
             <View style={styles.messageType}>
-              {getMessageIcon(msg.type)}
-              <Text style={styles.messageTitle}>{msg.title}</Text>
+              <View style={[
+                styles.messageIconWrapper,
+                !msg.read && styles.messageIconWrapperUnread
+              ]}>
+                {getMessageIcon(msg.type)}
+              </View>
+              <Text style={[styles.messageTitle, !msg.read && styles.messageTitleUnread]}>
+                {msg.title}
+              </Text>
             </View>
             <Text style={styles.messageTime}>{formatTime(msg.timestamp)}</Text>
           </View>
           <Text style={styles.messageText}>{msg.message}</Text>
-          <Pressable 
-            style={styles.speakButton}
-            onPress={() => onSpeak(msg.message)}
-          >
-            <Volume2 size={14} color={Colors.accent} />
-            <Text style={styles.speakButtonText}>Listen</Text>
-          </Pressable>
+          <View style={styles.messageActions}>
+            <Pressable 
+              style={styles.speakButton}
+              onPress={() => onSpeak(msg.message)}
+            >
+              <Volume2 size={14} color={Colors.accent} />
+              <Text style={styles.speakButtonText}>Listen</Text>
+            </Pressable>
+            {!msg.read && (
+              <View style={styles.unreadDot} />
+            )}
+          </View>
         </Pressable>
       ))}
     </View>
@@ -383,6 +400,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textMuted,
   },
+  emptySubtext: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
   messagesList: {
     gap: 12,
   },
@@ -396,6 +418,36 @@ const styles = StyleSheet.create({
   messageUnread: {
     borderLeftWidth: 3,
     borderLeftColor: Colors.accent,
+  },
+  messageLatest: {
+    backgroundColor: Colors.accentMuted,
+    borderColor: Colors.accent + '30',
+  },
+  messageIconWrapper: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  messageIconWrapperUnread: {
+    backgroundColor: Colors.accentMuted,
+  },
+  messageTitleUnread: {
+    fontWeight: '700',
+  },
+  messageActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.accent,
   },
   messageHeader: {
     flexDirection: 'row',

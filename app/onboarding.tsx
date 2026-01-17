@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,6 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,15 +20,22 @@ import {
   Car,
   ShoppingCart,
   ChevronLeft,
+  Sparkles,
+  Shield,
+  TrendingUp,
+  PiggyBank,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import Colors from '@/constants/colors';
+
+const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
 
 const STEPS = [
   {
     id: 'welcome',
     title: 'Welcome to ClearPath',
     subtitle: 'Get clarity on your finances in just a few steps.',
+    coachMessage: "Hey! I'm your financial coach. Let's get to know your money situation so I can help you make smarter decisions.",
   },
   {
     id: 'income',
@@ -35,6 +44,7 @@ const STEPS = [
     field: 'monthlyIncome',
     icon: DollarSign,
     placeholder: '5500',
+    coachMessage: "First things first—how much do you bring home each month? This helps me understand your starting point.",
   },
   {
     id: 'housing',
@@ -43,6 +53,7 @@ const STEPS = [
     field: 'housingCost',
     icon: Home,
     placeholder: '1800',
+    coachMessage: "Housing is usually the biggest expense. Include rent or mortgage, plus utilities and insurance.",
   },
   {
     id: 'transportation',
@@ -51,6 +62,7 @@ const STEPS = [
     field: 'carCost',
     icon: Car,
     placeholder: '450',
+    coachMessage: "Getting around costs money! Include car payments, insurance, gas, or transit passes.",
   },
   {
     id: 'essentials',
@@ -59,6 +71,7 @@ const STEPS = [
     field: 'essentialsCost',
     icon: ShoppingCart,
     placeholder: '800',
+    coachMessage: "Last one! Think groceries, healthcare, phone bill—the stuff you can't skip.",
   },
 ];
 
@@ -74,11 +87,62 @@ export default function OnboardingScreen() {
     carCost: '',
     essentialsCost: '',
   });
+  
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const mascotBounce = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(mascotBounce, {
+          toValue: -8,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(mascotBounce, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [mascotBounce]);
 
   const step = STEPS[currentStep];
   const isWelcome = currentStep === 0;
   const isLastStep = currentStep === STEPS.length - 1;
   const progress = ((currentStep) / (STEPS.length - 1)) * 100;
+
+  const animateTransition = (callback: () => void) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: -20,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      callback();
+      slideAnim.setValue(20);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
 
   const handleNext = () => {
     if (isLastStep) {
@@ -97,13 +161,13 @@ export default function OnboardingScreen() {
       completeOnboarding(financials);
       router.replace('/(tabs)');
     } else {
-      setCurrentStep(currentStep + 1);
+      animateTransition(() => setCurrentStep(currentStep + 1));
     }
   };
 
   const handleBack = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      animateTransition(() => setCurrentStep(currentStep - 1));
     }
   };
 
@@ -125,6 +189,30 @@ export default function OnboardingScreen() {
   };
 
   const currentValue = step.field ? values[step.field as keyof typeof values] : '';
+
+  const getInputFeedback = (stepId: string, value: number): string => {
+    if (!value) return '';
+    switch (stepId) {
+      case 'income':
+        if (value < 2000) return "Every dollar counts. Let's make the most of it.";
+        if (value < 5000) return "Solid foundation to work with!";
+        return "Great income! Let's optimize it.";
+      case 'housing':
+        const incomeVal = parseInt(values.monthlyIncome, 10) || 5500;
+        const housingRatio = (value / incomeVal) * 100;
+        if (housingRatio > 40) return `That's ${housingRatio.toFixed(0)}% of income—on the higher side.`;
+        if (housingRatio > 30) return `${housingRatio.toFixed(0)}% of income—pretty typical.`;
+        return `Nice! Only ${housingRatio.toFixed(0)}% of income.`;
+      case 'transportation':
+        if (value > 800) return "That's significant—we'll factor this in.";
+        if (value > 400) return "Standard transportation costs.";
+        return "Low transport costs—that's a plus!";
+      case 'essentials':
+        return "Got it! I'll crunch the numbers now.";
+      default:
+        return '';
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -155,41 +243,71 @@ export default function OnboardingScreen() {
             )}
           </View>
 
+          {/* Coach Message */}
+          <Animated.View 
+            style={[
+              styles.coachSection,
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateX: slideAnim }]
+              }
+            ]}
+          >
+            <Animated.View style={{ transform: [{ translateY: mascotBounce }] }}>
+              <Image source={{ uri: MASCOT_URL }} style={styles.mascot} />
+            </Animated.View>
+            <View style={styles.coachBubble}>
+              <Text style={styles.coachMessage}>{step.coachMessage}</Text>
+            </View>
+          </Animated.View>
+
           {/* Content */}
-          <View style={styles.mainContent}>
+          <Animated.View 
+            style={[
+              styles.mainContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateX: slideAnim }]
+              }
+            ]}
+          >
             {isWelcome ? (
               <View style={styles.welcomeContent}>
-                <View style={styles.logo}>
-                  <Text style={styles.logoText}>CP</Text>
-                </View>
-                <Text style={styles.welcomeTitle}>ClearPath</Text>
-                <Text style={styles.welcomeSubtitle}>
-                  Financial clarity, simplified
-                </Text>
-                
-                <View style={styles.features}>
-                  <View style={styles.feature}>
-                    <View style={styles.featureDot} />
-                    <Text style={styles.featureText}>Track your financial health</Text>
+                <View style={styles.featuresGrid}>
+                  <View style={styles.featureCard}>
+                    <View style={[styles.featureIcon, { backgroundColor: Colors.accentMuted }]}>
+                      <PiggyBank size={22} color={Colors.accent} />
+                    </View>
+                    <Text style={styles.featureTitle}>Track Health</Text>
+                    <Text style={styles.featureDesc}>See your financial snapshot</Text>
                   </View>
-                  <View style={styles.feature}>
-                    <View style={styles.featureDot} />
-                    <Text style={styles.featureText}>Explore different scenarios</Text>
+                  <View style={styles.featureCard}>
+                    <View style={[styles.featureIcon, { backgroundColor: Colors.successMuted }]}>
+                      <TrendingUp size={22} color={Colors.success} />
+                    </View>
+                    <Text style={styles.featureTitle}>Plan Ahead</Text>
+                    <Text style={styles.featureDesc}>Weekly actions that work</Text>
                   </View>
-                  <View style={styles.feature}>
-                    <View style={styles.featureDot} />
-                    <Text style={styles.featureText}>Get personalized weekly plans</Text>
+                  <View style={styles.featureCard}>
+                    <View style={[styles.featureIcon, { backgroundColor: Colors.warningMuted }]}>
+                      <Sparkles size={22} color={Colors.warning} />
+                    </View>
+                    <Text style={styles.featureTitle}>Explore</Text>
+                    <Text style={styles.featureDesc}>Compare scenarios</Text>
                   </View>
-                  <View style={styles.feature}>
-                    <View style={styles.featureDot} />
-                    <Text style={styles.featureText}>Learn financial basics</Text>
+                  <View style={styles.featureCard}>
+                    <View style={[styles.featureIcon, { backgroundColor: '#E8F4F8' }]}>
+                      <Shield size={22} color="#4A9DAD" />
+                    </View>
+                    <Text style={styles.featureTitle}>Learn</Text>
+                    <Text style={styles.featureDesc}>Build money skills</Text>
                   </View>
                 </View>
 
                 <View style={styles.disclaimer}>
+                  <Shield size={14} color={Colors.textMuted} />
                   <Text style={styles.disclaimerText}>
-                    ClearPath is an educational tool. It does not provide 
-                    financial advice or recommendations.
+                    Educational tool only. Not financial advice.
                   </Text>
                 </View>
               </View>
@@ -197,7 +315,7 @@ export default function OnboardingScreen() {
               <View style={styles.inputContent}>
                 {step.icon && (
                   <View style={styles.iconContainer}>
-                    <step.icon size={32} color={Colors.accent} />
+                    <step.icon size={28} color={Colors.accent} />
                   </View>
                 )}
                 
@@ -217,9 +335,17 @@ export default function OnboardingScreen() {
                   />
                   <Text style={styles.perMonth}>/mo</Text>
                 </View>
+
+                {currentValue && (
+                  <View style={styles.inputFeedback}>
+                    <Text style={styles.feedbackText}>
+                      {getInputFeedback(step.id, parseInt(currentValue, 10) || 0)}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
-          </View>
+          </Animated.View>
 
           {/* Footer */}
           <View style={styles.footer}>
@@ -296,77 +422,104 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  coachSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+    paddingTop: 8,
+  },
+  mascot: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  coachBubble: {
+    flex: 1,
+    marginLeft: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  coachMessage: {
+    fontSize: 15,
+    color: Colors.text,
+    lineHeight: 22,
+  },
   welcomeContent: {
     alignItems: 'center',
   },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: Colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
     marginBottom: 20,
   },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#fff',
+  featureCard: {
+    width: '47%',
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  welcomeTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginBottom: 32,
-  },
-  features: {
-    alignSelf: 'stretch',
-    marginBottom: 24,
-  },
-  feature: {
-    flexDirection: 'row',
+  featureIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  featureDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.success,
-    marginRight: 12,
-  },
-  featureText: {
+  featureTitle: {
     fontSize: 15,
+    fontWeight: '600',
     color: Colors.text,
+    marginBottom: 2,
+  },
+  featureDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
   disclaimer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.surfaceSecondary,
-    padding: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     alignSelf: 'stretch',
+    gap: 8,
   },
   disclaimerText: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 12,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
   },
   inputContent: {
     alignItems: 'center',
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: Colors.accent + '15',
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: Colors.accentMuted,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  inputFeedback: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: Colors.successMuted,
+    borderRadius: 10,
+  },
+  feedbackText: {
+    fontSize: 13,
+    color: Colors.success,
+    textAlign: 'center',
   },
   stepTitle: {
     fontSize: 24,

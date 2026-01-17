@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Pressable,
   Image,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { 
   X, 
@@ -16,8 +17,13 @@ import {
   TrendingDown,
   Wallet,
   Volume2,
+  Lightbulb,
+  ChevronDown,
+  ChevronUp,
+  Clock,
 } from 'lucide-react-native';
 import { useCoach } from '@/context/CoachContext';
+import { WhatWouldChange } from '@/components/WhatWouldChange';
 import Colors from '@/constants/colors';
 import * as Speech from 'expo-speech';
 
@@ -25,8 +31,48 @@ const MASCOT_URL = 'https://r2-pub.rork.dev/generated-images/27789a4a-5f4b-41c7-
 
 export function PurchaseAnalysisModal() {
   const { showPurchaseModal, setShowPurchaseModal, currentAnalysis } = useCoach();
+  const [showAlternatives, setShowAlternatives] = useState(false);
+  const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
+  const opacityAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (showPurchaseModal) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0.9);
+      opacityAnim.setValue(0);
+    }
+  }, [showPurchaseModal, scaleAnim, opacityAnim]);
 
   if (!currentAnalysis) return null;
+
+  const getWhatWouldChangeItems = () => {
+    const items: string[] = [];
+    if (currentAnalysis.recommendation === 'delay') {
+      items.push('Saving for 2-3 more weeks before purchasing');
+      items.push('Finding a less expensive alternative');
+      items.push('Waiting for a sale or discount');
+    } else if (currentAnalysis.recommendation === 'reconsider') {
+      items.push('Reducing the purchase amount by 20-30%');
+      items.push('Spreading the cost over multiple weeks');
+      items.push('Offsetting with reduced spending elsewhere');
+    } else {
+      items.push('Buying now vs. waiting for better deals');
+      items.push('Using cash back or rewards');
+    }
+    return items;
+  };
 
   const getRecommendationConfig = (recommendation: string) => {
     switch (recommendation) {
@@ -137,8 +183,50 @@ export function PurchaseAnalysisModal() {
 
             {currentAnalysis.adjustedPlan && (
               <View style={styles.planSection}>
-                <Text style={styles.planTitle}>Suggested Approach</Text>
+                <View style={styles.planHeader}>
+                  <Lightbulb size={16} color={Colors.accent} />
+                  <Text style={styles.planTitle}>Suggested Approach</Text>
+                </View>
                 <Text style={styles.planText}>{currentAnalysis.adjustedPlan}</Text>
+              </View>
+            )}
+
+            {/* What Would Change This */}
+            <WhatWouldChange items={getWhatWouldChangeItems()} />
+
+            {/* Quick alternatives */}
+            <Pressable 
+              style={styles.alternativesToggle}
+              onPress={() => setShowAlternatives(!showAlternatives)}
+            >
+              <Text style={styles.alternativesLabel}>Quick alternatives</Text>
+              {showAlternatives ? (
+                <ChevronUp size={18} color={Colors.textMuted} />
+              ) : (
+                <ChevronDown size={18} color={Colors.textMuted} />
+              )}
+            </Pressable>
+
+            {showAlternatives && (
+              <View style={styles.alternativesList}>
+                <View style={styles.alternativeItem}>
+                  <Clock size={16} color={Colors.warning} />
+                  <View style={styles.alternativeContent}>
+                    <Text style={styles.alternativeTitle}>Wait & Save</Text>
+                    <Text style={styles.alternativeDesc}>
+                      Save ${Math.ceil(currentAnalysis.cost / 4)}/week for 4 weeks
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.alternativeItem}>
+                  <TrendingDown size={16} color={Colors.success} />
+                  <View style={styles.alternativeContent}>
+                    <Text style={styles.alternativeTitle}>Find Cheaper</Text>
+                    <Text style={styles.alternativeDesc}>
+                      Look for options under ${Math.floor(currentAnalysis.cost * 0.7)}
+                    </Text>
+                  </View>
+                </View>
               </View>
             )}
           </ScrollView>
@@ -290,11 +378,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
   },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   planTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.accent,
-    marginBottom: 6,
   },
   planText: {
     fontSize: 14,
@@ -316,5 +409,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  alternativesToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  alternativesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  alternativesList: {
+    gap: 10,
+  },
+  alternativeItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.background,
+    padding: 12,
+    borderRadius: 10,
+    gap: 12,
+  },
+  alternativeContent: {
+    flex: 1,
+  },
+  alternativeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  alternativeDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
 });
