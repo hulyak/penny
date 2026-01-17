@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   Animated,
   Dimensions,
 } from 'react-native';
@@ -25,16 +24,14 @@ import {
 import { useApp } from '@/context/AppContext';
 import Colors from '@/constants/colors';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/fdjbtnwfjkonpwmwero75';
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const STEPS = [
   {
     id: 'welcome',
-    title: 'Meet Penny',
-    subtitle: 'Your friendly finance companion',
-    coachMessage: "Hi there! I'm Penny, your fuzzy little finance buddy. I'm here to help you understand your money and make smarter decisions—no judgment, just guidance!",
+    title: 'Take Control of\nYour Finances',
+    subtitle: 'Build better money habits with personalized insights and guidance',
+    description: 'Answer a few quick questions to get started with your personalized financial dashboard.',
   },
   {
     id: 'income',
@@ -43,7 +40,7 @@ const STEPS = [
     field: 'monthlyIncome',
     icon: DollarSign,
     placeholder: '5500',
-    coachMessage: "Let's start with your monthly income. How much lands in your account each month?",
+    description: 'Enter your net monthly income—the amount that lands in your account.',
   },
   {
     id: 'housing',
@@ -52,7 +49,7 @@ const STEPS = [
     field: 'housingCost',
     icon: Home,
     placeholder: '1800',
-    coachMessage: "Now for the big one—housing! Include rent or mortgage, utilities, and insurance.",
+    description: 'Include rent or mortgage, utilities, and home insurance.',
   },
   {
     id: 'transportation',
@@ -61,7 +58,7 @@ const STEPS = [
     field: 'carCost',
     icon: Car,
     placeholder: '450',
-    coachMessage: "How do you get around? Include car payments, insurance, gas, or transit costs.",
+    description: 'Car payments, insurance, gas, or public transit costs.',
   },
   {
     id: 'essentials',
@@ -70,7 +67,7 @@ const STEPS = [
     field: 'essentialsCost',
     icon: ShoppingCart,
     placeholder: '800',
-    coachMessage: "Almost done! What about groceries, healthcare, phone—the must-haves?",
+    description: 'Groceries, healthcare, phone, and other must-haves.',
   },
 ];
 
@@ -89,34 +86,6 @@ export default function OnboardingScreen() {
   
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const mascotScale = useRef(new Animated.Value(1)).current;
-  const mascotFloat = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(mascotFloat, {
-          toValue: -12,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(mascotFloat, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [mascotFloat]);
-
-  useEffect(() => {
-    Animated.spring(mascotScale, {
-      toValue: currentStep === 0 ? 1 : 0.5,
-      friction: 8,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  }, [currentStep, mascotScale]);
 
   const step = STEPS[currentStep];
   const isWelcome = currentStep === 0;
@@ -232,30 +201,14 @@ export default function OnboardingScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Mascot Section */}
-          <Animated.View 
-            style={[
-              styles.mascotContainer,
-              isWelcome && styles.mascotContainerLarge,
-              {
-                transform: [
-                  { translateY: mascotFloat },
-                  { scale: mascotScale },
-                ],
-              },
-            ]}
-          >
-            <View style={isWelcome ? styles.mascotGlow : undefined}>
-              <Image 
-                source={{ uri: MASCOT_URL }} 
-                style={[
-                  styles.mascot,
-                  isWelcome && styles.mascotLarge,
-                ]} 
-                resizeMode="contain"
-              />
+          {/* Welcome Illustration */}
+          {isWelcome && (
+            <View style={styles.illustrationContainer}>
+              <View style={styles.illustrationCircle}>
+                <DollarSign size={48} color={Colors.accent} />
+              </View>
             </View>
-          </Animated.View>
+          )}
 
           {/* Content */}
           <Animated.View 
@@ -270,10 +223,10 @@ export default function OnboardingScreen() {
             <Text style={styles.title}>{step.title}</Text>
             <Text style={styles.subtitle}>{step.subtitle}</Text>
 
-            {/* Coach Message Bubble */}
-            <View style={styles.messageBubble}>
-              <Text style={styles.messageText}>{step.coachMessage}</Text>
-            </View>
+            {/* Description */}
+            {step.description && (
+              <Text style={styles.description}>{step.description}</Text>
+            )}
 
             {/* Input for non-welcome steps */}
             {!isWelcome && step.field && (
@@ -375,31 +328,23 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
   },
-  mascotContainer: {
+  illustrationContainer: {
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: SCREEN_HEIGHT * 0.06,
+    marginBottom: 32,
   },
-  mascotContainerLarge: {
-    marginTop: SCREEN_HEIGHT * 0.04,
-    marginBottom: 24,
-  },
-  mascot: {
-    width: 120,
-    height: 120,
-  },
-  mascotLarge: {
-    width: SCREEN_WIDTH * 0.5,
-    height: SCREEN_WIDTH * 0.5,
-    maxWidth: 220,
-    maxHeight: 220,
-  },
-  mascotGlow: {
-    shadowColor: Colors.coral,
+  illustrationCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.accentMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 6,
   },
   mainContent: {
     flex: 1,
@@ -416,25 +361,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  messageBubble: {
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    width: '100%',
-  },
-  messageText: {
-    fontSize: 16,
-    color: Colors.text,
-    lineHeight: 24,
+  description: {
+    fontSize: 15,
+    color: Colors.textMuted,
     textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    paddingHorizontal: 8,
   },
   inputSection: {
     width: '100%',
