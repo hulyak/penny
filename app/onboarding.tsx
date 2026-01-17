@@ -389,10 +389,10 @@ const styles = StyleSheet.create({
     height: 120,
   },
   mascotLarge: {
-    width: SCREEN_WIDTH * 0.75,
-    height: SCREEN_WIDTH * 0.75,
-    maxWidth: 340,
-    maxHeight: 340,
+    width: SCREEN_WIDTH * 0.5,
+    height: SCREEN_WIDTH * 0.5,
+    maxWidth: 220,
+    maxHeight: 220,
   },
   mascotGlow: {
     shadowColor: Colors.coral,
