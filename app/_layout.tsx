@@ -53,6 +53,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayoutNav() {
+  const { isAuthenticated } = useAuth();
+  const segments = useSegments();
+  
+  const isOnAuthOrOnboarding = segments[0] === 'auth' || segments[0] === 'onboarding';
+  const showCoachButton = isAuthenticated && !isOnAuthOrOnboarding;
+
   return (
     <AuthGate>
       <Stack 
@@ -86,7 +92,7 @@ function RootLayoutNav() {
           }} 
         />
       </Stack>
-      <FloatingCoachButton />
+      {showCoachButton && <FloatingCoachButton />}
       <CoachDrawer />
       <PurchaseAnalysisModal />
       <InvestmentReadinessModal />
