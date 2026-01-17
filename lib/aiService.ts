@@ -1,6 +1,24 @@
 import { generateText, generateObject } from '@rork-ai/toolkit-sdk';
 import { z } from 'zod';
 
+const AI_TIMEOUT = 15000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Request timeout')), ms);
+  });
+  
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (err) {
+    clearTimeout(timeoutId!);
+    throw err;
+  }
+}
+
 const SYSTEM_CONTEXT = `You are a calm, supportive financial coach powered by Google Deepmind. 
 You explain money concepts in plain language without jargon. 
 You NEVER give investment advice, recommend specific assets, or tell users what to buy/sell.
@@ -27,13 +45,14 @@ Respond concisely and helpfully.`;
 
   try {
     console.log('[AIService] Generating text...');
-    const result = await generateText({ 
-      messages: [{ role: 'user', content: prompt }] 
-    });
+    const result = await withTimeout(
+      generateText({ messages: [{ role: 'user', content: prompt }] }),
+      AI_TIMEOUT
+    );
     console.log('[AIService] Text generated successfully');
     return result;
   } catch (error) {
-    console.error('[AIService] Error generating text:', error);
+    console.log('[AIService] Text generation unavailable, using fallback');
     throw error;
   }
 }
@@ -84,14 +103,17 @@ Generate a supportive, educational analysis. Be specific to their numbers.`;
 
   try {
     console.log('[AIService] Generating financial summary...');
-    const result = await generateObject({
-      messages: [{ role: 'user', content: prompt }],
-      schema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        messages: [{ role: 'user', content: prompt }],
+        schema,
+      }),
+      AI_TIMEOUT
+    );
     console.log('[AIService] Financial summary generated');
     return result;
-  } catch (error) {
-    console.error('[AIService] Error generating financial summary:', error);
+  } catch {
+    console.log('[AIService] Financial summary unavailable, using fallback');
     return {
       summary: `Your finances show a ${params.snapshot.healthLabel.toLowerCase()} foundation with ${params.snapshot.monthsOfRunway.toFixed(1)} months of runway.`,
       reasoning: `Based on your ${params.snapshot.savingsRate.toFixed(0)}% savings rate and $${params.snapshot.disposableIncome} monthly disposable income.`,
@@ -134,14 +156,17 @@ Suggest which approach might fit their situation. Focus on sustainability, not s
 
   try {
     console.log('[AIService] Generating scenario insights...');
-    const result = await generateObject({
-      messages: [{ role: 'user', content: prompt }],
-      schema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        messages: [{ role: 'user', content: prompt }],
+        schema,
+      }),
+      AI_TIMEOUT
+    );
     console.log('[AIService] Scenario insights generated');
     return result;
-  } catch (error) {
-    console.error('[AIService] Error generating scenario insights:', error);
+  } catch {
+    console.log('[AIService] Scenario insights unavailable, using fallback');
     return {
       recommendation: 'The Balanced approach typically works well for building an emergency fund while maintaining quality of life.',
       reasoning: `With ${params.currentRunway.toFixed(1)} months of runway, a moderate approach balances urgency with sustainability.`,
@@ -176,14 +201,17 @@ Be warm and specific. Small wins matter.`;
 
   try {
     console.log('[AIService] Generating weekly coaching...');
-    const result = await generateObject({
-      messages: [{ role: 'user', content: prompt }],
-      schema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        messages: [{ role: 'user', content: prompt }],
+        schema,
+      }),
+      AI_TIMEOUT
+    );
     console.log('[AIService] Weekly coaching generated');
     return result;
-  } catch (error) {
-    console.error('[AIService] Error generating weekly coaching:', error);
+  } catch {
+    console.log('[AIService] Weekly coaching unavailable, using fallback');
     return {
       weeklyMessage: 'Focus on consistent small steps this week.',
       focusArea: 'Building your emergency buffer',
@@ -233,14 +261,17 @@ Explain the impact objectively. No judgment - just help them see the tradeoffs.`
 
   try {
     console.log('[AIService] Generating purchase analysis...');
-    const result = await generateObject({
-      messages: [{ role: 'user', content: prompt }],
-      schema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        messages: [{ role: 'user', content: prompt }],
+        schema,
+      }),
+      AI_TIMEOUT
+    );
     console.log('[AIService] Purchase analysis generated');
     return { ...result, newRunway };
-  } catch (error) {
-    console.error('[AIService] Error generating purchase analysis:', error);
+  } catch {
+    console.log('[AIService] Purchase analysis unavailable, using fallback');
     return {
       impact: `This $${params.cost} purchase would reduce your runway from ${params.monthsOfRunway.toFixed(1)} to ${newRunway.toFixed(1)} months.`,
       tradeoffs: [
@@ -301,14 +332,17 @@ Explain why these foundations matter BEFORE considering investments. This is edu
 
   try {
     console.log('[AIService] Generating investment readiness...');
-    const result = await generateObject({
-      messages: [{ role: 'user', content: prompt }],
-      schema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        messages: [{ role: 'user', content: prompt }],
+        schema,
+      }),
+      AI_TIMEOUT
+    );
     console.log('[AIService] Investment readiness generated');
     return { isReady, readinessScore, ...result };
-  } catch (error) {
-    console.error('[AIService] Error generating investment readiness:', error);
+  } catch {
+    console.log('[AIService] Investment readiness unavailable, using fallback');
     return {
       isReady,
       readinessScore,
@@ -347,14 +381,17 @@ This is purely educational context, not investment advice. Help users understand
 
   try {
     console.log('[AIService] Generating market context...');
-    const result = await generateObject({
-      messages: [{ role: 'user', content: prompt }],
-      schema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        messages: [{ role: 'user', content: prompt }],
+        schema,
+      }),
+      AI_TIMEOUT
+    );
     console.log('[AIService] Market context generated');
     return result;
-  } catch (error) {
-    console.error('[AIService] Error generating market context:', error);
+  } catch {
+    console.log('[AIService] Market context unavailable, using fallback');
     return {
       summary: 'Current conditions are steady. Focus on building your financial foundation.',
       educationalNote: 'Your personal financial readiness matters more than trying to time markets.',
