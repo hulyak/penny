@@ -1,4 +1,5 @@
 import { UserFinancials, FinancialSnapshot, Scenario, ScenarioOutput } from '@/types';
+import { generateScenarioInsights } from '@/lib/aiService';
 
 export class ScenarioLearningAgent {
   private reasoningLog: string[] = [];
@@ -9,16 +10,35 @@ export class ScenarioLearningAgent {
     console.log(`[ScenarioLearningAgent] ${message}`);
   }
 
-  analyze(financials: UserFinancials, snapshot: FinancialSnapshot): ScenarioOutput {
+  async analyze(financials: UserFinancials, snapshot: FinancialSnapshot): Promise<ScenarioOutput> {
     this.reasoningLog = [];
-    this.log('Generating scenarios based on financial snapshot...');
+    this.log('Generating AI-powered scenarios...');
 
     const scenarios = this.generateScenarios(financials, snapshot);
-    const recommendation = this.generateRecommendation(financials, snapshot, scenarios);
+    const aiInsights = await this.generateAIInsights(financials, snapshot, scenarios);
 
     return {
       summary: this.generateSummary(financials, snapshot),
-      reasoning: this.generateReasoning(financials, snapshot),
+      reasoning: aiInsights.reasoning,
+      assumptions: this.getAssumptions(),
+      whatWouldChange: this.getWhatWouldChange(snapshot),
+      timestamp: new Date().toISOString(),
+      confidence: 0.88,
+      scenarios,
+      recommendation: aiInsights.recommendation,
+    };
+  }
+
+  analyzeSync(financials: UserFinancials, snapshot: FinancialSnapshot): ScenarioOutput {
+    this.reasoningLog = [];
+    this.log('Generating scenarios (sync)...');
+
+    const scenarios = this.generateScenarios(financials, snapshot);
+    const recommendation = this.getFallbackRecommendation(snapshot);
+
+    return {
+      summary: this.generateSummary(financials, snapshot),
+      reasoning: this.getFallbackReasoning(financials, snapshot),
       assumptions: this.getAssumptions(),
       whatWouldChange: this.getWhatWouldChange(snapshot),
       timestamp: new Date().toISOString(),
@@ -26,6 +46,35 @@ export class ScenarioLearningAgent {
       scenarios,
       recommendation,
     };
+  }
+
+  private async generateAIInsights(
+    financials: UserFinancials,
+    snapshot: FinancialSnapshot,
+    scenarios: Scenario[]
+  ): Promise<{ recommendation: string; reasoning: string }> {
+    try {
+      this.log('Generating AI-powered scenario insights via Google Deepmind...');
+      const result = await generateScenarioInsights({
+        scenarios: scenarios.map(s => ({
+          name: s.name,
+          monthlyContribution: s.monthlyContribution,
+          monthsToGoal: s.monthsToGoal,
+          riskLevel: s.riskLevel,
+        })),
+        currentRunway: snapshot.monthsOfRunway,
+        emergencyGoal: financials.emergencyFundGoal,
+        disposableIncome: snapshot.disposableIncome,
+      });
+      this.log('AI scenario insights generated successfully');
+      return result;
+    } catch (error) {
+      this.log(`AI generation failed, using fallback: ${error}`);
+      return {
+        recommendation: this.getFallbackRecommendation(snapshot),
+        reasoning: this.getFallbackReasoning(financials, snapshot),
+      };
+    }
   }
 
   private generateScenarios(financials: UserFinancials, snapshot: FinancialSnapshot): Scenario[] {
@@ -104,7 +153,7 @@ export class ScenarioLearningAgent {
     return scenarios;
   }
 
-  private generateRecommendation(financials: UserFinancials, snapshot: FinancialSnapshot, scenarios: Scenario[]): string {
+  private getFallbackRecommendation(snapshot: FinancialSnapshot): string {
     if (snapshot.monthsOfRunway < 1) {
       return 'Given your current runway, the Balanced approach provides a good mix of urgency and sustainability.';
     }
@@ -119,7 +168,7 @@ export class ScenarioLearningAgent {
     return `At your current pace, you'll reach your emergency fund goal in approximately ${monthsToGoal} months. I've modeled three paths with different intensity levels.`;
   }
 
-  private generateReasoning(financials: UserFinancials, snapshot: FinancialSnapshot): string {
+  private getFallbackReasoning(financials: UserFinancials, snapshot: FinancialSnapshot): string {
     return `With $${snapshot.disposableIncome.toLocaleString()} monthly disposable income and a $${financials.emergencyFundGoal.toLocaleString()} emergency fund goal, I calculated three paths at 30%, 50%, and 75% of available income. Each path represents a different balance between speed and sustainability.`;
   }
 

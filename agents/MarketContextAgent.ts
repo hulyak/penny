@@ -1,4 +1,5 @@
 import { MarketContextOutput } from '@/types';
+import { generateMarketContext } from '@/lib/aiService';
 
 export class MarketContextAgent {
   private reasoningLog: string[] = [];
@@ -9,21 +10,41 @@ export class MarketContextAgent {
     console.log(`[MarketContextAgent] ${message}`);
   }
 
-  analyze(): MarketContextOutput {
+  async analyze(): Promise<MarketContextOutput> {
     this.reasoningLog = [];
-    this.log('Analyzing market conditions...');
+    this.log('Analyzing market conditions with AI...');
 
     const volatilityLevel = this.assessVolatility();
     this.log(`Volatility level: ${volatilityLevel}`);
 
-    const sentiment = this.determineSentiment(volatilityLevel);
-    this.log(`Market sentiment: ${sentiment}`);
-
     const indicators = this.generateIndicators(volatilityLevel);
-    const educationalNote = this.getEducationalNote(sentiment);
+
+    const aiContext = await this.generateAIContext();
 
     return {
-      summary: this.generateSummary(sentiment),
+      summary: aiContext.summary,
+      reasoning: this.generateReasoning(volatilityLevel, aiContext.sentiment),
+      assumptions: this.getAssumptions(),
+      whatWouldChange: this.getWhatWouldChange(aiContext.sentiment),
+      timestamp: new Date().toISOString(),
+      confidence: 0.82,
+      sentiment: aiContext.sentiment,
+      indicators,
+      educationalNote: aiContext.educationalNote,
+    };
+  }
+
+  analyzeSync(): MarketContextOutput {
+    this.reasoningLog = [];
+    this.log('Analyzing market conditions (sync)...');
+
+    const volatilityLevel = this.assessVolatility();
+    const sentiment = this.determineSentiment(volatilityLevel);
+    const indicators = this.generateIndicators(volatilityLevel);
+    const educationalNote = this.getFallbackEducationalNote(sentiment);
+
+    return {
+      summary: this.getFallbackSummary(sentiment),
       reasoning: this.generateReasoning(volatilityLevel, sentiment),
       assumptions: this.getAssumptions(),
       whatWouldChange: this.getWhatWouldChange(sentiment),
@@ -33,6 +54,28 @@ export class MarketContextAgent {
       indicators,
       educationalNote,
     };
+  }
+
+  private async generateAIContext(): Promise<{
+    summary: string;
+    educationalNote: string;
+    sentiment: 'cautious' | 'neutral' | 'optimistic';
+  }> {
+    try {
+      this.log('Generating AI-powered market context via Google Deepmind...');
+      const result = await generateMarketContext();
+      this.log('AI market context generated successfully');
+      return result;
+    } catch (error) {
+      this.log(`AI generation failed, using fallback: ${error}`);
+      const volatility = this.assessVolatility();
+      const sentiment = this.determineSentiment(volatility);
+      return {
+        summary: this.getFallbackSummary(sentiment),
+        educationalNote: this.getFallbackEducationalNote(sentiment),
+        sentiment,
+      };
+    }
   }
 
   private assessVolatility(): 'low' | 'moderate' | 'high' {
@@ -74,7 +117,7 @@ export class MarketContextAgent {
     ];
   }
 
-  private getEducationalNote(sentiment: 'cautious' | 'neutral' | 'optimistic'): string {
+  private getFallbackEducationalNote(sentiment: 'cautious' | 'neutral' | 'optimistic'): string {
     const notes: Record<'cautious' | 'neutral' | 'optimistic', string> = {
       cautious: 'During uncertain times, maintaining adequate cash reserves becomes even more valuable. This is context for planning, not advice to act.',
       neutral: 'Market conditions change frequently. Your personal financial foundation matters more than trying to time markets.',
@@ -83,7 +126,7 @@ export class MarketContextAgent {
     return notes[sentiment];
   }
 
-  private generateSummary(sentiment: 'cautious' | 'neutral' | 'optimistic'): string {
+  private getFallbackSummary(sentiment: 'cautious' | 'neutral' | 'optimistic'): string {
     const summaries: Record<'cautious' | 'neutral' | 'optimistic', string> = {
       cautious: 'Economic conditions suggest prioritizing liquidity and security in your planning.',
       neutral: 'Current conditions are steady. A good time to focus on building your financial foundation.',

@@ -1,4 +1,5 @@
 import { UserFinancials, FinancialSnapshot, FinancialRealityOutput } from '@/types';
+import { generateFinancialSummary } from '@/lib/aiService';
 
 export class FinancialRealityAgent {
   private reasoningLog: string[] = [];
@@ -9,28 +10,86 @@ export class FinancialRealityAgent {
     console.log(`[FinancialRealityAgent] ${message}`);
   }
 
-  analyze(financials: UserFinancials): FinancialRealityOutput {
+  async analyze(financials: UserFinancials): Promise<FinancialRealityOutput> {
     this.reasoningLog = [];
-    this.log('Starting financial analysis...');
+    this.log('Starting AI-powered financial analysis...');
 
     const snapshot = this.calculateSnapshot(financials);
-    const keyMetrics = this.generateKeyMetrics(financials, snapshot);
+    const keyMetrics = this.generateKeyMetrics(snapshot);
 
-    const summary = this.generateSummary(snapshot);
-    const reasoning = this.generateReasoning(financials, snapshot);
+    const aiInsights = await this.generateAIInsights(financials, snapshot);
+
     const assumptions = this.getAssumptions();
-    const whatWouldChange = this.getWhatWouldChange(snapshot);
+
+    return {
+      summary: aiInsights.summary,
+      reasoning: aiInsights.reasoning,
+      assumptions,
+      whatWouldChange: aiInsights.whatWouldChange,
+      timestamp: new Date().toISOString(),
+      confidence: 0.94,
+      snapshot,
+      keyMetrics,
+    };
+  }
+
+  analyzeSync(financials: UserFinancials): FinancialRealityOutput {
+    this.reasoningLog = [];
+    this.log('Starting sync financial analysis...');
+
+    const snapshot = this.calculateSnapshot(financials);
+    const keyMetrics = this.generateKeyMetrics(snapshot);
+
+    const summary = this.generateFallbackSummary(snapshot);
+    const reasoning = this.generateFallbackReasoning(financials, snapshot);
+    const whatWouldChange = this.getFallbackWhatWouldChange(snapshot);
 
     return {
       summary,
       reasoning,
-      assumptions,
+      assumptions: this.getAssumptions(),
       whatWouldChange,
       timestamp: new Date().toISOString(),
       confidence: 0.94,
       snapshot,
       keyMetrics,
     };
+  }
+
+  private async generateAIInsights(
+    financials: UserFinancials, 
+    snapshot: FinancialSnapshot
+  ): Promise<{ summary: string; reasoning: string; whatWouldChange: string[] }> {
+    try {
+      this.log('Generating AI-powered insights via Google Deepmind...');
+      const result = await generateFinancialSummary({
+        snapshot: {
+          disposableIncome: snapshot.disposableIncome,
+          savingsRate: snapshot.savingsRate,
+          monthsOfRunway: snapshot.monthsOfRunway,
+          fixedCostRatio: snapshot.fixedCostRatio,
+          healthScore: snapshot.healthScore,
+          healthLabel: snapshot.healthLabel,
+        },
+        financials: {
+          monthlyIncome: financials.monthlyIncome,
+          housingCost: financials.housingCost,
+          carCost: financials.carCost,
+          essentialsCost: financials.essentialsCost,
+          savings: financials.savings,
+          debts: financials.debts,
+        },
+      });
+      this.log('AI insights generated successfully');
+      return result;
+    } catch (error) {
+      this.log(`AI generation failed, using fallback: ${error}`);
+      return {
+        summary: this.generateFallbackSummary(snapshot),
+        reasoning: this.generateFallbackReasoning(financials, snapshot),
+        whatWouldChange: this.getFallbackWhatWouldChange(snapshot),
+      };
+    }
   }
 
   private calculateSnapshot(financials: UserFinancials): FinancialSnapshot {
@@ -102,7 +161,7 @@ export class FinancialRealityAgent {
     return 'Critical';
   }
 
-  private generateKeyMetrics(financials: UserFinancials, snapshot: FinancialSnapshot): FinancialRealityOutput['keyMetrics'] {
+  private generateKeyMetrics(snapshot: FinancialSnapshot): FinancialRealityOutput['keyMetrics'] {
     return [
       {
         label: 'Monthly Disposable',
@@ -127,7 +186,7 @@ export class FinancialRealityAgent {
     ];
   }
 
-  private generateSummary(snapshot: FinancialSnapshot): string {
+  private generateFallbackSummary(snapshot: FinancialSnapshot): string {
     const healthDescriptions: Record<string, string> = {
       'Excellent': 'Your finances are in excellent shape with strong fundamentals across all areas.',
       'Strong': 'You have a solid financial foundation with room for continued growth.',
@@ -138,7 +197,7 @@ export class FinancialRealityAgent {
     return healthDescriptions[snapshot.healthLabel];
   }
 
-  private generateReasoning(financials: UserFinancials, snapshot: FinancialSnapshot): string {
+  private generateFallbackReasoning(financials: UserFinancials, snapshot: FinancialSnapshot): string {
     return `I analyzed your monthly income of $${financials.monthlyIncome.toLocaleString()} against fixed expenses of $${(financials.housingCost + financials.carCost + financials.essentialsCost).toLocaleString()}. Your ${snapshot.savingsRate.toFixed(0)}% savings rate and ${snapshot.monthsOfRunway.toFixed(1)} months of runway are the primary factors in your ${snapshot.healthLabel.toLowerCase()} health score of ${snapshot.healthScore}/100.`;
   }
 
@@ -151,7 +210,7 @@ export class FinancialRealityAgent {
     ];
   }
 
-  private getWhatWouldChange(snapshot: FinancialSnapshot): string[] {
+  private getFallbackWhatWouldChange(snapshot: FinancialSnapshot): string[] {
     const changes: string[] = [];
     
     if (snapshot.savingsRate < 20) {

@@ -1,4 +1,5 @@
 import { UserFinancials, FinancialSnapshot, AdaptationOutput, WeeklyAction, Intervention } from '@/types';
+import { generateWeeklyCoaching } from '@/lib/aiService';
 
 export class AdaptationAgent {
   private reasoningLog: string[] = [];
@@ -9,20 +10,21 @@ export class AdaptationAgent {
     console.log(`[AdaptationAgent] ${message}`);
   }
 
-  analyze(
+  async analyze(
     financials: UserFinancials, 
     snapshot: FinancialSnapshot,
     previousFinancials?: UserFinancials,
     engagementLevel: number = 0.7
-  ): AdaptationOutput {
+  ): Promise<AdaptationOutput> {
     this.reasoningLog = [];
-    this.log('Analyzing for weekly plan and interventions...');
+    this.log('Generating AI-powered weekly plan...');
 
     const weeklyPlan = this.generateWeeklyPlan(financials, snapshot);
     const interventions = this.checkForInterventions(financials, previousFinancials, engagementLevel);
+    const aiCoaching = await this.generateAICoaching(financials, snapshot);
 
     return {
-      summary: this.generateSummary(weeklyPlan, interventions),
+      summary: aiCoaching.weeklyMessage || this.getFallbackSummary(weeklyPlan, interventions),
       reasoning: this.generateReasoning(financials, snapshot),
       assumptions: this.getAssumptions(),
       whatWouldChange: this.getWhatWouldChange(snapshot),
@@ -31,6 +33,56 @@ export class AdaptationAgent {
       weeklyPlan,
       interventions,
     };
+  }
+
+  analyzeSync(
+    financials: UserFinancials, 
+    snapshot: FinancialSnapshot,
+    previousFinancials?: UserFinancials,
+    engagementLevel: number = 0.7
+  ): AdaptationOutput {
+    this.reasoningLog = [];
+    this.log('Generating weekly plan (sync)...');
+
+    const weeklyPlan = this.generateWeeklyPlan(financials, snapshot);
+    const interventions = this.checkForInterventions(financials, previousFinancials, engagementLevel);
+
+    return {
+      summary: this.getFallbackSummary(weeklyPlan, interventions),
+      reasoning: this.generateReasoning(financials, snapshot),
+      assumptions: this.getAssumptions(),
+      whatWouldChange: this.getWhatWouldChange(snapshot),
+      timestamp: new Date().toISOString(),
+      confidence: 0.85,
+      weeklyPlan,
+      interventions,
+    };
+  }
+
+  private async generateAICoaching(
+    financials: UserFinancials,
+    snapshot: FinancialSnapshot
+  ): Promise<{ weeklyMessage: string; focusArea: string; encouragement: string }> {
+    try {
+      this.log('Generating AI-powered coaching via Google Deepmind...');
+      const emergencyProgress = (financials.savings / financials.emergencyFundGoal) * 100;
+      const result = await generateWeeklyCoaching({
+        healthLabel: snapshot.healthLabel,
+        monthsOfRunway: snapshot.monthsOfRunway,
+        savingsRate: snapshot.savingsRate,
+        disposableIncome: snapshot.disposableIncome,
+        emergencyProgress,
+      });
+      this.log('AI coaching generated successfully');
+      return result;
+    } catch (error) {
+      this.log(`AI generation failed, using fallback: ${error}`);
+      return {
+        weeklyMessage: 'Focus on consistent small steps this week.',
+        focusArea: 'Building your emergency buffer',
+        encouragement: 'Every dollar saved is progress toward security.',
+      };
+    }
   }
 
   private generateWeeklyPlan(financials: UserFinancials, snapshot: FinancialSnapshot): WeeklyAction[] {
@@ -131,7 +183,7 @@ export class AdaptationAgent {
     return interventions;
   }
 
-  private generateSummary(weeklyPlan: WeeklyAction[], interventions: Intervention[]): string {
+  private getFallbackSummary(weeklyPlan: WeeklyAction[], interventions: Intervention[]): string {
     const highPriority = weeklyPlan.filter(a => a.priority === 'high').length;
     if (interventions.length > 0) {
       return `${interventions.length} update(s) need your attention. Your weekly plan has ${weeklyPlan.length} actions, ${highPriority} high priority.`;
