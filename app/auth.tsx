@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   ScrollView,
   Image,
   Animated,
-  Dimensions,
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -27,10 +26,6 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import Colors from '@/constants/colors';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/fdjbtnwfjkonpwmwero75';
 
 type AuthMode = 'welcome' | 'signin' | 'signup';
 
@@ -56,24 +51,6 @@ export default function AuthScreen() {
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const mascotFloat = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(mascotFloat, {
-          toValue: -10,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(mascotFloat, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [mascotFloat]);
 
   const animateTransition = (callback: () => void) => {
     Animated.parallel([
@@ -409,21 +386,6 @@ export default function AuthScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View 
-            style={[
-              styles.mascotContainer,
-              { transform: [{ translateY: mascotFloat }] },
-            ]}
-          >
-            <View style={styles.mascotGlow}>
-              <Image 
-                source={{ uri: MASCOT_URL }} 
-                style={styles.mascot} 
-                resizeMode="contain"
-              />
-            </View>
-          </Animated.View>
-
           {mode === 'welcome' ? renderWelcome() : renderEmailForm()}
 
           <View style={{ height: insets.bottom + 24 }} />
@@ -445,26 +407,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
   },
-  mascotContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  mascotGlow: {
-    shadowColor: Colors.coral,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  mascot: {
-    width: SCREEN_WIDTH * 0.45,
-    height: SCREEN_WIDTH * 0.45,
-    maxWidth: 200,
-    maxHeight: 200,
-  },
   contentContainer: {
     flex: 1,
+    paddingTop: 60,
   },
   welcomeTitle: {
     fontSize: 28,

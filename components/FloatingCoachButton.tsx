@@ -10,7 +10,7 @@ import {
 import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://r2-pub.rork.dev/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/fdjbtnwfjkonpwmwero75';
 
 export function FloatingCoachButton() {
   const { setIsDrawerOpen, unreadCount } = useCoach();
