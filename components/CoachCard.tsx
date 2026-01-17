@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
-import { MessageCircle, ChevronRight } from 'lucide-react-native';
+import { View, Text, StyleSheet, Pressable, Image, Animated } from 'react-native';
+import { MessageCircle, ChevronRight, Volume2 } from 'lucide-react-native';
+import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
+import * as Speech from 'expo-speech';
 
 const MASCOT_URL = 'https://r2-pub.rork.dev/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
 
@@ -11,6 +13,7 @@ interface CoachCardProps {
   onPress?: () => void;
   variant?: 'default' | 'compact' | 'highlight';
   showArrow?: boolean;
+  showSpeaker?: boolean;
 }
 
 export function CoachCard({ 
@@ -19,37 +22,106 @@ export function CoachCard({
   onPress, 
   variant = 'default',
   showArrow = true,
+  showSpeaker = false,
 }: CoachCardProps) {
   const isCompact = variant === 'compact';
   const isHighlight = variant === 'highlight';
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 3,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const speakMessage = () => {
+    Speech.speak(message, { language: 'en', rate: 0.9 });
+  };
 
   return (
-    <Pressable 
-      style={[
-        styles.container,
-        isCompact && styles.containerCompact,
-        isHighlight && styles.containerHighlight,
-      ]}
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <Image 
-        source={{ uri: MASCOT_URL }} 
-        style={[styles.mascot, isCompact && styles.mascotCompact]} 
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable 
+        style={[
+          styles.container,
+          isCompact && styles.containerCompact,
+          isHighlight && styles.containerHighlight,
+        ]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={!onPress}
+      >
+        <Image 
+          source={{ uri: MASCOT_URL }} 
+          style={[styles.mascot, isCompact && styles.mascotCompact]} 
+        />
+        <View style={styles.content}>
+          {title && <Text style={styles.title}>{title}</Text>}
+          <Text 
+            style={[styles.message, isCompact && styles.messageCompact]}
+            numberOfLines={isCompact ? 2 : 3}
+          >
+            {message}
+          </Text>
+          {showSpeaker && (
+            <Pressable style={styles.speakerButton} onPress={speakMessage}>
+              <Volume2 size={12} color={Colors.accent} />
+              <Text style={styles.speakerText}>Listen</Text>
+            </Pressable>
+          )}
+        </View>
+        {showArrow && onPress && (
+          <ChevronRight size={18} color={Colors.textMuted} />
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+export function ScreenCoachCard({ screenName }: { screenName: 'overview' | 'plan' | 'scenarios' | 'learn' | 'profile' }) {
+  const { setIsDrawerOpen, unreadCount, recentMessages } = useCoach();
+  
+  const getScreenMessage = () => {
+    const latestMessage = recentMessages[0];
+    if (latestMessage && !latestMessage.read) {
+      return { title: latestMessage.title, message: latestMessage.message };
+    }
+    
+    const messages: Record<string, { title: string; message: string }> = {
+      overview: { title: 'Good to see you!', message: "Tap me anytime for tips or to check a purchase." },
+      plan: { title: 'Your Weekly Plan', message: "Let's tackle these tasks together!" },
+      scenarios: { title: 'Explore Paths', message: 'See how different choices affect your future.' },
+      learn: { title: 'Learn & Grow', message: 'Knowledge is your best financial tool!' },
+      profile: { title: 'Your Profile', message: 'Update anytime, I\'ll adjust your plan!' },
+    };
+    return messages[screenName];
+  };
+
+  const { title, message } = getScreenMessage();
+
+  return (
+    <View style={styles.screenCardContainer}>
+      <CoachCard
+        title={title}
+        message={message}
+        onPress={() => setIsDrawerOpen(true)}
+        variant={unreadCount > 0 ? 'highlight' : 'default'}
       />
-      <View style={styles.content}>
-        {title && <Text style={styles.title}>{title}</Text>}
-        <Text 
-          style={[styles.message, isCompact && styles.messageCompact]}
-          numberOfLines={isCompact ? 2 : 3}
-        >
-          {message}
-        </Text>
-      </View>
-      {showArrow && onPress && (
-        <ChevronRight size={18} color={Colors.textMuted} />
+      {unreadCount > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadText}>{unreadCount}</Text>
+        </View>
       )}
-    </Pressable>
+    </View>
   );
 }
 
@@ -80,12 +152,12 @@ const styles = StyleSheet.create({
   },
   containerHighlight: {
     backgroundColor: Colors.accentMuted,
-    borderColor: Colors.accent + '30',
+    borderColor: Colors.accent + '40',
   },
   mascot: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     marginRight: 12,
   },
   mascotCompact: {
@@ -96,8 +168,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 2,
   },
@@ -109,6 +181,42 @@ const styles = StyleSheet.create({
   messageCompact: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  speakerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    backgroundColor: Colors.accentMuted,
+    borderRadius: 10,
+    gap: 4,
+  },
+  speakerText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.accent,
+  },
+  screenCardContainer: {
+    position: 'relative',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.danger,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  unreadText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
   tipContainer: {
     flexDirection: 'row',

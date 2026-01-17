@@ -45,6 +45,8 @@ export interface InvestmentReadiness {
 }
 
 const STORAGE_KEY = 'clearpath_coach_messages';
+const LAST_CHECKIN_KEY = 'clearpath_last_checkin';
+const LAST_WEEKLY_REVIEW_KEY = 'clearpath_last_weekly_review';
 
 export const [CoachProvider, useCoach] = createContextHook(() => {
   const { snapshot, financials, weeklyFocuses } = useApp();
@@ -58,8 +60,33 @@ export const [CoachProvider, useCoach] = createContextHook(() => {
 
   useEffect(() => {
     loadMessages();
+    checkAndTriggerScheduledMessages();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const checkAndTriggerScheduledMessages = async () => {
+    try {
+      const lastCheckIn = await AsyncStorage.getItem(LAST_CHECKIN_KEY);
+      const lastWeeklyReview = await AsyncStorage.getItem(LAST_WEEKLY_REVIEW_KEY);
+      const now = new Date();
+      const today = now.toDateString();
+      
+      if (lastCheckIn !== today && snapshot) {
+        await AsyncStorage.setItem(LAST_CHECKIN_KEY, today);
+      }
+      
+      const dayOfWeek = now.getDay();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - dayOfWeek);
+      const weekKey = weekStart.toDateString();
+      
+      if (dayOfWeek === 0 && lastWeeklyReview !== weekKey && snapshot) {
+        await AsyncStorage.setItem(LAST_WEEKLY_REVIEW_KEY, weekKey);
+      }
+    } catch (error) {
+      console.error('[CoachContext] Error checking scheduled messages:', error);
+    }
+  };
 
   const loadMessages = async () => {
     try {

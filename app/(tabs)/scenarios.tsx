@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { Card } from '@/components/Card';
+import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
 const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
@@ -32,16 +33,8 @@ export default function ScenariosScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Mascot Header */}
-      <View style={styles.mascotCard}>
-        <Image source={{ uri: MASCOT_URL }} style={styles.mascotImage} />
-        <View style={styles.mascotContent}>
-          <Text style={styles.mascotTitle}>Your Scenarios</Text>
-          <Text style={styles.mascotMessage}>
-            Explore different paths to your goals!
-          </Text>
-        </View>
-      </View>
+      {/* Coach Card */}
+      <ScreenCoachCard screenName="scenarios" />
 
       {/* Summary Card */}
       <Card style={styles.summaryCard}>
@@ -180,37 +173,10 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  mascotCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  mascotImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  mascotContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  mascotTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  mascotMessage: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
+
   summaryCard: {
     padding: 16,
+    marginTop: 16,
     marginBottom: 20,
   },
   summaryRow: {

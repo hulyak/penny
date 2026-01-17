@@ -18,7 +18,9 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
+import { useCoach } from '@/context/CoachContext';
 import { Card } from '@/components/Card';
+import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
 const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
@@ -29,18 +31,29 @@ export default function OverviewScreen() {
     snapshot, 
     financials, 
     weeklyFocuses,
-    agentsProcessing,
     isLoading,
     hasOnboarded,
   } = useApp();
+  const { triggerDailyCheckIn } = useCoach();
   
   const [refreshing, setRefreshing] = React.useState(false);
+  const hasTriggeredCheckIn = React.useRef(false);
 
   React.useEffect(() => {
     if (!isLoading && !hasOnboarded) {
       router.replace('/onboarding');
     }
   }, [isLoading, hasOnboarded, router]);
+
+  React.useEffect(() => {
+    if (snapshot && !hasTriggeredCheckIn.current) {
+      const timer = setTimeout(() => {
+        triggerDailyCheckIn();
+        hasTriggeredCheckIn.current = true;
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [snapshot, triggerDailyCheckIn]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -58,20 +71,6 @@ export default function OverviewScreen() {
 
   const emergencyProgress = Math.min(100, (financials.savings / financials.emergencyFundGoal) * 100);
   const healthColor = getHealthColor(snapshot.healthLabel);
-  
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning!';
-    if (hour < 17) return 'Good afternoon!';
-    return 'Good evening!';
-  };
-
-  const getMascotMessage = () => {
-    if (snapshot.healthScore >= 80) return "You're doing great! Keep it up! 🎉";
-    if (snapshot.healthScore >= 60) return "Nice progress! Let's keep building.";
-    if (snapshot.healthScore >= 40) return "We've got a solid plan for you.";
-    return "Let's work on this together!";
-  };
 
   return (
     <ScrollView 
@@ -82,17 +81,8 @@ export default function OverviewScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Mascot Greeting */}
-      <View style={styles.greetingCard}>
-        <Image source={{ uri: MASCOT_URL }} style={styles.mascotImage} />
-        <View style={styles.greetingContent}>
-          <Text style={styles.greetingTitle}>{getGreeting()}</Text>
-          <Text style={styles.greetingMessage}>{getMascotMessage()}</Text>
-        </View>
-        {agentsProcessing && (
-          <View style={styles.processingDot} />
-        )}
-      </View>
+      {/* Coach Card */}
+      <ScreenCoachCard screenName="overview" />
 
       {/* Health Score Card */}
       <Card style={styles.healthCard}>
@@ -261,43 +251,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-  greetingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  mascotImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  greetingContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  greetingTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  greetingMessage: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  processingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.accent,
-  },
+
   healthCard: {
     padding: 16,
+    marginTop: 16,
     marginBottom: 12,
   },
   healthHeader: {

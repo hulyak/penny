@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { Card } from '@/components/Card';
+import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
 const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
@@ -79,27 +80,14 @@ export default function LearnScreen() {
   const completedCount = completedCards.length;
   const totalCount = LEARNING_CARDS.length;
 
-  const getMascotMessage = () => {
-    if (completedCount === totalCount) return "You're a financial knowledge pro! 🎓";
-    if (completedCount > totalCount / 2) return "Great progress! Keep learning!";
-    if (completedCount > 0) return "Nice start! Knowledge is power.";
-    return "Let's learn something new today!";
-  };
-
   return (
     <ScrollView 
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Mascot Header */}
-      <View style={styles.mascotCard}>
-        <Image source={{ uri: MASCOT_URL }} style={styles.mascotImage} />
-        <View style={styles.mascotContent}>
-          <Text style={styles.mascotTitle}>Learn & Grow</Text>
-          <Text style={styles.mascotMessage}>{getMascotMessage()}</Text>
-        </View>
-      </View>
+      {/* Coach Card */}
+      <ScreenCoachCard screenName="learn" />
 
       {/* Progress Card */}
       <Card style={styles.progressCard}>
@@ -197,37 +185,10 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  mascotCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  mascotImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  mascotContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  mascotTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  mascotMessage: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
+
   progressCard: {
     padding: 16,
+    marginTop: 16,
     marginBottom: 20,
   },
   progressHeader: {
