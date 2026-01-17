@@ -30,7 +30,7 @@ import Colors from '@/constants/colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
+const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/fdjbtnwfjkonpwmwero75';
 
 type AuthMode = 'welcome' | 'signin' | 'signup';
 
