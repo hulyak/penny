@@ -21,6 +21,7 @@ import {
   BookOpen,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { useCoach } from '@/context/CoachContext';
 import { ScreenCoachCard } from '@/components/CoachCard';
 import { WhatWouldChange } from '@/components/WhatWouldChange';
@@ -38,6 +39,7 @@ export default function OverviewScreen() {
     hasOnboarded,
     financialRealityOutput,
   } = useApp();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { triggerDailyCheckIn } = useCoach();
   
   const [refreshing, setRefreshing] = React.useState(false);
@@ -45,10 +47,12 @@ export default function OverviewScreen() {
   const hasTriggeredCheckIn = React.useRef(false);
 
   React.useEffect(() => {
-    if (!isLoading && !hasOnboarded) {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/auth');
+    } else if (!isLoading && !hasOnboarded && isAuthenticated) {
       router.replace('/onboarding');
     }
-  }, [isLoading, hasOnboarded, router]);
+  }, [isLoading, hasOnboarded, router, authLoading, isAuthenticated]);
 
   React.useEffect(() => {
     if (snapshot && !hasTriggeredCheckIn.current) {
@@ -65,7 +69,7 @@ export default function OverviewScreen() {
     setTimeout(() => setRefreshing(false), 1000);
   }, []);
 
-  if (isLoading || !snapshot) {
+  if (isLoading || authLoading || !snapshot) {
     return (
       <View style={styles.loadingContainer}>
         <Image source={{ uri: MASCOT_URL }} style={styles.loadingMascot} />

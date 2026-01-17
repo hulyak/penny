@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppProvider } from "@/context/AppContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { CoachProvider } from "@/context/CoachContext";
 import { PurchasesProvider } from "@/context/PurchasesContext";
 import { PaywallModal } from "@/components/PaywallModal";
@@ -38,6 +39,13 @@ function RootLayoutNav() {
           }} 
         />
         <Stack.Screen 
+          name="auth" 
+          options={{ 
+            headerShown: false,
+            presentation: 'fullScreenModal',
+          }} 
+        />
+        <Stack.Screen 
           name="modal" 
           options={{ 
             presentation: 'modal',
@@ -62,6 +70,7 @@ export default function RootLayout() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <AuthProvider>
         <AppProvider>
           <PurchasesProvider>
           <CoachProvider>
@@ -70,6 +79,7 @@ export default function RootLayout() {
           </CoachProvider>
           </PurchasesProvider>
         </AppProvider>
+        </AuthProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
     </trpc.Provider>

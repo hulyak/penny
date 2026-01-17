@@ -1,3 +1,18 @@
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  photoUrl?: string;
+  provider: 'email' | 'google' | 'apple';
+  createdAt: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
+
 export interface UserFinancials {
   monthlyIncome: number;
   housingCost: number;

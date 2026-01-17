@@ -19,8 +19,13 @@ import {
   RefreshCw,
   Save,
   Edit3,
+  LogOut,
+  User,
+  Mail,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
 import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
@@ -28,7 +33,9 @@ import Colors from '@/constants/colors';
 const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { financials, updateFinancials, resetDemo } = useApp();
+  const { user, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editedFinancials, setEditedFinancials] = useState({ ...financials });
 
@@ -49,6 +56,24 @@ export default function ProfileScreen() {
           onPress: () => {
             resetDemo();
             setIsEditing(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Sign Out', 
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            router.replace('/auth');
           },
         },
       ]
@@ -98,6 +123,37 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* User Profile Card */}
+      {user && (
+        <View style={styles.userCard}>
+          <View style={styles.userAvatarContainer}>
+            {user.photoUrl ? (
+              <Image source={{ uri: user.photoUrl }} style={styles.userAvatar} />
+            ) : (
+              <View style={styles.userAvatarPlaceholder}>
+                <User size={28} color={Colors.accent} />
+              </View>
+            )}
+          </View>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{user.displayName}</Text>
+            <View style={styles.userEmailRow}>
+              <Mail size={14} color={Colors.textMuted} />
+              <Text style={styles.userEmail}>{user.email}</Text>
+            </View>
+            <View style={styles.providerBadge}>
+              <Text style={styles.providerText}>
+                {user.provider === 'google' ? 'Google Account' : 
+                 user.provider === 'apple' ? 'Apple Account' : 'Email Account'}
+              </Text>
+            </View>
+          </View>
+          <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+            <LogOut size={20} color={Colors.danger} />
+          </Pressable>
+        </View>
+      )}
+
       {/* Coach Card */}
       <ScreenCoachCard screenName="profile" />
 
@@ -303,5 +359,74 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.text,
     lineHeight: 18,
+  },
+
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  userAvatarContainer: {
+    marginRight: 14,
+  },
+  userAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  userAvatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.accentMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  userEmailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  userEmail: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  providerBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.surfaceSecondary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  providerText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+  signOutButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.dangerMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
