@@ -5,6 +5,8 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppProvider } from "@/context/AppContext";
 import { CoachProvider } from "@/context/CoachContext";
+import { PurchasesProvider } from "@/context/PurchasesContext";
+import { PaywallModal } from "@/components/PaywallModal";
 import { CoachDrawer } from "@/components/CoachDrawer";
 import { PurchaseAnalysisModal } from "@/components/PurchaseAnalysisModal";
 import { InvestmentReadinessModal } from "@/components/InvestmentReadinessModal";
@@ -61,9 +63,12 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AppProvider>
+          <PurchasesProvider>
           <CoachProvider>
             <RootLayoutNav />
+            <PaywallModal />
           </CoachProvider>
+          </PurchasesProvider>
         </AppProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
