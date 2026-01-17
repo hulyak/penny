@@ -1,81 +1,79 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
+import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
-
-const STORAGE_KEYS = {
-  USER: 'clearpath_user',
-  USERS_DB: 'clearpath_users_db',
-};
-
-interface StoredUser {
-  email: string;
-  password: string;
-  displayName: string;
-  id: string;
-  createdAt: string;
-}
-
-const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-const validatePassword = (password: string): { valid: boolean; message: string } => {
-  if (password.length < 6) {
-    return { valid: false, message: 'Password must be at least 6 characters' };
-  }
-  return { valid: true, message: '' };
-};
+import { Session, AuthError } from '@supabase/supabase-js';
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadStoredUser = useCallback(async () => {
-    try {
-      console.log('[AuthContext] Loading stored user...');
-      const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser) as User;
-        setUser(parsed);
-        console.log('[AuthContext] User restored:', parsed.email);
-      } else {
-        console.log('[AuthContext] No stored user found');
-      }
-    } catch (err) {
-      console.error('[AuthContext] Error loading user:', err);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+  const mapSupabaseUser = useCallback((supabaseUser: any): User => {
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      displayName: supabaseUser.user_metadata?.display_name || 
+                   supabaseUser.user_metadata?.full_name ||
+                   supabaseUser.email?.split('@')[0] || 
+                   'User',
+      provider: supabaseUser.app_metadata?.provider || 'email',
+      photoUrl: supabaseUser.user_metadata?.avatar_url,
+      createdAt: supabaseUser.created_at,
+    };
   }, []);
 
   useEffect(() => {
-    loadStoredUser();
-  }, [loadStoredUser]);
+    console.log('[AuthContext] Initializing Supabase auth listener...');
+    
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[AuthContext] Initial session:', session ? 'exists' : 'none');
+      setSession(session);
+      if (session?.user) {
+        setUser(mapSupabaseUser(session.user));
+      }
+      setIsLoading(false);
+    });
 
-  const saveUser = async (userData: User) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
-      setUser(userData);
-      setError(null);
-      console.log('[AuthContext] User saved:', userData.email);
-    } catch (err) {
-      console.error('[AuthContext] Error saving user:', err);
-    }
-  };
-
-  const hashPassword = async (password: string): Promise<string> => {
-    const hash = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      password
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[AuthContext] Auth state changed:', event);
+        setSession(session);
+        if (session?.user) {
+          setUser(mapSupabaseUser(session.user));
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
     );
-    return hash;
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [mapSupabaseUser]);
+
+  const handleAuthError = (err: AuthError | Error): string => {
+    console.error('[AuthContext] Auth error:', err);
+    const message = err.message || 'An error occurred';
+    
+    if (message.includes('Invalid login credentials')) {
+      return 'Invalid email or password';
+    }
+    if (message.includes('User already registered')) {
+      return 'An account with this email already exists';
+    }
+    if (message.includes('Email not confirmed')) {
+      return 'Please check your email to confirm your account';
+    }
+    if (message.includes('Password should be at least')) {
+      return 'Password must be at least 6 characters';
+    }
+    
+    return message;
   };
 
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
@@ -87,57 +85,38 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return false;
     }
 
-    if (!validateEmail(email)) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.valid) {
-      setError(passwordValidation.message);
-      return false;
-    }
-
     if (displayName.trim().length < 2) {
       setError('Display name must be at least 2 characters');
       return false;
     }
 
     try {
-      const usersDb = await AsyncStorage.getItem(STORAGE_KEYS.USERS_DB);
-      const users: StoredUser[] = usersDb ? JSON.parse(usersDb) : [];
-      
-      if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-        setError('An account with this email already exists');
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            display_name: displayName.trim(),
+            full_name: displayName.trim(),
+          },
+        },
+      });
+
+      if (signUpError) {
+        setError(handleAuthError(signUpError));
         return false;
       }
 
-      const hashedPassword = await hashPassword(password);
-      const newUser: StoredUser = {
-        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        displayName: displayName.trim(),
-        createdAt: new Date().toISOString(),
-      };
+      if (data.user && !data.session) {
+        console.log('[AuthContext] Sign up successful, email confirmation required');
+        setError('Please check your email to confirm your account');
+        return false;
+      }
 
-      users.push(newUser);
-      await AsyncStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(users));
-      console.log('[AuthContext] User registered successfully');
-
-      const userData: User = {
-        id: newUser.id,
-        email: newUser.email,
-        displayName: newUser.displayName,
-        provider: 'email',
-        createdAt: newUser.createdAt,
-      };
-
-      await saveUser(userData);
+      console.log('[AuthContext] Sign up successful');
       return true;
-    } catch (err) {
-      console.error('[AuthContext] Sign up error:', err);
-      setError('Failed to create account. Please try again.');
+    } catch (err: any) {
+      setError(handleAuthError(err));
       return false;
     }
   }, []);
@@ -151,41 +130,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return false;
     }
 
-    if (!validateEmail(email)) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-
     try {
-      const usersDb = await AsyncStorage.getItem(STORAGE_KEYS.USERS_DB);
-      const users: StoredUser[] = usersDb ? JSON.parse(usersDb) : [];
-      
-      const storedUser = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
-      if (!storedUser) {
-        setError('No account found with this email');
-        return false;
-      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-      const hashedPassword = await hashPassword(password);
-      if (storedUser.password !== hashedPassword) {
-        setError('Incorrect password');
+      if (signInError) {
+        setError(handleAuthError(signInError));
         return false;
       }
 
       console.log('[AuthContext] Sign in successful');
-      const userData: User = {
-        id: storedUser.id,
-        email: storedUser.email,
-        displayName: storedUser.displayName,
-        provider: 'email',
-        createdAt: storedUser.createdAt,
-      };
-
-      await saveUser(userData);
       return true;
-    } catch (err) {
-      console.error('[AuthContext] Sign in error:', err);
-      setError('Failed to sign in. Please try again.');
+    } catch (err: any) {
+      setError(handleAuthError(err));
       return false;
     }
   }, []);
@@ -195,18 +154,44 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setError(null);
 
     try {
-      const googleUser: User = {
-        id: `google_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        email: 'user@gmail.com',
-        displayName: 'Google User',
+      const { data, error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        createdAt: new Date().toISOString(),
-      };
-      
-      await saveUser(googleUser);
-      console.log('[AuthContext] Google sign in successful');
+        options: {
+          redirectTo: Platform.OS === 'web' 
+            ? window.location.origin 
+            : 'clearpath://auth/callback',
+          skipBrowserRedirect: Platform.OS !== 'web',
+        },
+      });
+
+      if (googleError) {
+        setError(handleAuthError(googleError));
+        return false;
+      }
+
+      if (Platform.OS !== 'web' && data.url) {
+        const WebBrowser = await import('expo-web-browser');
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          'clearpath://auth/callback'
+        );
+        
+        if (result.type === 'success' && 'url' in result) {
+          const url = new URL(result.url);
+          const accessToken = url.searchParams.get('access_token');
+          const refreshToken = url.searchParams.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+          }
+        }
+      }
+
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('[AuthContext] Google sign in error:', err);
       setError('Failed to sign in with Google');
       return false;
@@ -219,14 +204,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     try {
       if (Platform.OS === 'web') {
-        const mockUser: User = {
-          id: `apple_${Date.now()}`,
-          email: 'user@icloud.com',
-          displayName: 'Apple User',
+        const { error: appleError } = await supabase.auth.signInWithOAuth({
           provider: 'apple',
-          createdAt: new Date().toISOString(),
-        };
-        await saveUser(mockUser);
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+
+        if (appleError) {
+          setError(handleAuthError(appleError));
+          return false;
+        }
         return true;
       }
 
@@ -243,18 +231,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         ],
       });
 
-      const userData: User = {
-        id: credential.user,
-        email: credential.email || `${credential.user}@privaterelay.appleid.com`,
-        displayName: credential.fullName?.givenName 
-          ? `${credential.fullName.givenName} ${credential.fullName.familyName || ''}`
-          : 'Apple User',
-        provider: 'apple',
-        createdAt: new Date().toISOString(),
-      };
+      if (credential.identityToken) {
+        const { data, error: signInError } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken,
+        });
 
-      await saveUser(userData);
-      return true;
+        if (signInError) {
+          setError(handleAuthError(signInError));
+          return false;
+        }
+
+        if (credential.fullName && data.user) {
+          const displayName = credential.fullName.givenName 
+            ? `${credential.fullName.givenName} ${credential.fullName.familyName || ''}`
+            : undefined;
+          
+          if (displayName) {
+            await supabase.auth.updateUser({
+              data: {
+                display_name: displayName.trim(),
+                full_name: displayName.trim(),
+              },
+            });
+          }
+        }
+
+        return true;
+      }
+
+      setError('Failed to get Apple credentials');
+      return false;
     } catch (err: any) {
       if (err.code === 'ERR_REQUEST_CANCELED') {
         console.log('[AuthContext] Apple sign in cancelled');
@@ -269,8 +276,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signOut = useCallback(async () => {
     console.log('[AuthContext] Signing out...');
     try {
-      await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error('[AuthContext] Sign out error:', signOutError);
+      }
       setUser(null);
+      setSession(null);
       setError(null);
     } catch (err) {
       console.error('[AuthContext] Sign out error:', err);
@@ -285,11 +296,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     if (!user) return false;
     
     try {
-      const updatedUser: User = {
-        ...user,
-        ...updates,
-      };
-      await saveUser(updatedUser);
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          display_name: updates.displayName,
+          avatar_url: updates.photoUrl,
+        },
+      });
+
+      if (updateError) {
+        console.error('[AuthContext] Profile update error:', updateError);
+        return false;
+      }
+
+      setUser(prev => prev ? { ...prev, ...updates } : null);
       console.log('[AuthContext] Profile updated');
       return true;
     } catch (err) {
@@ -298,9 +317,36 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [user]);
 
+  const resetPassword = useCallback(async (email: string) => {
+    console.log('[AuthContext] Sending password reset email to:', email);
+    setError(null);
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        {
+          redirectTo: Platform.OS === 'web' 
+            ? `${window.location.origin}/auth/reset-password`
+            : 'clearpath://auth/reset-password',
+        }
+      );
+
+      if (resetError) {
+        setError(handleAuthError(resetError));
+        return false;
+      }
+
+      return true;
+    } catch (err: any) {
+      setError(handleAuthError(err));
+      return false;
+    }
+  }, []);
+
   return {
     user,
-    isAuthenticated: !!user,
+    session,
+    isAuthenticated: !!session,
     isLoading,
     error,
     signUpWithEmail,
@@ -310,5 +356,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     signOut,
     clearError,
     updateProfile,
+    resetPassword,
   };
 });
