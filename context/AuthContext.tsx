@@ -36,13 +36,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return;
     }
 
+    let mounted = true;
     const timeoutId = setTimeout(() => {
-      console.warn('[AuthContext] Session check timed out');
-      setIsLoading(false);
-    }, 5000);
+      if (mounted) {
+        console.warn('[AuthContext] Session check timed out');
+        setIsLoading(false);
+      }
+    }, 3000);
 
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        if (!mounted) return;
         clearTimeout(timeoutId);
         console.log('[AuthContext] Initial session:', session ? 'exists' : 'none');
         setSession(session);
@@ -52,6 +56,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         setIsLoading(false);
       })
       .catch((err) => {
+        if (!mounted) return;
         clearTimeout(timeoutId);
         console.error('[AuthContext] Failed to get session:', err);
         setIsLoading(false);
@@ -59,6 +64,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
         console.log('[AuthContext] Auth state changed:', event);
         setSession(session);
         if (session?.user) {
@@ -71,6 +77,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     );
 
     return () => {
+      mounted = false;
       clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
