@@ -48,9 +48,9 @@ export default function OverviewScreen() {
 
   React.useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.replace('/auth');
+      router.replace('/auth' as any);
     } else if (!isLoading && !hasOnboarded && isAuthenticated) {
-      router.replace('/onboarding');
+      router.replace('/onboarding' as any);
     }
   }, [isLoading, hasOnboarded, router, authLoading, isAuthenticated]);
 
@@ -180,7 +180,7 @@ export default function OverviewScreen() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>This Week</Text>
-        <Pressable onPress={() => router.push('/plan')} style={styles.seeAllButton}>
+        <Pressable onPress={() => router.push('/(tabs)/plan' as any)} style={styles.seeAllButton}>
           <Text style={styles.seeAllText}>View all</Text>
           <ChevronRight size={16} color={Colors.accent} />
         </Pressable>
@@ -190,7 +190,7 @@ export default function OverviewScreen() {
         <Pressable 
           key={focus.id}
           style={styles.taskCard}
-          onPress={() => router.push('/plan')}
+          onPress={() => router.push('/(tabs)/plan' as any)}
         >
           <View style={[styles.taskPriorityBar, { backgroundColor: getPriorityColor(focus.priority) }]} />
           <View style={styles.taskContent}>
@@ -206,7 +206,7 @@ export default function OverviewScreen() {
       <View style={styles.quickActions}>
         <Pressable 
           style={styles.quickAction}
-          onPress={() => router.push('/(tabs)/scenarios')}
+          onPress={() => router.push('/(tabs)/scenarios' as any)}
         >
           <View style={[styles.quickIconWrapper, { backgroundColor: Colors.lavenderMuted }]}>
             <Sparkles size={22} color={Colors.lavender} />
@@ -217,7 +217,7 @@ export default function OverviewScreen() {
         
         <Pressable 
           style={styles.quickAction}
-          onPress={() => router.push('/(tabs)/learn')}
+          onPress={() => router.push('/(tabs)/learn' as any)}
         >
           <View style={[styles.quickIconWrapper, { backgroundColor: Colors.mintMuted }]}>
             <BookOpen size={22} color={Colors.accent} />

@@ -138,7 +138,7 @@ export default function OnboardingScreen() {
           (parseInt(values.essentialsCost, 10) || 800)) * 3,
       };
       completeOnboarding(financials);
-      router.replace('/auth');
+      router.replace('/auth' as any);
     } else {
       animateTransition(() => setCurrentStep(currentStep + 1));
     }
@@ -160,7 +160,7 @@ export default function OnboardingScreen() {
       debts: 12000,
       emergencyFundGoal: 9150,
     });
-    router.replace('/auth');
+    router.replace('/auth' as any);
   };
 
   const updateValue = (field: string, value: string) => {

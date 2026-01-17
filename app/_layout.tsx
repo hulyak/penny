@@ -31,22 +31,22 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthScreen = segments[0] === 'auth';
-    const inOnboardingScreen = segments[0] === 'onboarding';
+    const inAuthScreen = segments[0] === 'auth' as string;
+    const inOnboardingScreen = segments[0] === 'onboarding' as string;
 
     console.log('[AuthGate] State:', { isAuthenticated, hasOnboarded, inAuthScreen, inOnboardingScreen, segments });
 
     // First check: if not onboarded, go to onboarding
     if (!hasOnboarded && !inOnboardingScreen) {
       console.log('[AuthGate] Redirecting to onboarding...');
-      router.replace('/onboarding');
+      router.replace('/onboarding' as any);
       return;
     }
 
     // Second check: if onboarded but not authenticated, go to auth
     if (hasOnboarded && !isAuthenticated && !inAuthScreen) {
       console.log('[AuthGate] Redirecting to auth...');
-      router.replace('/auth');
+      router.replace('/auth' as any);
       return;
     }
 
@@ -80,7 +80,7 @@ function RootLayoutNav() {
   const { isAuthenticated } = useAuth();
   const segments = useSegments();
   
-  const isOnAuthOrOnboarding = segments[0] === 'auth' || segments[0] === 'onboarding';
+  const isOnAuthOrOnboarding = (segments[0] as string) === 'auth' || (segments[0] as string) === 'onboarding';
   const showCoachButton = isAuthenticated && !isOnAuthOrOnboarding;
 
   return (
