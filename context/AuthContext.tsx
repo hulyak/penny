@@ -11,6 +11,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const mapSupabaseUser = useCallback((supabaseUser: any): User => {
     return {
@@ -303,17 +304,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signOut = useCallback(async () => {
     console.log('[AuthContext] Signing out...');
     try {
-      const { error: signOutError } = await supabase.auth.signOut();
-      if (signOutError) {
-        console.error('[AuthContext] Sign out error:', signOutError);
+      if (!isDemoMode) {
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) {
+          console.error('[AuthContext] Sign out error:', signOutError);
+        }
       }
       setUser(null);
       setSession(null);
       setError(null);
+      setIsDemoMode(false);
     } catch (err) {
       console.error('[AuthContext] Sign out error:', err);
     }
-  }, []);
+  }, [isDemoMode]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -370,16 +374,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
+  const signInAsDemo = useCallback(async () => {
+    console.log('[AuthContext] Signing in as demo user...');
+    setError(null);
+    
+    const demoUser: User = {
+      id: 'demo-user-' + Date.now(),
+      email: 'demo@penny.app',
+      displayName: 'Demo User',
+      provider: 'demo',
+      createdAt: new Date().toISOString(),
+    };
+    
+    setUser(demoUser);
+    setIsDemoMode(true);
+    setIsLoading(false);
+    console.log('[AuthContext] Demo sign in successful');
+    return true;
+  }, []);
+
   return {
     user,
     session,
-    isAuthenticated: !!session,
+    isAuthenticated: !!session || isDemoMode,
     isLoading,
     error,
+    isDemoMode,
     signUpWithEmail,
     signInWithEmail,
     signInWithGoogle,
     signInWithApple,
+    signInAsDemo,
     signOut,
     clearError,
     updateProfile,

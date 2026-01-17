@@ -3,7 +3,7 @@ export interface User {
   email: string;
   displayName: string;
   photoUrl?: string;
-  provider: 'email' | 'google' | 'apple';
+  provider: 'email' | 'google' | 'apple' | 'demo';
   createdAt: string;
 }
 

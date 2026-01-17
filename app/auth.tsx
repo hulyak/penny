@@ -42,6 +42,7 @@ export default function AuthScreen() {
     signUpWithEmail, 
     signInWithGoogle, 
     signInWithApple,
+    signInAsDemo,
     error,
     clearError,
   } = useAuth();
@@ -245,6 +246,30 @@ export default function AuthScreen() {
           Don&apos;t have an account? <Text style={styles.linkText}>Sign up</Text>
         </Text>
       </Pressable>
+
+      <View style={styles.demoContainer}>
+        <View style={styles.demoDivider} />
+        <Pressable 
+          style={({ pressed }) => [
+            styles.demoButton,
+            pressed && styles.demoButtonPressed,
+          ]}
+          onPress={async () => {
+            setIsLoading(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            const success = await signInAsDemo();
+            if (success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              router.replace('/(tabs)');
+            }
+            setIsLoading(false);
+          }}
+          disabled={isLoading}
+        >
+          <Text style={styles.demoButtonText}>Try Demo Mode</Text>
+          <Text style={styles.demoSubtext}>Explore the app without signing up</Text>
+        </Pressable>
+      </View>
     </Animated.View>
   );
 
@@ -635,5 +660,39 @@ const styles = StyleSheet.create({
   switchModeText: {
     fontSize: 15,
     color: Colors.textSecondary,
+  },
+  demoContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  demoDivider: {
+    width: 60,
+    height: 1,
+    backgroundColor: Colors.border,
+    marginBottom: 16,
+  },
+  demoButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    backgroundColor: Colors.mintMuted,
+    borderWidth: 1,
+    borderColor: Colors.mint,
+    borderStyle: 'dashed' as const,
+    alignItems: 'center',
+  },
+  demoButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  demoButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.accent,
+  },
+  demoSubtext: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
 });
