@@ -357,6 +357,12 @@ Explain why these foundations matter BEFORE considering investments. This is edu
   }
 }
 
+const marketContextFallback = {
+  summary: 'Current conditions are steady. Focus on building your financial foundation.',
+  educationalNote: 'Your personal financial readiness matters more than trying to time markets.',
+  sentiment: 'neutral' as const,
+};
+
 export async function generateMarketContext(): Promise<{
   summary: string;
   educationalNote: string;
@@ -388,14 +394,10 @@ This is purely educational context, not investment advice. Help users understand
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Market context generated');
+    console.log('[AIService] Market context generated successfully');
     return result;
-  } catch {
-    console.log('[AIService] Market context unavailable, using fallback');
-    return {
-      summary: 'Current conditions are steady. Focus on building your financial foundation.',
-      educationalNote: 'Your personal financial readiness matters more than trying to time markets.',
-      sentiment: 'neutral',
-    };
+  } catch (error) {
+    console.log('[AIService] Market context unavailable, using fallback:', error instanceof Error ? error.message : 'Unknown error');
+    return marketContextFallback;
   }
 }
