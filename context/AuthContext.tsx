@@ -2,7 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback } from 'react';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { User } from '@/types';
 import { Session, AuthError } from '@supabase/supabase-js';
 
@@ -28,15 +28,34 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   useEffect(() => {
     console.log('[AuthContext] Initializing Supabase auth listener...');
+    console.log('[AuthContext] Supabase configured:', isSupabaseConfigured);
     
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[AuthContext] Initial session:', session ? 'exists' : 'none');
-      setSession(session);
-      if (session?.user) {
-        setUser(mapSupabaseUser(session.user));
-      }
+    if (!isSupabaseConfigured) {
+      console.warn('[AuthContext] Supabase not configured, skipping auth');
       setIsLoading(false);
-    });
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      console.warn('[AuthContext] Session check timed out');
+      setIsLoading(false);
+    }, 5000);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        clearTimeout(timeoutId);
+        console.log('[AuthContext] Initial session:', session ? 'exists' : 'none');
+        setSession(session);
+        if (session?.user) {
+          setUser(mapSupabaseUser(session.user));
+        }
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        clearTimeout(timeoutId);
+        console.error('[AuthContext] Failed to get session:', err);
+        setIsLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -52,6 +71,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     );
 
     return () => {
+      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [mapSupabaseUser]);
