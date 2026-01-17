@@ -25,7 +25,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import Colors from '@/constants/colors';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
 
@@ -236,6 +236,7 @@ export default function OnboardingScreen() {
           <Animated.View 
             style={[
               styles.mascotContainer,
+              isWelcome && styles.mascotContainerLarge,
               {
                 transform: [
                   { translateY: mascotFloat },
@@ -244,14 +245,16 @@ export default function OnboardingScreen() {
               },
             ]}
           >
-            <Image 
-              source={{ uri: MASCOT_URL }} 
-              style={[
-                styles.mascot,
-                isWelcome && styles.mascotLarge,
-              ]} 
-              resizeMode="contain"
-            />
+            <View style={isWelcome ? styles.mascotGlow : undefined}>
+              <Image 
+                source={{ uri: MASCOT_URL }} 
+                style={[
+                  styles.mascot,
+                  isWelcome && styles.mascotLarge,
+                ]} 
+                resizeMode="contain"
+              />
+            </View>
           </Animated.View>
 
           {/* Content */}
@@ -374,18 +377,29 @@ const styles = StyleSheet.create({
   },
   mascotContainer: {
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  mascotContainerLarge: {
+    marginTop: SCREEN_HEIGHT * 0.04,
+    marginBottom: 24,
   },
   mascot: {
-    width: 140,
-    height: 140,
+    width: 120,
+    height: 120,
   },
   mascotLarge: {
-    width: SCREEN_WIDTH * 0.6,
-    height: SCREEN_WIDTH * 0.6,
-    maxWidth: 280,
-    maxHeight: 280,
+    width: SCREEN_WIDTH * 0.75,
+    height: SCREEN_WIDTH * 0.75,
+    maxWidth: 340,
+    maxHeight: 340,
+  },
+  mascotGlow: {
+    shadowColor: Colors.coral,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
   },
   mainContent: {
     flex: 1,
