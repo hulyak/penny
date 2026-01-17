@@ -179,7 +179,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         options: {
           redirectTo: Platform.OS === 'web' 
             ? window.location.origin 
-            : 'clearpath://auth/callback',
+            : 'penny://auth/callback',
           skipBrowserRedirect: Platform.OS !== 'web',
         },
       });
@@ -193,7 +193,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         const WebBrowser = await import('expo-web-browser');
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          'clearpath://auth/callback'
+          'penny://auth/callback'
         );
         
         if (result.type === 'success' && 'url' in result) {
@@ -347,7 +347,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         {
           redirectTo: Platform.OS === 'web' 
             ? `${window.location.origin}/auth/reset-password`
-            : 'clearpath://auth/reset-password',
+            : 'penny://auth/reset-password',
         }
       );
 

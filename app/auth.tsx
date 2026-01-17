@@ -184,7 +184,7 @@ export default function AuthScreen() {
         },
       ]}
     >
-      <Text style={styles.welcomeTitle}>Welcome to ClearPath</Text>
+      <Text style={styles.welcomeTitle}>Welcome to Penny</Text>
       <Text style={styles.welcomeSubtitle}>
         Your personal finance companion powered by AI
       </Text>
