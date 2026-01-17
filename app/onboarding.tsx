@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   ChevronLeft,
 } from 'lucide-react-native';
+import { Mascot } from '@/components/Mascot';
 import { useApp } from '@/context/AppContext';
 import Colors from '@/constants/colors';
 
@@ -204,9 +205,7 @@ export default function OnboardingScreen() {
           {/* Welcome Illustration */}
           {isWelcome && (
             <View style={styles.illustrationContainer}>
-              <View style={styles.illustrationCircle}>
-                <DollarSign size={48} color={Colors.accent} />
-              </View>
+              <Mascot size="xlarge" showBubble={false} />
             </View>
           )}
 
@@ -333,19 +332,7 @@ const styles = StyleSheet.create({
     marginTop: SCREEN_HEIGHT * 0.06,
     marginBottom: 32,
   },
-  illustrationCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.accentMuted,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 6,
-  },
+
   mainContent: {
     flex: 1,
     alignItems: 'center',
