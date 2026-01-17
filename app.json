@@ -15,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.clearpath-financial-app"
+      "bundleIdentifier": "app.rork.clearpath-financial-app",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -35,7 +36,8 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

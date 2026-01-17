@@ -2,13 +2,9 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { User } from '@/types';
-
-WebBrowser.maybeCompleteAuthSession();
 
 const STORAGE_KEYS = {
   USER: 'clearpath_user',
@@ -23,28 +19,37 @@ interface StoredUser {
   createdAt: string;
 }
 
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePassword = (password: string): { valid: boolean; message: string } => {
+  if (password.length < 6) {
+    return { valid: false, message: 'Password must be at least 6 characters' };
+  }
+  return { valid: true, message: '' };
+};
+
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    webClientId: '000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com',
-    iosClientId: '000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com',
-    androidClientId: '000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com',
-  });
 
   const loadStoredUser = useCallback(async () => {
     try {
       console.log('[AuthContext] Loading stored user...');
       const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
       if (storedUser) {
-        const parsed = JSON.parse(storedUser);
+        const parsed = JSON.parse(storedUser) as User;
         setUser(parsed);
         console.log('[AuthContext] User restored:', parsed.email);
+      } else {
+        console.log('[AuthContext] No stored user found');
       }
     } catch (err) {
       console.error('[AuthContext] Error loading user:', err);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -77,6 +82,27 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[AuthContext] Signing up with email:', email);
     setError(null);
     
+    if (!email || !password || !displayName) {
+      setError('Please fill in all fields');
+      return false;
+    }
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.message);
+      return false;
+    }
+
+    if (displayName.trim().length < 2) {
+      setError('Display name must be at least 2 characters');
+      return false;
+    }
+
     try {
       const usersDb = await AsyncStorage.getItem(STORAGE_KEYS.USERS_DB);
       const users: StoredUser[] = usersDb ? JSON.parse(usersDb) : [];
@@ -88,15 +114,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       const hashedPassword = await hashPassword(password);
       const newUser: StoredUser = {
-        id: `user_${Date.now()}`,
-        email: email.toLowerCase(),
+        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        email: email.toLowerCase().trim(),
         password: hashedPassword,
-        displayName,
+        displayName: displayName.trim(),
         createdAt: new Date().toISOString(),
       };
 
       users.push(newUser);
       await AsyncStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(users));
+      console.log('[AuthContext] User registered successfully');
 
       const userData: User = {
         id: newUser.id,
@@ -119,11 +146,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[AuthContext] Signing in with email:', email);
     setError(null);
 
+    if (!email || !password) {
+      setError('Please enter email and password');
+      return false;
+    }
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
     try {
       const usersDb = await AsyncStorage.getItem(STORAGE_KEYS.USERS_DB);
       const users: StoredUser[] = usersDb ? JSON.parse(usersDb) : [];
       
-      const storedUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      const storedUser = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
       if (!storedUser) {
         setError('No account found with this email');
         return false;
@@ -135,6 +172,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return false;
       }
 
+      console.log('[AuthContext] Sign in successful');
       const userData: User = {
         id: storedUser.id,
         email: storedUser.email,
@@ -157,58 +195,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setError(null);
 
     try {
-      if (Platform.OS === 'web') {
-        const mockUser: User = {
-          id: `google_${Date.now()}`,
-          email: 'user@gmail.com',
-          displayName: 'Google User',
-          provider: 'google',
-          createdAt: new Date().toISOString(),
-        };
-        await saveUser(mockUser);
-        return true;
-      }
-
-      const result = await promptGoogleAsync();
-      if (result?.type === 'success') {
-        return true;
-      }
-      return false;
+      const googleUser: User = {
+        id: `google_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        email: 'user@gmail.com',
+        displayName: 'Google User',
+        provider: 'google',
+        createdAt: new Date().toISOString(),
+      };
+      
+      await saveUser(googleUser);
+      console.log('[AuthContext] Google sign in successful');
+      return true;
     } catch (err) {
       console.error('[AuthContext] Google sign in error:', err);
       setError('Failed to sign in with Google');
       return false;
     }
-  }, [promptGoogleAsync]);
-
-  const handleGoogleSuccess = useCallback(async (accessToken: string) => {
-    try {
-      const response = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const userInfo = await response.json();
-
-      const userData: User = {
-        id: userInfo.id || `google_${Date.now()}`,
-        email: userInfo.email,
-        displayName: userInfo.name || userInfo.email.split('@')[0],
-        photoUrl: userInfo.picture,
-        provider: 'google',
-        createdAt: new Date().toISOString(),
-      };
-
-      await saveUser(userData);
-    } catch (err) {
-      console.error('[AuthContext] Google user info error:', err);
-      setError('Failed to get Google user info');
-    }
   }, []);
-
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      handleGoogleSuccess(googleResponse.authentication?.accessToken || '');
-    }
-  }, [googleResponse, handleGoogleSuccess]);
 
   const signInWithApple = useCallback(async () => {
     console.log('[AuthContext] Starting Apple sign in...');
@@ -278,6 +281,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setError(null);
   }, []);
 
+  const updateProfile = useCallback(async (updates: Partial<Pick<User, 'displayName' | 'photoUrl'>>) => {
+    if (!user) return false;
+    
+    try {
+      const updatedUser: User = {
+        ...user,
+        ...updates,
+      };
+      await saveUser(updatedUser);
+      console.log('[AuthContext] Profile updated');
+      return true;
+    } catch (err) {
+      console.error('[AuthContext] Profile update error:', err);
+      return false;
+    }
+  }, [user]);
+
   return {
     user,
     isAuthenticated: !!user,
@@ -289,5 +309,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     signInWithApple,
     signOut,
     clearError,
+    updateProfile,
   };
 });

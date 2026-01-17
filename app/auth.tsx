@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -105,42 +106,73 @@ export default function AuthScreen() {
     });
   };
 
-  const handleEmailAuth = async () => {
-    if (!email || !password) return;
-    if (mode === 'signup' && !displayName) return;
+  const handleEmailAuth = useCallback(async () => {
+    if (!email.trim() || !password) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+    if (mode === 'signup' && !displayName.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
 
     setIsLoading(true);
     let success = false;
 
-    if (mode === 'signin') {
-      success = await signInWithEmail(email, password);
-    } else if (mode === 'signup') {
-      success = await signUpWithEmail(email, password, displayName);
-    }
+    try {
+      if (mode === 'signin') {
+        success = await signInWithEmail(email.trim(), password);
+      } else if (mode === 'signup') {
+        success = await signUpWithEmail(email.trim(), password, displayName.trim());
+      }
 
-    setIsLoading(false);
-    if (success) {
-      router.replace('/(tabs)');
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace('/(tabs)');
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch (err) {
+      console.error('[Auth] Error during auth:', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [email, password, displayName, mode, signInWithEmail, signUpWithEmail, router]);
 
-  const handleGoogleAuth = async () => {
+  const handleGoogleAuth = useCallback(async () => {
     setIsLoading(true);
-    const success = await signInWithGoogle();
-    setIsLoading(false);
-    if (success) {
-      router.replace('/(tabs)');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const success = await signInWithGoogle();
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace('/(tabs)');
+      }
+    } catch (err) {
+      console.error('[Auth] Google auth error:', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [signInWithGoogle, router]);
 
-  const handleAppleAuth = async () => {
+  const handleAppleAuth = useCallback(async () => {
     setIsLoading(true);
-    const success = await signInWithApple();
-    setIsLoading(false);
-    if (success) {
-      router.replace('/(tabs)');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const success = await signInWithApple();
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace('/(tabs)');
+      }
+    } catch (err) {
+      console.error('[Auth] Apple auth error:', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [signInWithApple, router]);
 
   const renderWelcome = () => (
     <Animated.View 
@@ -331,7 +363,7 @@ export default function AuthScreen() {
       >
         <Text style={styles.switchModeText}>
           {mode === 'signin' 
-            ? "Don&apos;t have an account? " 
+            ? "Don't have an account? " 
             : "Already have an account? "}
           <Text style={styles.linkText}>
             {mode === 'signin' ? 'Sign up' : 'Sign in'}

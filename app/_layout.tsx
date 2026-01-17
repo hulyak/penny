@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { AppProvider } from "@/context/AppContext";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CoachProvider } from "@/context/CoachContext";
 import { PurchasesProvider } from "@/context/PurchasesContext";
 import { PaywallModal } from "@/components/PaywallModal";
@@ -19,9 +20,41 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthScreen = segments[0] === 'auth';
+
+    console.log('[AuthGate] Auth state:', { isAuthenticated, inAuthScreen, segments });
+
+    if (!isAuthenticated && !inAuthScreen) {
+      console.log('[AuthGate] Redirecting to auth...');
+      router.replace('/auth');
+    } else if (isAuthenticated && inAuthScreen) {
+      console.log('[AuthGate] Redirecting to tabs...');
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, isLoading, segments, router]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function RootLayoutNav() {
   return (
-    <>
+    <AuthGate>
       <Stack 
         screenOptions={{ 
           headerBackTitle: "Back",
@@ -57,7 +90,7 @@ function RootLayoutNav() {
       <CoachDrawer />
       <PurchaseAnalysisModal />
       <InvestmentReadinessModal />
-    </>
+    </AuthGate>
   );
 }
 
@@ -85,3 +118,12 @@ export default function RootLayout() {
     </trpc.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+});
