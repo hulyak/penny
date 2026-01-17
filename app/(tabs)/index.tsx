@@ -18,15 +18,15 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  BookOpen,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { useCoach } from '@/context/CoachContext';
-import { Card } from '@/components/Card';
 import { ScreenCoachCard } from '@/components/CoachCard';
 import { WhatWouldChange } from '@/components/WhatWouldChange';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
 
 export default function OverviewScreen() {
   const router = useRouter();
@@ -69,7 +69,7 @@ export default function OverviewScreen() {
     return (
       <View style={styles.loadingContainer}>
         <Image source={{ uri: MASCOT_URL }} style={styles.loadingMascot} />
-        <Text style={styles.loadingText}>Crunching numbers...</Text>
+        <Text style={styles.loadingText}>Getting things ready...</Text>
       </View>
     );
   }
@@ -83,103 +83,102 @@ export default function OverviewScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />
       }
     >
-      {/* Coach Card */}
       <ScreenCoachCard screenName="overview" />
 
-      {/* Health Score Card */}
-      <Card style={styles.healthCard}>
-        <Pressable onPress={() => setShowHealthDetails(!showHealthDetails)}>
+      <Pressable onPress={() => setShowHealthDetails(!showHealthDetails)}>
+        <View style={styles.healthCard}>
           <View style={styles.healthHeader}>
-            <Text style={styles.healthLabel}>Financial Health</Text>
-            <View style={styles.healthHeaderRight}>
-              <View style={[styles.healthBadge, { backgroundColor: healthColor + '15' }]}>
-                <Text style={[styles.healthBadgeText, { color: healthColor }]}>
-                  {snapshot.healthLabel}
-                </Text>
-              </View>
+            <View style={styles.healthTitleRow}>
+              <View style={[styles.healthDot, { backgroundColor: healthColor }]} />
+              <Text style={styles.healthTitle}>Financial Health</Text>
+            </View>
+            <View style={styles.healthBadge}>
+              <Text style={[styles.healthBadgeText, { color: healthColor }]}>
+                {snapshot.healthLabel}
+              </Text>
               {showHealthDetails ? (
-                <ChevronUp size={18} color={Colors.textMuted} style={{ marginLeft: 8 }} />
+                <ChevronUp size={16} color={Colors.textMuted} />
               ) : (
-                <ChevronDown size={18} color={Colors.textMuted} style={{ marginLeft: 8 }} />
+                <ChevronDown size={16} color={Colors.textMuted} />
               )}
             </View>
           </View>
-        
-          <View style={styles.scoreRow}>
-            <View style={styles.scoreCircle}>
+          
+          <View style={styles.scoreSection}>
+            <View style={[styles.scoreRing, { borderColor: healthColor + '30' }]}>
               <Text style={[styles.scoreNumber, { color: healthColor }]}>
                 {snapshot.healthScore}
               </Text>
-              <Text style={styles.scoreMax}>/100</Text>
+              <Text style={styles.scoreLabel}>Score</Text>
             </View>
-          
-            <View style={styles.metricsColumn}>
-              <MetricRow 
-                icon={<Wallet size={16} color={Colors.accent} />}
-                label="Disposable" 
-                value={`${snapshot.disposableIncome.toLocaleString()}/mo`}
-              />
-              <MetricRow 
-                icon={<TrendingUp size={16} color={Colors.success} />}
-                label="Savings Rate" 
-                value={`${snapshot.savingsRate.toFixed(0)}%`}
-              />
-              <MetricRow 
-                icon={<Target size={16} color={Colors.warning} />}
-                label="Runway" 
-                value={`${snapshot.monthsOfRunway.toFixed(1)} months`}
-              />
-            </View>
-          </View>
-        </Pressable>
-
-        {showHealthDetails && (
-          <View style={styles.healthDetailsSection}>
-            {financialRealityOutput?.reasoning && (
-              <View style={styles.reasoningBox}>
-                <Text style={styles.reasoningLabel}>Why this score?</Text>
-                <Text style={styles.reasoningText}>{financialRealityOutput.reasoning}</Text>
-              </View>
-            )}
             
-            <WhatWouldChange 
-              items={financialRealityOutput?.whatWouldChange || [
-                'Increasing your savings rate by 5%',
-                'Reducing fixed costs below 50% of income',
-                'Building 3+ months of emergency runway',
-              ]}
-            />
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricItem}>
+                <Wallet size={18} color={Colors.accent} />
+                <Text style={styles.metricValue}>${snapshot.disposableIncome.toLocaleString()}</Text>
+                <Text style={styles.metricLabel}>Disposable</Text>
+              </View>
+              <View style={styles.metricItem}>
+                <TrendingUp size={18} color={Colors.success} />
+                <Text style={styles.metricValue}>{snapshot.savingsRate.toFixed(0)}%</Text>
+                <Text style={styles.metricLabel}>Savings Rate</Text>
+              </View>
+              <View style={styles.metricItem}>
+                <Target size={18} color={Colors.warning} />
+                <Text style={styles.metricValue}>{snapshot.monthsOfRunway.toFixed(1)}mo</Text>
+                <Text style={styles.metricLabel}>Runway</Text>
+              </View>
+            </View>
           </View>
-        )}
-      </Card>
 
-      {/* Emergency Fund Progress */}
-      <Card style={styles.fundCard}>
+          {showHealthDetails && (
+            <View style={styles.healthDetailsSection}>
+              {financialRealityOutput?.reasoning && (
+                <View style={styles.reasoningBox}>
+                  <Text style={styles.reasoningLabel}>Why this score?</Text>
+                  <Text style={styles.reasoningText}>{financialRealityOutput.reasoning}</Text>
+                </View>
+              )}
+              
+              <WhatWouldChange 
+                items={financialRealityOutput?.whatWouldChange || [
+                  'Increasing your savings rate by 5%',
+                  'Reducing fixed costs below 50% of income',
+                  'Building 3+ months of emergency runway',
+                ]}
+              />
+            </View>
+          )}
+        </View>
+      </Pressable>
+
+      <View style={styles.fundCard}>
         <View style={styles.fundHeader}>
-          <View style={styles.fundTitleRow}>
+          <View style={styles.fundIconWrapper}>
             <PiggyBank size={20} color={Colors.success} />
+          </View>
+          <View style={styles.fundInfo}>
             <Text style={styles.fundTitle}>Emergency Fund</Text>
+            <Text style={styles.fundSubtitle}>
+              ${financials.savings.toLocaleString()} of ${financials.emergencyFundGoal.toLocaleString()}
+            </Text>
           </View>
           <Text style={styles.fundPercent}>{emergencyProgress.toFixed(0)}%</Text>
         </View>
         
-        <View style={styles.fundProgress}>
+        <View style={styles.fundProgressTrack}>
           <View style={[styles.fundProgressFill, { width: `${emergencyProgress}%` }]} />
         </View>
-        
-        <Text style={styles.fundDetails}>
-          ${financials.savings.toLocaleString()} of ${financials.emergencyFundGoal.toLocaleString()}
-        </Text>
-      </Card>
+      </View>
 
-      {/* This Week Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>This Week</Text>
-        <Pressable onPress={() => router.push('/plan')}>
-          <Text style={styles.seeAll}>See all</Text>
+        <Pressable onPress={() => router.push('/plan')} style={styles.seeAllButton}>
+          <Text style={styles.seeAllText}>View all</Text>
+          <ChevronRight size={16} color={Colors.accent} />
         </Pressable>
       </View>
 
@@ -189,9 +188,7 @@ export default function OverviewScreen() {
           style={styles.taskCard}
           onPress={() => router.push('/plan')}
         >
-          <View style={[styles.taskIcon, { backgroundColor: getPriorityColor(focus.priority) + '15' }]}>
-            <Target size={18} color={getPriorityColor(focus.priority)} />
-          </View>
+          <View style={[styles.taskPriorityBar, { backgroundColor: getPriorityColor(focus.priority) }]} />
           <View style={styles.taskContent}>
             <Text style={styles.taskTitle}>{focus.title}</Text>
             <Text style={styles.taskDescription} numberOfLines={1}>
@@ -202,41 +199,30 @@ export default function OverviewScreen() {
         </Pressable>
       ))}
 
-      {/* Quick Actions */}
       <View style={styles.quickActions}>
         <Pressable 
           style={styles.quickAction}
           onPress={() => router.push('/(tabs)/scenarios')}
         >
-          <View style={[styles.quickIcon, { backgroundColor: Colors.accentMuted }]}>
-            <Sparkles size={20} color={Colors.accent} />
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.lavenderMuted }]}>
+            <Sparkles size={22} color={Colors.lavender} />
           </View>
-          <Text style={styles.quickLabel}>Explore</Text>
-          <Text style={styles.quickSubLabel}>Scenarios</Text>
+          <Text style={styles.quickLabel}>Scenarios</Text>
+          <Text style={styles.quickSubLabel}>Explore options</Text>
         </Pressable>
         
         <Pressable 
           style={styles.quickAction}
           onPress={() => router.push('/(tabs)/learn')}
         >
-          <View style={[styles.quickIcon, { backgroundColor: Colors.successMuted }]}>
-            <TrendingUp size={20} color={Colors.success} />
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.mintMuted }]}>
+            <BookOpen size={22} color={Colors.accent} />
           </View>
           <Text style={styles.quickLabel}>Learn</Text>
-          <Text style={styles.quickSubLabel}>Finance tips</Text>
+          <Text style={styles.quickSubLabel}>Build skills</Text>
         </Pressable>
       </View>
     </ScrollView>
-  );
-}
-
-function MetricRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <View style={styles.metricRow}>
-      {icon}
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
-    </View>
   );
 }
 
@@ -253,7 +239,7 @@ function getHealthColor(label: string): string {
 
 function getPriorityColor(priority: string): string {
   const colors: Record<string, string> = {
-    'high': Colors.danger,
+    'high': Colors.coral,
     'medium': Colors.warning,
     'low': Colors.accent,
   };
@@ -276,8 +262,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   loadingMascot: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     marginBottom: 16,
   },
   loadingText: {
@@ -286,30 +272,102 @@ const styles = StyleSheet.create({
   },
 
   healthCard: {
-    padding: 16,
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 20,
     marginTop: 16,
-    marginBottom: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   healthHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  healthHeaderRight: {
+  healthTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  healthDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  healthTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  healthBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  healthBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  scoreSection: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  scoreRing: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 20,
+    backgroundColor: Colors.surfaceSecondary,
+  },
+  scoreNumber: {
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  scoreLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: -2,
+  },
+  metricsGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  metricItem: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  metricValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginTop: 6,
+  },
+  metricLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
   healthDetailsSection: {
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: 20,
+    paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
   reasoningBox: {
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
   },
   reasoningLabel: {
     fontSize: 12,
@@ -324,102 +382,62 @@ const styles = StyleSheet.create({
     color: Colors.text,
     lineHeight: 20,
   },
-  healthLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  healthBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  healthBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  scoreCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  scoreNumber: {
-    fontSize: 32,
-    fontWeight: '700',
-  },
-  scoreMax: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: -4,
-  },
-  metricsColumn: {
-    flex: 1,
-    gap: 8,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metricLabel: {
-    flex: 1,
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  metricValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-  },
+
   fundCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   fundHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  fundTitleRow: {
-    flexDirection: 'row',
+  fundIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.successMuted,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    marginRight: 12,
+  },
+  fundInfo: {
+    flex: 1,
   },
   fundTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
   },
+  fundSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
   fundPercent: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.success,
   },
-  fundProgress: {
+  fundProgressTrack: {
     height: 8,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.successMuted,
     borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 8,
   },
   fundProgressFill: {
     height: '100%',
     backgroundColor: Colors.success,
     borderRadius: 4,
   },
-  fundDetails: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
+
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -431,31 +449,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
   },
-  seeAll: {
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  seeAllText: {
     fontSize: 14,
     color: Colors.accent,
     fontWeight: '500',
   },
+
   taskCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 14,
+    marginBottom: 10,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  taskIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  taskPriorityBar: {
+    width: 4,
+    alignSelf: 'stretch',
   },
   taskContent: {
     flex: 1,
+    padding: 14,
   },
   taskTitle: {
     fontSize: 15,
@@ -467,27 +490,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
   },
+
   quickActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 16,
+    marginTop: 8,
   },
   quickAction: {
     flex: 1,
     backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  quickIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  quickIconWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   quickLabel: {
     fontSize: 15,

@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Image, Text, StyleSheet } from 'react-native';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
 
 type MascotMood = 'happy' | 'thinking' | 'celebrating' | 'concerned' | 'neutral';
 
 interface MascotProps {
-  size?: 'small' | 'medium' | 'large';
+  size?: 'tiny' | 'small' | 'medium' | 'large' | 'xlarge';
   mood?: MascotMood;
   message?: string;
   showBubble?: boolean;
@@ -22,9 +22,11 @@ export function Mascot({
   style 
 }: MascotProps) {
   const dimensions = {
+    tiny: 32,
     small: 48,
     medium: 72,
     large: 120,
+    xlarge: 180,
   };
 
   const imageSize = dimensions[size];
@@ -105,6 +107,26 @@ export function MascotCelebration({ message }: { message: string }) {
   );
 }
 
+export function MascotAvatar({ size = 'small' }: { size?: 'tiny' | 'small' | 'medium' }) {
+  const dimensions = {
+    tiny: 28,
+    small: 36,
+    medium: 48,
+  };
+  
+  return (
+    <Image 
+      source={{ uri: MASCOT_URL }}
+      style={{
+        width: dimensions[size],
+        height: dimensions[size],
+        borderRadius: dimensions[size] / 2,
+      }}
+      resizeMode="cover"
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
@@ -151,14 +173,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   greetingMascot: {
     width: 56,
     height: 56,
-    marginRight: 12,
+    marginRight: 14,
   },
   greetingContent: {
     flex: 1,
@@ -177,16 +204,16 @@ const styles = StyleSheet.create({
   tipContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.accentMuted,
-    padding: 12,
-    borderRadius: 12,
+    backgroundColor: Colors.mintMuted,
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.accent + '30',
+    borderColor: Colors.mint + '40',
   },
   tipMascot: {
-    width: 40,
-    height: 40,
-    marginRight: 10,
+    width: 44,
+    height: 44,
+    marginRight: 12,
   },
   tipBubble: {
     flex: 1,
@@ -199,8 +226,8 @@ const styles = StyleSheet.create({
   celebrationContainer: {
     alignItems: 'center',
     backgroundColor: Colors.successMuted,
-    padding: 20,
-    borderRadius: 16,
+    padding: 24,
+    borderRadius: 20,
   },
   celebrationMascot: {
     width: 80,

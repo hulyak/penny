@@ -1,35 +1,47 @@
 const Colors = {
-  primary: '#1A1F36',
-  primaryLight: '#2D3348',
+  primary: '#1F2937',
+  primaryLight: '#374151',
   
-  secondary: '#0066CC',
-  secondaryLight: '#3385D6',
+  secondary: '#0D9488',
+  secondaryLight: '#14B8A6',
   
-  accent: '#2563EB',
-  accentLight: '#3B82F6',
-  accentMuted: '#DBEAFE',
+  accent: '#10B981',
+  accentLight: '#34D399',
+  accentMuted: '#D1FAE5',
   
-  success: '#059669',
-  successLight: '#10B981',
+  mint: '#99E5DC',
+  mintLight: '#B5EDE6',
+  mintMuted: '#E6FAF7',
+  
+  coral: '#F8A5A5',
+  coralLight: '#FBC4C4',
+  coralMuted: '#FEF0F0',
+  
+  lavender: '#C4B5FD',
+  lavenderLight: '#DDD6FE',
+  lavenderMuted: '#F5F3FF',
+  
+  success: '#10B981',
+  successLight: '#34D399',
   successMuted: '#D1FAE5',
   
-  warning: '#D97706',
-  warningLight: '#F59E0B',
+  warning: '#F59E0B',
+  warningLight: '#FBBF24',
   warningMuted: '#FEF3C7',
   
-  danger: '#DC2626',
-  dangerLight: '#EF4444',
+  danger: '#EF4444',
+  dangerLight: '#F87171',
   dangerMuted: '#FEE2E2',
   
   neutral: '#6B7280',
   neutralLight: '#9CA3AF',
   neutralMuted: '#F3F4F6',
   
-  background: '#FAFBFC',
+  background: '#FAFCFB',
   surface: '#FFFFFF',
-  surfaceSecondary: '#F8FAFC',
+  surfaceSecondary: '#F0FDF9',
   
-  text: '#111827',
+  text: '#1F2937',
   textSecondary: '#4B5563',
   textMuted: '#9CA3AF',
   textLight: '#FFFFFF',
@@ -39,25 +51,25 @@ const Colors = {
   divider: '#E5E7EB',
   
   agents: {
-    financialReality: '#059669',
-    marketContext: '#2563EB',
-    scenarioLearning: '#7C3AED',
-    adaptation: '#D97706',
+    financialReality: '#10B981',
+    marketContext: '#0D9488',
+    scenarioLearning: '#8B5CF6',
+    adaptation: '#F59E0B',
   },
   
   health: {
-    critical: '#DC2626',
-    needsAttention: '#D97706',
-    stable: '#2563EB',
-    strong: '#059669',
-    excellent: '#047857',
+    critical: '#EF4444',
+    needsAttention: '#F59E0B',
+    stable: '#0D9488',
+    strong: '#10B981',
+    excellent: '#059669',
   },
   
   chart: {
-    primary: '#2563EB',
-    secondary: '#7C3AED',
-    tertiary: '#059669',
-    quaternary: '#D97706',
+    primary: '#10B981',
+    secondary: '#8B5CF6',
+    tertiary: '#0D9488',
+    quaternary: '#F59E0B',
   },
 };
 

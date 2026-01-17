@@ -13,13 +13,13 @@ import {
   Shield,
   Zap,
   Target,
+  TrendingUp,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
-import { Card } from '@/components/Card';
 import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
 
 export default function ScenariosScreen() {
   const { scenarios, financials } = useApp();
@@ -33,43 +33,40 @@ export default function ScenariosScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Coach Card */}
       <ScreenCoachCard screenName="scenarios" />
 
-      {/* Summary Card */}
-      <Card style={styles.summaryCard}>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Gap to Goal</Text>
-            <Text style={styles.summaryValue}>
-              ${emergencyGap.toLocaleString()}
-            </Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Current Savings</Text>
-            <Text style={[styles.summaryValue, { color: Colors.success }]}>
-              ${financials.savings.toLocaleString()}
-            </Text>
-          </View>
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryLabel}>Gap to Goal</Text>
+          <Text style={styles.summaryValue}>${emergencyGap.toLocaleString()}</Text>
         </View>
-      </Card>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryLabel}>Current Savings</Text>
+          <Text style={[styles.summaryValue, { color: Colors.success }]}>
+            ${financials.savings.toLocaleString()}
+          </Text>
+        </View>
+      </View>
 
-      {/* Scenarios */}
+      <Text style={styles.sectionTitle}>Choose Your Path</Text>
+      <Text style={styles.sectionSubtitle}>Compare strategies to reach your goal</Text>
+
       {scenarios.map((scenario) => {
         const isExpanded = expandedScenario === scenario.id;
         const Icon = getScenarioIcon(scenario.id);
         const color = getScenarioColor(scenario.riskLevel);
+        const bgColor = getScenarioBgColor(scenario.id);
 
         return (
           <Pressable 
             key={scenario.id}
-            style={styles.scenarioCard}
+            style={[styles.scenarioCard, isExpanded && styles.scenarioCardExpanded]}
             onPress={() => setExpandedScenario(isExpanded ? null : scenario.id)}
           >
             <View style={styles.scenarioHeader}>
-              <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
-                <Icon size={22} color={color} />
+              <View style={[styles.scenarioIcon, { backgroundColor: bgColor }]}>
+                <Icon size={24} color={color} />
               </View>
               <View style={styles.scenarioInfo}>
                 <Text style={styles.scenarioName}>{scenario.name}</Text>
@@ -77,44 +74,47 @@ export default function ScenariosScreen() {
                   {scenario.description}
                 </Text>
               </View>
-              {isExpanded ? (
-                <ChevronUp size={20} color={Colors.textMuted} />
-              ) : (
-                <ChevronDown size={20} color={Colors.textMuted} />
-              )}
+              <View style={styles.expandButton}>
+                {isExpanded ? (
+                  <ChevronUp size={20} color={Colors.textMuted} />
+                ) : (
+                  <ChevronDown size={20} color={Colors.textMuted} />
+                )}
+              </View>
             </View>
 
-            {/* Metrics Row */}
             <View style={styles.metricsRow}>
-              <View style={styles.metric}>
+              <View style={styles.metricBox}>
                 <Text style={styles.metricValue}>${scenario.monthlyContribution}</Text>
                 <Text style={styles.metricLabel}>Monthly</Text>
               </View>
-              <View style={styles.metric}>
+              <View style={styles.metricBox}>
                 <Text style={styles.metricValue}>{scenario.monthsToGoal}mo</Text>
                 <Text style={styles.metricLabel}>Timeline</Text>
               </View>
-              <View style={styles.metric}>
-                <View style={[styles.riskBadge, { backgroundColor: color + '15' }]}>
+              <View style={styles.metricBox}>
+                <View style={[styles.riskPill, { backgroundColor: color + '20' }]}>
                   <Text style={[styles.riskText, { color }]}>
                     {scenario.riskLevel}
                   </Text>
                 </View>
-                <Text style={styles.metricLabel}>Risk</Text>
+                <Text style={styles.metricLabel}>Effort</Text>
               </View>
             </View>
 
-            {/* Expanded Content */}
             {isExpanded && (
               <View style={styles.expandedContent}>
-                <View style={styles.reasoningBox}>
+                <View style={styles.reasoningSection}>
                   <Image source={{ uri: MASCOT_URL }} style={styles.miniMascot} />
-                  <Text style={styles.reasoningText}>{scenario.reasoning}</Text>
+                  <View style={styles.reasoningContent}>
+                    <Text style={styles.reasoningTitle}>Why this works</Text>
+                    <Text style={styles.reasoningText}>{scenario.reasoning}</Text>
+                  </View>
                 </View>
 
                 {scenario.tradeoffs && scenario.tradeoffs.length > 0 && (
                   <View style={styles.tradeoffsSection}>
-                    <Text style={styles.tradeoffsTitle}>Trade-offs</Text>
+                    <Text style={styles.tradeoffsTitle}>Trade-offs to consider</Text>
                     {scenario.tradeoffs.map((tradeoff, index) => (
                       <View key={index} style={styles.tradeoffItem}>
                         <View style={styles.bullet} />
@@ -125,10 +125,13 @@ export default function ScenariosScreen() {
                 )}
 
                 <View style={styles.projectionCard}>
-                  <Text style={styles.projectionLabel}>3-Year Projection</Text>
-                  <Text style={styles.projectionValue}>
-                    ${(scenario.projectedSavings || scenario.projectedOutcome || 0).toLocaleString()}
-                  </Text>
+                  <TrendingUp size={20} color={Colors.success} />
+                  <View style={styles.projectionContent}>
+                    <Text style={styles.projectionLabel}>3-Year Projection</Text>
+                    <Text style={styles.projectionValue}>
+                      ${(scenario.projectedSavings || scenario.projectedOutcome || 0).toLocaleString()}
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}
@@ -136,10 +139,9 @@ export default function ScenariosScreen() {
         );
       })}
 
-      {/* Disclaimer */}
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
-          These are educational projections, not financial advice. Actual results may vary.
+          These are educational projections based on your inputs. Actual results will vary based on your consistency and circumstances.
         </Text>
       </View>
     </ScrollView>
@@ -159,9 +161,18 @@ function getScenarioColor(risk: string): string {
   const colors: Record<string, string> = {
     low: Colors.success,
     medium: Colors.warning,
-    high: Colors.danger,
+    high: Colors.coral,
   };
   return colors[risk] || Colors.accent;
+}
+
+function getScenarioBgColor(id: string): string {
+  const colors: Record<string, string> = {
+    conservative: Colors.successMuted,
+    balanced: Colors.warningMuted,
+    accelerated: Colors.coralMuted,
+  };
+  return colors[id] || Colors.accentMuted;
 }
 
 const styles = StyleSheet.create({
@@ -175,13 +186,17 @@ const styles = StyleSheet.create({
   },
 
   summaryCard: {
-    padding: 16,
-    marginTop: 16,
-    marginBottom: 20,
-  },
-  summaryRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   summaryItem: {
     flex: 1,
@@ -190,44 +205,65 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 12,
     color: Colors.textMuted,
-    marginBottom: 4,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   summaryValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.text,
   },
   summaryDivider: {
     width: 1,
-    height: 40,
     backgroundColor: Colors.border,
     marginHorizontal: 16,
   },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+  },
+
   scenarioCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  scenarioCardExpanded: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.accent + '30',
   },
   scenarioHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  scenarioIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   scenarioInfo: {
     flex: 1,
   },
   scenarioName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.text,
     marginBottom: 2,
@@ -237,19 +273,24 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 18,
   },
+  expandButton: {
+    padding: 4,
+  },
+
   metricsRow: {
     flexDirection: 'row',
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: 18,
+    paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    gap: 12,
   },
-  metric: {
+  metricBox: {
     flex: 1,
     alignItems: 'center',
   },
   metricValue: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.text,
     marginBottom: 4,
@@ -258,43 +299,54 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  riskBadge: {
-    paddingHorizontal: 10,
+  riskPill: {
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   riskText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     textTransform: 'capitalize',
   },
+
   expandedContent: {
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: 18,
+    paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
-  reasoningBox: {
+  reasoningSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.accentMuted,
-    padding: 12,
-    borderRadius: 12,
+    backgroundColor: Colors.mintMuted,
+    padding: 14,
+    borderRadius: 14,
     marginBottom: 16,
   },
   miniMascot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  reasoningContent: {
+    flex: 1,
+  },
+  reasoningTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.accent,
+    marginBottom: 4,
   },
   reasoningText: {
-    flex: 1,
     fontSize: 14,
     color: Colors.text,
     lineHeight: 20,
   },
+
   tradeoffsSection: {
     marginBottom: 16,
   },
@@ -302,12 +354,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   tradeoffItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   bullet: {
     width: 6,
@@ -323,27 +375,33 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 20,
   },
+
   projectionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.successMuted,
     padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    borderRadius: 14,
+  },
+  projectionContent: {
+    marginLeft: 12,
   },
   projectionLabel: {
     fontSize: 12,
     color: Colors.success,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   projectionValue: {
     fontSize: 24,
     fontWeight: '700',
     color: Colors.success,
   },
+
   disclaimer: {
     marginTop: 8,
-    padding: 12,
+    padding: 14,
     backgroundColor: Colors.surfaceSecondary,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   disclaimerText: {
     fontSize: 12,

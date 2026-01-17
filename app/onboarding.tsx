@@ -10,6 +10,7 @@ import {
   ScrollView,
   Image,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,22 +21,20 @@ import {
   Car,
   ShoppingCart,
   ChevronLeft,
-  Sparkles,
-  Shield,
-  TrendingUp,
-  PiggyBank,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
 
 const STEPS = [
   {
     id: 'welcome',
-    title: 'Welcome to ClearPath',
-    subtitle: 'Get clarity on your finances in just a few steps.',
-    coachMessage: "Hey! I'm your financial coach. Let's get to know your money situation so I can help you make smarter decisions.",
+    title: 'Meet Penny',
+    subtitle: 'Your friendly finance companion',
+    coachMessage: "Hi there! I'm Penny, your fuzzy little finance buddy. I'm here to help you understand your money and make smarter decisions—no judgment, just guidance!",
   },
   {
     id: 'income',
@@ -44,7 +43,7 @@ const STEPS = [
     field: 'monthlyIncome',
     icon: DollarSign,
     placeholder: '5500',
-    coachMessage: "First things first—how much do you bring home each month? This helps me understand your starting point.",
+    coachMessage: "Let's start with your monthly income. How much lands in your account each month?",
   },
   {
     id: 'housing',
@@ -53,7 +52,7 @@ const STEPS = [
     field: 'housingCost',
     icon: Home,
     placeholder: '1800',
-    coachMessage: "Housing is usually the biggest expense. Include rent or mortgage, plus utilities and insurance.",
+    coachMessage: "Now for the big one—housing! Include rent or mortgage, utilities, and insurance.",
   },
   {
     id: 'transportation',
@@ -62,7 +61,7 @@ const STEPS = [
     field: 'carCost',
     icon: Car,
     placeholder: '450',
-    coachMessage: "Getting around costs money! Include car payments, insurance, gas, or transit passes.",
+    coachMessage: "How do you get around? Include car payments, insurance, gas, or transit costs.",
   },
   {
     id: 'essentials',
@@ -71,7 +70,7 @@ const STEPS = [
     field: 'essentialsCost',
     icon: ShoppingCart,
     placeholder: '800',
-    coachMessage: "Last one! Think groceries, healthcare, phone bill—the stuff you can't skip.",
+    coachMessage: "Almost done! What about groceries, healthcare, phone—the must-haves?",
   },
 ];
 
@@ -90,29 +89,38 @@ export default function OnboardingScreen() {
   
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const mascotBounce = useRef(new Animated.Value(0)).current;
+  const mascotScale = useRef(new Animated.Value(1)).current;
+  const mascotFloat = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(mascotBounce, {
-          toValue: -8,
-          duration: 1200,
+        Animated.timing(mascotFloat, {
+          toValue: -12,
+          duration: 2000,
           useNativeDriver: true,
         }),
-        Animated.timing(mascotBounce, {
+        Animated.timing(mascotFloat, {
           toValue: 0,
-          duration: 1200,
+          duration: 2000,
           useNativeDriver: true,
         }),
       ])
     ).start();
-  }, [mascotBounce]);
+  }, [mascotFloat]);
+
+  useEffect(() => {
+    Animated.spring(mascotScale, {
+      toValue: currentStep === 0 ? 1 : 0.5,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, [currentStep, mascotScale]);
 
   const step = STEPS[currentStep];
   const isWelcome = currentStep === 0;
   const isLastStep = currentStep === STEPS.length - 1;
-  const progress = ((currentStep) / (STEPS.length - 1)) * 100;
 
   const animateTransition = (callback: () => void) => {
     Animated.parallel([
@@ -122,22 +130,23 @@ export default function OnboardingScreen() {
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
-        toValue: -20,
+        toValue: -30,
         duration: 150,
         useNativeDriver: true,
       }),
     ]).start(() => {
       callback();
-      slideAnim.setValue(20);
+      slideAnim.setValue(30);
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 200,
+          duration: 250,
           useNativeDriver: true,
         }),
-        Animated.timing(slideAnim, {
+        Animated.spring(slideAnim, {
           toValue: 0,
-          duration: 200,
+          friction: 8,
+          tension: 40,
           useNativeDriver: true,
         }),
       ]).start();
@@ -190,40 +199,28 @@ export default function OnboardingScreen() {
 
   const currentValue = step.field ? values[step.field as keyof typeof values] : '';
 
-  const getInputFeedback = (stepId: string, value: number): string => {
-    if (!value) return '';
-    switch (stepId) {
-      case 'income':
-        if (value < 2000) return "Every dollar counts. Let's make the most of it.";
-        if (value < 5000) return "Solid foundation to work with!";
-        return "Great income! Let's optimize it.";
-      case 'housing':
-        const incomeVal = parseInt(values.monthlyIncome, 10) || 5500;
-        const housingRatio = (value / incomeVal) * 100;
-        if (housingRatio > 40) return `That's ${housingRatio.toFixed(0)}% of income—on the higher side.`;
-        if (housingRatio > 30) return `${housingRatio.toFixed(0)}% of income—pretty typical.`;
-        return `Nice! Only ${housingRatio.toFixed(0)}% of income.`;
-      case 'transportation':
-        if (value > 800) return "That's significant—we'll factor this in.";
-        if (value > 400) return "Standard transportation costs.";
-        return "Low transport costs—that's a plus!";
-      case 'essentials':
-        return "Got it! I'll crunch the numbers now.";
-      default:
-        return '';
-    }
-  };
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Progress Bar */}
+      {/* Progress Dots */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        {currentStep > 0 && (
+          <Pressable style={styles.backButton} onPress={handleBack}>
+            <ChevronLeft size={24} color={Colors.text} />
+          </Pressable>
+        )}
+        <View style={styles.dotsContainer}>
+          {STEPS.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                index === currentStep && styles.dotActive,
+                index < currentStep && styles.dotComplete,
+              ]}
+            />
+          ))}
         </View>
-        <Text style={styles.progressText}>
-          {currentStep} of {STEPS.length - 1}
-        </Text>
+        <View style={styles.backButton} />
       </View>
 
       <KeyboardAvoidingView 
@@ -233,32 +230,28 @@ export default function OnboardingScreen() {
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <View style={styles.header}>
-            {currentStep > 0 && (
-              <Pressable style={styles.backButton} onPress={handleBack}>
-                <ChevronLeft size={24} color={Colors.text} />
-              </Pressable>
-            )}
-          </View>
-
-          {/* Coach Message */}
+          {/* Mascot Section */}
           <Animated.View 
             style={[
-              styles.coachSection,
-              { 
-                opacity: fadeAnim,
-                transform: [{ translateX: slideAnim }]
-              }
+              styles.mascotContainer,
+              {
+                transform: [
+                  { translateY: mascotFloat },
+                  { scale: mascotScale },
+                ],
+              },
             ]}
           >
-            <Animated.View style={{ transform: [{ translateY: mascotBounce }] }}>
-              <Image source={{ uri: MASCOT_URL }} style={styles.mascot} />
-            </Animated.View>
-            <View style={styles.coachBubble}>
-              <Text style={styles.coachMessage}>{step.coachMessage}</Text>
-            </View>
+            <Image 
+              source={{ uri: MASCOT_URL }} 
+              style={[
+                styles.mascot,
+                isWelcome && styles.mascotLarge,
+              ]} 
+              resizeMode="contain"
+            />
           </Animated.View>
 
           {/* Content */}
@@ -267,102 +260,68 @@ export default function OnboardingScreen() {
               styles.mainContent,
               {
                 opacity: fadeAnim,
-                transform: [{ translateX: slideAnim }]
-              }
+                transform: [{ translateY: slideAnim }],
+              },
             ]}
           >
-            {isWelcome ? (
-              <View style={styles.welcomeContent}>
-                <View style={styles.featuresGrid}>
-                  <View style={styles.featureCard}>
-                    <View style={[styles.featureIcon, { backgroundColor: Colors.accentMuted }]}>
-                      <PiggyBank size={22} color={Colors.accent} />
-                    </View>
-                    <Text style={styles.featureTitle}>Track Health</Text>
-                    <Text style={styles.featureDesc}>See your financial snapshot</Text>
+            <Text style={styles.title}>{step.title}</Text>
+            <Text style={styles.subtitle}>{step.subtitle}</Text>
+
+            {/* Coach Message Bubble */}
+            <View style={styles.messageBubble}>
+              <Text style={styles.messageText}>{step.coachMessage}</Text>
+            </View>
+
+            {/* Input for non-welcome steps */}
+            {!isWelcome && step.field && (
+              <View style={styles.inputSection}>
+                <View style={styles.inputCard}>
+                  <View style={styles.inputIconContainer}>
+                    {step.icon && <step.icon size={24} color={Colors.accent} />}
                   </View>
-                  <View style={styles.featureCard}>
-                    <View style={[styles.featureIcon, { backgroundColor: Colors.successMuted }]}>
-                      <TrendingUp size={22} color={Colors.success} />
-                    </View>
-                    <Text style={styles.featureTitle}>Plan Ahead</Text>
-                    <Text style={styles.featureDesc}>Weekly actions that work</Text>
-                  </View>
-                  <View style={styles.featureCard}>
-                    <View style={[styles.featureIcon, { backgroundColor: Colors.warningMuted }]}>
-                      <Sparkles size={22} color={Colors.warning} />
-                    </View>
-                    <Text style={styles.featureTitle}>Explore</Text>
-                    <Text style={styles.featureDesc}>Compare scenarios</Text>
-                  </View>
-                  <View style={styles.featureCard}>
-                    <View style={[styles.featureIcon, { backgroundColor: '#E8F4F8' }]}>
-                      <Shield size={22} color="#4A9DAD" />
-                    </View>
-                    <Text style={styles.featureTitle}>Learn</Text>
-                    <Text style={styles.featureDesc}>Build money skills</Text>
+                  <View style={styles.inputWrapper}>
+                    <Text style={styles.currencySymbol}>$</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={currentValue}
+                      onChangeText={(text) => updateValue(step.field!, text)}
+                      placeholder={step.placeholder}
+                      placeholderTextColor={Colors.textMuted}
+                      keyboardType="numeric"
+                      autoFocus
+                    />
+                    <Text style={styles.perMonth}>/month</Text>
                   </View>
                 </View>
-
-                <View style={styles.disclaimer}>
-                  <Shield size={14} color={Colors.textMuted} />
-                  <Text style={styles.disclaimerText}>
-                    Educational tool only. Not financial advice.
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.inputContent}>
-                {step.icon && (
-                  <View style={styles.iconContainer}>
-                    <step.icon size={28} color={Colors.accent} />
-                  </View>
-                )}
-                
-                <Text style={styles.stepTitle}>{step.title}</Text>
-                <Text style={styles.stepSubtitle}>{step.subtitle}</Text>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.currencySymbol}>$</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={currentValue}
-                    onChangeText={(text) => updateValue(step.field!, text)}
-                    placeholder={step.placeholder}
-                    placeholderTextColor={Colors.textMuted}
-                    keyboardType="numeric"
-                    autoFocus
-                  />
-                  <Text style={styles.perMonth}>/mo</Text>
-                </View>
-
-                {currentValue && (
-                  <View style={styles.inputFeedback}>
-                    <Text style={styles.feedbackText}>
-                      {getInputFeedback(step.id, parseInt(currentValue, 10) || 0)}
-                    </Text>
-                  </View>
-                )}
               </View>
             )}
           </Animated.View>
 
           {/* Footer */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
             <Pressable 
-              style={styles.primaryButton}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.primaryButtonPressed,
+              ]}
               onPress={handleNext}
             >
               <Text style={styles.primaryButtonText}>
-                {isWelcome ? 'Get Started' : isLastStep ? 'Finish' : 'Continue'}
+                {isWelcome ? 'Get Started' : isLastStep ? "Let's Go!" : 'Continue'}
               </Text>
               <ArrowRight size={20} color="#fff" />
             </Pressable>
 
             {isWelcome && (
               <Pressable style={styles.skipButton} onPress={handleSkip}>
-                <Text style={styles.skipButtonText}>Use Demo Data</Text>
+                <Text style={styles.skipButtonText}>Try with demo data</Text>
               </Pressable>
+            )}
+
+            {!isWelcome && (
+              <Text style={styles.stepIndicator}>
+                {currentStep} of {STEPS.length - 1}
+              </Text>
             )}
           </View>
         </ScrollView>
@@ -374,188 +333,137 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.mintMuted,
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 12,
-  },
-  progressBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: 2,
-    marginRight: 12,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.accent,
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    width: 40,
-    textAlign: 'right',
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-  },
-  header: {
-    height: 44,
-    justifyContent: 'center',
   },
   backButton: {
     width: 44,
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: -12,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.border,
+  },
+  dotActive: {
+    width: 24,
+    backgroundColor: Colors.coral,
+  },
+  dotComplete: {
+    backgroundColor: Colors.accent,
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+  },
+  mascotContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  mascot: {
+    width: 140,
+    height: 140,
+  },
+  mascotLarge: {
+    width: SCREEN_WIDTH * 0.6,
+    height: SCREEN_WIDTH * 0.6,
+    maxWidth: 280,
+    maxHeight: 280,
   },
   mainContent: {
     flex: 1,
-    justifyContent: 'center',
+    alignItems: 'center',
   },
-  coachSection: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
     marginBottom: 24,
-    paddingTop: 8,
   },
-  mascot: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  messageBubble: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    width: '100%',
   },
-  coachBubble: {
-    flex: 1,
-    marginLeft: 12,
+  messageText: {
+    fontSize: 16,
+    color: Colors.text,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  inputSection: {
+    width: '100%',
+    marginTop: 8,
+  },
+  inputCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
-    borderTopLeftRadius: 4,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  coachMessage: {
-    fontSize: 15,
-    color: Colors.text,
-    lineHeight: 22,
-  },
-  welcomeContent: {
-    alignItems: 'center',
-  },
-  featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  featureCard: {
-    width: '47%',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
     padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  featureIcon: {
-    width: 44,
-    height: 44,
+  inputIconContainer: {
+    width: 48,
+    height: 48,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  featureTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  featureDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  disclaimer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surfaceSecondary,
-    padding: 12,
-    borderRadius: 10,
-    alignSelf: 'stretch',
-    gap: 8,
-  },
-  disclaimerText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  inputContent: {
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
     backgroundColor: Colors.accentMuted,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
-  inputFeedback: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: Colors.successMuted,
-    borderRadius: 10,
-  },
-  feedbackText: {
-    fontSize: 13,
-    color: Colors.success,
-    textAlign: 'center',
-  },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  stepSubtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: 32,
-    textAlign: 'center',
-  },
-  inputContainer: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderWidth: 2,
-    borderColor: Colors.accent,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'center',
   },
   currencySymbol: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '600',
     color: Colors.text,
     marginRight: 4,
   },
   input: {
-    flex: 1,
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '700',
     color: Colors.text,
     padding: 0,
+    minWidth: 100,
+    textAlign: 'center',
   },
   perMonth: {
     fontSize: 16,
@@ -563,21 +471,30 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   footer: {
-    paddingVertical: 20,
+    paddingTop: 24,
   },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.accent,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
   },
   primaryButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
-    marginRight: 8,
   },
   skipButton: {
     alignItems: 'center',
@@ -587,5 +504,11 @@ const styles = StyleSheet.create({
   skipButtonText: {
     fontSize: 15,
     color: Colors.textSecondary,
+  },
+  stepIndicator: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: Colors.textMuted,
+    marginTop: 12,
   },
 });

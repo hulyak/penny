@@ -11,13 +11,13 @@ import {
   CheckCircle2, 
   Circle,
   Sparkles,
+  Zap,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
-import { Card } from '@/components/Card';
 import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
 
 export default function PlanScreen() {
   const { weeklyFocuses, updateFocusProgress } = useApp();
@@ -32,32 +32,40 @@ export default function PlanScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Coach Card */}
       <ScreenCoachCard screenName="plan" />
 
-      {/* Progress Summary */}
-      <Card style={styles.progressCard}>
+      <View style={styles.progressCard}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>Weekly Progress</Text>
-          <Text style={styles.progressCount}>
-            {completedCount}/{totalCount}
-          </Text>
+          <View>
+            <Text style={styles.progressTitle}>Weekly Progress</Text>
+            <Text style={styles.progressSubtitle}>
+              {completedCount === totalCount && totalCount > 0 
+                ? "Amazing work this week!" 
+                : `${totalCount - completedCount} tasks remaining`}
+            </Text>
+          </View>
+          <View style={styles.progressBadge}>
+            <Text style={styles.progressBadgeText}>{completedCount}/{totalCount}</Text>
+          </View>
         </View>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+        
+        <View style={styles.progressBarContainer}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+          </View>
         </View>
+
         {completedCount === totalCount && totalCount > 0 && (
-          <View style={styles.celebrationBadge}>
-            <Sparkles size={14} color={Colors.success} />
-            <Text style={styles.celebrationText}>All done!</Text>
+          <View style={styles.celebrationRow}>
+            <Sparkles size={16} color={Colors.success} />
+            <Text style={styles.celebrationText}>All tasks completed!</Text>
           </View>
         )}
-      </Card>
+      </View>
 
-      {/* Tasks */}
       <Text style={styles.sectionTitle}>This Week&apos;s Focus</Text>
       
-      {weeklyFocuses.map((focus, index) => {
+      {weeklyFocuses.map((focus) => {
         const isComplete = focus.progress === 100;
         
         return (
@@ -66,18 +74,25 @@ export default function PlanScreen() {
             style={[styles.taskCard, isComplete && styles.taskCardComplete]}
             onPress={() => updateFocusProgress(focus.id, isComplete ? 0 : 100)}
           >
-            <View style={styles.taskLeft}>
+            <View style={styles.taskCheckbox}>
               {isComplete ? (
-                <CheckCircle2 size={24} color={Colors.success} />
+                <View style={styles.checkboxComplete}>
+                  <CheckCircle2 size={24} color={Colors.success} />
+                </View>
               ) : (
-                <Circle size={24} color={Colors.border} />
+                <View style={styles.checkboxEmpty}>
+                  <Circle size={24} color={Colors.border} />
+                </View>
               )}
             </View>
             
             <View style={styles.taskContent}>
-              <Text style={[styles.taskTitle, isComplete && styles.taskTitleComplete]}>
-                {focus.title}
-              </Text>
+              <View style={styles.taskHeader}>
+                <Text style={[styles.taskTitle, isComplete && styles.taskTitleComplete]}>
+                  {focus.title}
+                </Text>
+                <View style={[styles.priorityIndicator, { backgroundColor: getPriorityColor(focus.priority) }]} />
+              </View>
               <Text style={styles.taskDescription}>{focus.description}</Text>
               
               {focus.agentReasoning && (
@@ -87,22 +102,18 @@ export default function PlanScreen() {
                 </View>
               )}
             </View>
-            
-            <View style={[
-              styles.priorityDot,
-              { backgroundColor: getPriorityColor(focus.priority) }
-            ]} />
           </Pressable>
         );
       })}
 
-      {/* Tip Card */}
       <View style={styles.tipCard}>
-        <Image source={{ uri: MASCOT_URL }} style={styles.tipMascot} />
+        <View style={styles.tipIconWrapper}>
+          <Zap size={20} color={Colors.warning} />
+        </View>
         <View style={styles.tipContent}>
           <Text style={styles.tipTitle}>Quick Tip</Text>
           <Text style={styles.tipText}>
-            Focus on one task at a time. Small wins build momentum!
+            Focus on one task at a time. Small wins build momentum toward bigger goals!
           </Text>
         </View>
       </View>
@@ -112,9 +123,9 @@ export default function PlanScreen() {
 
 function getPriorityColor(priority: string): string {
   const colors: Record<string, string> = {
-    'high': Colors.danger,
+    'high': Colors.coral,
     'medium': Colors.warning,
-    'low': Colors.success,
+    'low': Colors.accent,
   };
   return colors[priority] || Colors.accent;
 }
@@ -130,115 +141,150 @@ const styles = StyleSheet.create({
   },
 
   progressCard: {
-    padding: 16,
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 20,
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-start',
+    marginBottom: 16,
   },
-  progressLabel: {
-    fontSize: 14,
+  progressTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  progressCount: {
-    fontSize: 16,
-    fontWeight: '700',
     color: Colors.text,
   },
+  progressSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  progressBadge: {
+    backgroundColor: Colors.accentMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  progressBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.accent,
+  },
+  progressBarContainer: {
+    marginBottom: 8,
+  },
   progressBar: {
-    height: 8,
-    backgroundColor: Colors.border,
-    borderRadius: 4,
+    height: 10,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.success,
-    borderRadius: 4,
+    backgroundColor: Colors.accent,
+    borderRadius: 5,
   },
-  celebrationBadge: {
+  celebrationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     backgroundColor: Colors.successMuted,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     marginTop: 12,
-    gap: 6,
+    gap: 8,
   },
   celebrationText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.success,
   },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 14,
   },
+
   taskCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: Colors.surface,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   taskCardComplete: {
     backgroundColor: Colors.successMuted,
-    borderColor: Colors.success + '30',
   },
-  taskLeft: {
-    marginRight: 12,
+  taskCheckbox: {
+    marginRight: 14,
     marginTop: 2,
+  },
+  checkboxComplete: {
+    opacity: 1,
+  },
+  checkboxEmpty: {
+    opacity: 0.6,
   },
   taskContent: {
     flex: 1,
   },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   taskTitle: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 4,
   },
   taskTitleComplete: {
     textDecorationLine: 'line-through',
     color: Colors.textMuted,
+  },
+  priorityIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 10,
   },
   taskDescription: {
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
   },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 8,
-    marginTop: 6,
-  },
   reasoningBubble: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.accentMuted,
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 10,
+    backgroundColor: Colors.mintMuted,
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 12,
   },
   miniMascot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 10,
   },
   reasoningText: {
     flex: 1,
@@ -246,19 +292,23 @@ const styles = StyleSheet.create({
     color: Colors.text,
     lineHeight: 18,
   },
+
   tipCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.accentMuted,
+    alignItems: 'flex-start',
+    backgroundColor: Colors.warningMuted,
     padding: 16,
-    borderRadius: 12,
-    marginTop: 16,
+    borderRadius: 16,
+    marginTop: 8,
   },
-  tipMascot: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
+  tipIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.warning + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
   tipContent: {
     flex: 1,
@@ -266,12 +316,12 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.accent,
-    marginBottom: 2,
+    color: Colors.warning,
+    marginBottom: 4,
   },
   tipText: {
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.text,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });
