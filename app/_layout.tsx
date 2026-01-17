@@ -4,7 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CoachProvider } from "@/context/CoachContext";
 import { PurchasesProvider } from "@/context/PurchasesContext";
@@ -21,25 +21,49 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { hasOnboarded, isLoading: appLoading } = useApp();
   const router = useRouter();
   const segments = useSegments();
+
+  const isLoading = authLoading || appLoading;
 
   useEffect(() => {
     if (isLoading) return;
 
     const inAuthScreen = segments[0] === 'auth';
+    const inOnboardingScreen = segments[0] === 'onboarding';
 
-    console.log('[AuthGate] Auth state:', { isAuthenticated, inAuthScreen, segments });
+    console.log('[AuthGate] State:', { isAuthenticated, hasOnboarded, inAuthScreen, inOnboardingScreen, segments });
 
-    if (!isAuthenticated && !inAuthScreen) {
+    // First check: if not onboarded, go to onboarding
+    if (!hasOnboarded && !inOnboardingScreen) {
+      console.log('[AuthGate] Redirecting to onboarding...');
+      router.replace('/onboarding');
+      return;
+    }
+
+    // Second check: if onboarded but not authenticated, go to auth
+    if (hasOnboarded && !isAuthenticated && !inAuthScreen) {
       console.log('[AuthGate] Redirecting to auth...');
       router.replace('/auth');
-    } else if (isAuthenticated && inAuthScreen) {
+      return;
+    }
+
+    // Third check: if authenticated and on auth screen, go to tabs
+    if (isAuthenticated && inAuthScreen) {
       console.log('[AuthGate] Redirecting to tabs...');
       router.replace('/(tabs)');
+      return;
     }
-  }, [isAuthenticated, isLoading, segments, router]);
+
+    // Fourth check: if authenticated and on onboarding (already completed), go to tabs
+    if (isAuthenticated && hasOnboarded && inOnboardingScreen) {
+      console.log('[AuthGate] Already onboarded and authenticated, redirecting to tabs...');
+      router.replace('/(tabs)');
+      return;
+    }
+  }, [isAuthenticated, hasOnboarded, isLoading, segments, router]);
 
   if (isLoading) {
     return (
