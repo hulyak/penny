@@ -1,4 +1,4 @@
-import { UserFinancials, FinancialSnapshot, AdaptationOutput, WeeklyAction, Intervention } from '@/types';
+import { UserFinancials, FinancialSnapshot, AdaptationOutput, WeeklyAction, Intervention, LongTermGoal } from '@/types';
 import { generateWeeklyCoaching } from '@/lib/aiService';
 
 export class AdaptationAgent {
@@ -63,9 +63,9 @@ export class AdaptationAgent {
     };
   }
 
-  private generateLongTermGoals(financials: UserFinancials, snapshot: FinancialSnapshot) {
+  private generateLongTermGoals(financials: UserFinancials, snapshot: FinancialSnapshot): LongTermGoal[] {
     this.log('Evaluating long-term goals...');
-    const goals = [];
+    const goals: LongTermGoal[] = [];
 
     // Emergency Fund Goal
     const emergencyProgress = (financials.savings / financials.emergencyFundGoal) * 100;
