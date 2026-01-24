@@ -125,6 +125,32 @@ export interface Intervention {
 export interface AdaptationOutput extends AgentOutput {
   weeklyPlan: WeeklyAction[];
   interventions: Intervention[];
+  longTermGoals?: LongTermGoal[];
+}
+
+export interface LongTermGoal {
+  id: string;
+  title: string;
+  targetAmount?: number;
+  currentAmount?: number;
+  deadline?: string;
+  status: 'active' | 'completed' | 'paused';
+  progress: number;
+  milestones: { title: string; completed: boolean }[];
+  agentNotes: string;
+}
+
+export interface FinancialVisionOutput extends AgentOutput {
+  analysis: {
+    productName: string;
+    estimatedCost: number;
+    category: string;
+    necessityScore: number;
+    budgetImpact: 'low' | 'medium' | 'high' | 'critical';
+    recommendation: string;
+    reasoning: string;
+    alternative?: string;
+  };
 }
 
 export interface AgentInsight {

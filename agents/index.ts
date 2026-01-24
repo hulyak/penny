@@ -2,3 +2,4 @@ export { financialRealityAgent, FinancialRealityAgent } from './FinancialReality
 export { marketContextAgent, MarketContextAgent } from './MarketContextAgent';
 export { scenarioLearningAgent, ScenarioLearningAgent } from './ScenarioLearningAgent';
 export { adaptationAgent, AdaptationAgent } from './AdaptationAgent';
+export { financialVisionAgent, FinancialVisionAgent } from './FinancialVisionAgent';

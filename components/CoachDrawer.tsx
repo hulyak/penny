@@ -22,11 +22,13 @@ import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
 import * as Speech from 'expo-speech';
 
-const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/fdjbtnwfjkonpwmwero75';
+import { MASCOT_IMAGE_URL } from '@/constants/images';
+
+const MASCOT_URL = MASCOT_IMAGE_URL;
 
 export function CoachDrawer() {
-  const { recentMessages, markAsRead, markAllAsRead, isDrawerOpen, setIsDrawerOpen } = useCoach();
-  const [activeTab, setActiveTab] = useState<'messages' | 'actions'>('messages');
+  const { recentMessages, markAsRead, markAllAsRead, isDrawerOpen, setIsDrawerOpen, isAnalyzingImage } = useCoach();
+  const [activeTab, setActiveTab] = useState<'messages' | 'actions' | 'vision'>('messages');
 
   const speakMessage = (text: string) => {
     Speech.speak(text, {
@@ -88,7 +90,15 @@ export function CoachDrawer() {
               onPress={() => setActiveTab('actions')}
             >
               <Text style={[styles.tabText, activeTab === 'actions' && styles.tabTextActive]}>
-                Quick Actions
+                Actions
+              </Text>
+            </Pressable>
+            <Pressable 
+              style={[styles.tab, activeTab === 'vision' && styles.tabActive]}
+              onPress={() => setActiveTab('vision')}
+            >
+              <Text style={[styles.tabText, activeTab === 'vision' && styles.tabTextActive]}>
+                Visual
               </Text>
             </Pressable>
           </View>
@@ -101,8 +111,10 @@ export function CoachDrawer() {
                 onMarkRead={markAsRead}
                 formatTime={formatTime}
               />
-            ) : (
+            ) : activeTab === 'actions' ? (
               <ActionsTab />
+            ) : (
+              <VisionTab isLoading={isAnalyzingImage} />
             )}
           </ScrollView>
 
@@ -286,6 +298,88 @@ function ActionsTab() {
           </View>
         </View>
       )}
+    </View>
+  );
+}
+
+function VisionTab({ isLoading }: { isLoading: boolean }) {
+  const { analyzeImage } = useCoach();
+  const [imageUrl, setImageUrl] = useState('');
+
+  const DEMO_IMAGE = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80';
+
+  const handleAnalyze = () => {
+    if (imageUrl) {
+      analyzeImage(imageUrl);
+      setImageUrl('');
+    }
+  };
+
+  const handleDemo = () => {
+    setImageUrl(DEMO_IMAGE);
+  };
+
+  return (
+    <View style={styles.actionsContainer}>
+      <View style={styles.purchaseForm}>
+        <Text style={styles.formTitle}>Snap & Analyze</Text>
+        <Text style={styles.actionDesc}>
+          Paste an image URL of a product to get an instant AI budget analysis.
+        </Text>
+        
+        <View style={[styles.inputGroup, { marginTop: 16 }]}>
+          <Text style={styles.inputLabel}>Image URL</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="https://..."
+            placeholderTextColor={Colors.textMuted}
+            value={imageUrl}
+            onChangeText={setImageUrl}
+            autoCapitalize="none"
+          />
+        </View>
+
+        {imageUrl.length > 10 && (
+          <View style={styles.previewContainer}>
+            <Text style={styles.previewLabel}>Preview:</Text>
+            <Image 
+              source={{ uri: imageUrl }} 
+              style={styles.previewImage} 
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
+        <View style={styles.visionButtons}>
+          <Pressable 
+            style={[styles.demoButton, isLoading && styles.submitButtonDisabled]}
+            onPress={handleDemo}
+            disabled={isLoading}
+          >
+            <Text style={styles.demoButtonText}>Use Demo Image</Text>
+          </Pressable>
+
+          <Pressable 
+            style={[
+              styles.submitButton,
+              (!imageUrl || isLoading) && styles.submitButtonDisabled
+            ]}
+            onPress={handleAnalyze}
+            disabled={!imageUrl || isLoading}
+          >
+            <Text style={styles.submitButtonText}>
+              {isLoading ? 'Analyzing...' : 'Analyze Product'}
+            </Text>
+          </Pressable>
+        </View>
+        
+        {isLoading && (
+          <View style={{ marginTop: 20, alignItems: 'center' }}>
+            <Text style={{ color: Colors.textSecondary, marginBottom: 8 }}>Thinking...</Text>
+            <Image source={{ uri: MASCOT_URL }} style={{ width: 60, height: 60 }} />
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -597,5 +691,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.accent,
+  },
+  previewContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  previewLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginBottom: 4,
+  },
+  previewImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  visionButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  demoButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  demoButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
 });

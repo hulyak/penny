@@ -12,19 +12,24 @@ import {
   Circle,
   Sparkles,
   Zap,
+  Flag,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
+import { MASCOT_IMAGE_URL } from '@/constants/images';
+
+const MASCOT_URL = MASCOT_IMAGE_URL;
 
 export default function PlanScreen() {
-  const { weeklyFocuses, updateFocusProgress } = useApp();
+  const { weeklyFocuses, updateFocusProgress, adaptationOutput } = useApp();
 
   const completedCount = weeklyFocuses.filter(f => f.progress === 100).length;
   const totalCount = weeklyFocuses.length;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+  const longTermGoals = adaptationOutput?.longTermGoals || [];
 
   return (
     <ScrollView 
@@ -33,6 +38,39 @@ export default function PlanScreen() {
       showsVerticalScrollIndicator={false}
     >
       <ScreenCoachCard screenName="plan" />
+
+      {longTermGoals.length > 0 && (
+        <View style={styles.goalsSection}>
+          <Text style={styles.sectionTitle}>Long-Term Goals</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.goalsScroll}>
+            {longTermGoals.map((goal) => (
+              <View key={goal.id} style={styles.goalCard}>
+                <View style={styles.goalHeader}>
+                  <Flag size={18} color={Colors.accent} />
+                  <Text style={styles.goalStatus}>{goal.status}</Text>
+                </View>
+                <Text style={styles.goalTitle}>{goal.title}</Text>
+                <View style={styles.goalProgress}>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${Math.min(100, goal.progress)}%` }]} />
+                  </View>
+                  <Text style={styles.goalProgressText}>{goal.progress.toFixed(0)}%</Text>
+                </View>
+                <View style={styles.milestones}>
+                  {goal.milestones.slice(0, 2).map((milestone, idx) => (
+                    <View key={idx} style={styles.milestoneItem}>
+                      <CheckCircle2 size={14} color={milestone.completed ? Colors.success : Colors.textMuted} />
+                      <Text style={[styles.milestoneText, milestone.completed && styles.milestoneTextCompleted]}>
+                        {milestone.title}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <View style={styles.progressCard}>
         <View style={styles.progressHeader}>
@@ -138,6 +176,73 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+  },
+
+  goalsSection: {
+    marginBottom: 24,
+  },
+  goalsScroll: {
+    paddingRight: 16,
+    gap: 12,
+  },
+  goalCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    width: 240,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  goalStatus: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  goalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  goalProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  goalProgressText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  milestones: {
+    gap: 6,
+  },
+  milestoneItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  milestoneText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  milestoneTextCompleted: {
+    color: Colors.textMuted,
+    textDecorationLine: 'line-through',
   },
 
   progressCard: {

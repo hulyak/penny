@@ -22,6 +22,7 @@ export class AdaptationAgent {
     const weeklyPlan = this.generateWeeklyPlan(financials, snapshot);
     const interventions = this.checkForInterventions(financials, previousFinancials, engagementLevel);
     const aiCoaching = await this.generateAICoaching(financials, snapshot);
+    const longTermGoals = this.generateLongTermGoals(financials, snapshot);
 
     return {
       summary: aiCoaching.weeklyMessage || this.getFallbackSummary(weeklyPlan, interventions),
@@ -32,6 +33,7 @@ export class AdaptationAgent {
       confidence: 0.85,
       weeklyPlan,
       interventions,
+      longTermGoals,
     };
   }
 
@@ -46,6 +48,7 @@ export class AdaptationAgent {
 
     const weeklyPlan = this.generateWeeklyPlan(financials, snapshot);
     const interventions = this.checkForInterventions(financials, previousFinancials, engagementLevel);
+    const longTermGoals = this.generateLongTermGoals(financials, snapshot);
 
     return {
       summary: this.getFallbackSummary(weeklyPlan, interventions),
@@ -56,7 +59,68 @@ export class AdaptationAgent {
       confidence: 0.85,
       weeklyPlan,
       interventions,
+      longTermGoals,
     };
+  }
+
+  private generateLongTermGoals(financials: UserFinancials, snapshot: FinancialSnapshot) {
+    this.log('Evaluating long-term goals...');
+    const goals = [];
+
+    // Emergency Fund Goal
+    const emergencyProgress = (financials.savings / financials.emergencyFundGoal) * 100;
+    if (emergencyProgress < 100) {
+      goals.push({
+        id: 'goal-emergency',
+        title: 'Fully Funded Emergency Fund',
+        targetAmount: financials.emergencyFundGoal,
+        currentAmount: financials.savings,
+        status: 'active',
+        progress: emergencyProgress,
+        milestones: [
+          { title: '1 Month Expenses', completed: snapshot.monthsOfRunway >= 1 },
+          { title: '3 Months Expenses', completed: snapshot.monthsOfRunway >= 3 },
+          { title: '6 Months Expenses', completed: snapshot.monthsOfRunway >= 6 },
+        ],
+        agentNotes: `At current savings rate of ${snapshot.savingsRate.toFixed(0)}%, projected completion in ${Math.ceil((financials.emergencyFundGoal - financials.savings) / (snapshot.disposableIncome || 1))} months.`,
+      });
+    }
+
+    // Debt Freedom Goal
+    if (financials.debts > 0) {
+      goals.push({
+        id: 'goal-debt',
+        title: 'Debt Freedom',
+        targetAmount: 0,
+        currentAmount: financials.debts,
+        status: 'active',
+        progress: 0,
+        milestones: [
+          { title: 'Pay off high interest', completed: false },
+          { title: 'Reduce DTI < 10%', completed: snapshot.debtToIncomeRatio < 10 },
+        ],
+        agentNotes: 'High priority goal. Suggest "Snowball" or "Avalanche" method once emergency buffer is established.',
+      });
+    }
+
+    // Investment Goal
+    if (snapshot.healthScore > 70 && emergencyProgress >= 100 && financials.debts === 0) {
+      goals.push({
+        id: 'goal-invest',
+        title: 'First Investment Portfolio',
+        targetAmount: 10000,
+        currentAmount: 0,
+        status: 'active',
+        progress: 0,
+        milestones: [
+          { title: 'Open Brokerage Account', completed: false },
+          { title: 'First $1,000 Invested', completed: false },
+        ],
+        agentNotes: 'User is ready for wealth accumulation phase.',
+      });
+    }
+
+    return goals;
   }
 
   private async generateAICoaching(

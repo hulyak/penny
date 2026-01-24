@@ -20,7 +20,9 @@ import {
 import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/vgkftarej1um5e3yfmz34';
+import { MASCOT_IMAGE_URL } from '@/constants/images';
+
+const MASCOT_URL = MASCOT_IMAGE_URL;
 
 const LEARNING_CARDS = [
   {

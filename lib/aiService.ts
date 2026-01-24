@@ -363,6 +363,76 @@ const marketContextFallback = {
   sentiment: 'neutral' as const,
 };
 
+
+export async function analyzeProductImage(params: {
+  image: string;
+  monthlyDisposable: number;
+  currentSavings: number;
+}): Promise<{
+  productName: string;
+  estimatedCost: number;
+  category: string;
+  necessityScore: number;
+  budgetImpact: 'low' | 'medium' | 'high' | 'critical';
+  recommendation: string;
+  reasoning: string;
+  alternative?: string;
+}> {
+  const schema = z.object({
+    productName: z.string().describe('Name of the product identified in the image'),
+    estimatedCost: z.number().describe('Estimated cost in USD'),
+    category: z.string().describe('Product category (e.g., Electronics, Clothing, Home)'),
+    necessityScore: z.number().min(1).max(10).describe('1-10 score of how essential this item likely is'),
+    budgetImpact: z.enum(['low', 'medium', 'high', 'critical']).describe('Impact on budget'),
+    recommendation: z.string().describe('Advice on whether to buy, wait, or avoid'),
+    reasoning: z.string().describe('Why this recommendation was made'),
+    alternative: z.string().optional().describe('A cheaper or better alternative if applicable'),
+  });
+
+  const prompt = `${SYSTEM_CONTEXT}
+
+Analyze this product image for financial impact:
+
+Context:
+- Monthly Disposable Income: ${params.monthlyDisposable}
+- Current Savings: ${params.currentSavings}
+
+Identify the product, estimate its cost, and analyze if it's a wise purchase given the financial context.
+Be realistic about necessity.`;
+
+  try {
+    console.log('[AIService] Analyzing product image...');
+    const result = await withTimeout(
+      generateObject({
+        messages: [
+          { 
+            role: 'user', 
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image', image: params.image }
+            ] 
+          }
+        ],
+        schema,
+      }),
+      AI_TIMEOUT
+    );
+    console.log('[AIService] Image analysis generated');
+    return result;
+  } catch {
+    console.log('[AIService] Image analysis unavailable, using fallback');
+    return {
+      productName: 'Identified Item',
+      estimatedCost: 50,
+      category: 'General',
+      necessityScore: 5,
+      budgetImpact: 'low',
+      recommendation: 'Consider if this aligns with your current goals.',
+      reasoning: 'Unable to perform visual analysis at the moment.',
+    };
+  }
+}
+
 export async function generateMarketContext(): Promise<{
   summary: string;
   educationalNote: string;

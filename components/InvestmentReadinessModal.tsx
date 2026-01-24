@@ -19,7 +19,9 @@ import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
 import * as Speech from 'expo-speech';
 
-const MASCOT_URL = 'https://r2-pub.rork.dev/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+import { MASCOT_IMAGE_URL } from '@/constants/images';
+
+const MASCOT_URL = MASCOT_IMAGE_URL;
 
 export function InvestmentReadinessModal() {
   const { showReadinessModal, setShowReadinessModal, currentReadiness } = useCoach();

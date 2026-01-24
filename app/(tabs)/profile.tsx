@@ -30,7 +30,9 @@ import { Card } from '@/components/Card';
 import { ScreenCoachCard } from '@/components/CoachCard';
 import Colors from '@/constants/colors';
 
-const MASCOT_URL = 'https://r2-pub.rork.com/generated-images/27789a4a-5f4b-41c7-8590-21b6ef0e91a2.png';
+import { MASCOT_IMAGE_URL } from '@/constants/images';
+
+const MASCOT_URL = MASCOT_IMAGE_URL;
 
 export default function ProfileScreen() {
   const router = useRouter();

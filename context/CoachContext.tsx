@@ -2,6 +2,8 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from './AppContext';
+import { financialVisionAgent } from '@/agents/FinancialVisionAgent';
+import { FinancialVisionOutput } from '@/types';
 
 export interface CoachMessage {
   id: string;
@@ -57,6 +59,8 @@ export const [CoachProvider, useCoach] = createContextHook(() => {
   const [showReadinessModal, setShowReadinessModal] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<PurchaseAnalysis | null>(null);
   const [currentReadiness, setCurrentReadiness] = useState<InvestmentReadiness | null>(null);
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+  const [currentVisualAnalysis, setCurrentVisualAnalysis] = useState<FinancialVisionOutput['analysis'] | null>(null);
 
   useEffect(() => {
     loadMessages();
@@ -413,6 +417,54 @@ export const [CoachProvider, useCoach] = createContextHook(() => {
   const unreadCount = messages.filter(m => !m.read).length;
   const recentMessages = messages.slice(0, 3);
 
+  const analyzeImage = useCallback(async (imageUrl: string) => {
+    if (!snapshot || !financials) return;
+    
+    setIsAnalyzingImage(true);
+    try {
+      // In a real app, we might need to fetch the image and convert to base64 if the URL isn't supported directly.
+      // For now, we'll pass the URL directly assuming the agent/SDK handles it or we're using a data URI.
+      const result = await financialVisionAgent.analyze(imageUrl, financials, snapshot);
+      setCurrentVisualAnalysis(result.analysis);
+      
+      // Add a message from the coach with the result
+      addMessage({
+        type: 'purchase-analysis',
+        title: 'Visual Analysis Complete',
+        message: `I've analyzed the ${result.analysis.productName}. \n\nVerdict: ${result.analysis.recommendation}\n\nReasoning: ${result.analysis.reasoning}`,
+        actionable: true,
+        actions: [
+          { id: 'view-details', label: 'View Details', type: 'custom' },
+        ],
+      });
+      
+      // Also open the purchase modal with this data adapted to PurchaseAnalysis format
+      const adaptedAnalysis: PurchaseAnalysis = {
+        itemName: result.analysis.productName,
+        cost: result.analysis.estimatedCost,
+        runwayImpact: result.analysis.estimatedCost / (financials.housingCost + financials.carCost + financials.essentialsCost),
+        bufferImpact: (result.analysis.estimatedCost / financials.savings) * 100,
+        weeklyBudgetImpact: (result.analysis.estimatedCost / (snapshot.disposableIncome / 4)) * 100,
+        recommendation: result.analysis.budgetImpact === 'critical' || result.analysis.budgetImpact === 'high' ? 'reconsider' : result.analysis.budgetImpact === 'medium' ? 'delay' : 'proceed',
+        reasoning: result.analysis.reasoning,
+        adjustedPlan: result.analysis.alternative ? `Consider: ${result.analysis.alternative}` : undefined,
+      };
+      
+      setCurrentAnalysis(adaptedAnalysis);
+      setShowPurchaseModal(true);
+      
+    } catch (error) {
+      console.error('[CoachContext] Image analysis failed:', error);
+      addMessage({
+        type: 'tip',
+        title: 'Analysis Failed',
+        message: "I couldn't analyze that image. Please try again or type the details manually.",
+      });
+    } finally {
+      setIsAnalyzingImage(false);
+    }
+  }, [snapshot, financials, addMessage]);
+
   return {
     messages,
     recentMessages,
@@ -425,6 +477,8 @@ export const [CoachProvider, useCoach] = createContextHook(() => {
     setShowReadinessModal,
     currentAnalysis,
     currentReadiness,
+    isAnalyzingImage,
+    currentVisualAnalysis,
     addMessage,
     markAsRead,
     markAllAsRead,
@@ -436,5 +490,6 @@ export const [CoachProvider, useCoach] = createContextHook(() => {
     openReadinessCheck,
     triggerDailyCheckIn,
     triggerWeeklyReview,
+    analyzeImage,
   };
 });
