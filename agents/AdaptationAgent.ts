@@ -75,7 +75,7 @@ export class AdaptationAgent {
         title: 'Fully Funded Emergency Fund',
         targetAmount: financials.emergencyFundGoal,
         currentAmount: financials.savings,
-        status: 'active',
+        status: 'active' as const,
         progress: emergencyProgress,
         milestones: [
           { title: '1 Month Expenses', completed: snapshot.monthsOfRunway >= 1 },
@@ -93,7 +93,7 @@ export class AdaptationAgent {
         title: 'Debt Freedom',
         targetAmount: 0,
         currentAmount: financials.debts,
-        status: 'active',
+        status: 'active' as const,
         progress: 0,
         milestones: [
           { title: 'Pay off high interest', completed: false },
@@ -110,7 +110,7 @@ export class AdaptationAgent {
         title: 'First Investment Portfolio',
         targetAmount: 10000,
         currentAmount: 0,
-        status: 'active',
+        status: 'active' as const,
         progress: 0,
         milestones: [
           { title: 'Open Brokerage Account', completed: false },
