@@ -70,12 +70,12 @@ export class AdaptationAgent {
     // Emergency Fund Goal
     const emergencyProgress = (financials.savings / financials.emergencyFundGoal) * 100;
     if (emergencyProgress < 100) {
-      goals.push({
+      const goal: LongTermGoal = {
         id: 'goal-emergency',
         title: 'Fully Funded Emergency Fund',
         targetAmount: financials.emergencyFundGoal,
         currentAmount: financials.savings,
-        status: 'active' as const,
+        status: 'active',
         progress: emergencyProgress,
         milestones: [
           { title: '1 Month Expenses', completed: snapshot.monthsOfRunway >= 1 },
@@ -83,41 +83,44 @@ export class AdaptationAgent {
           { title: '6 Months Expenses', completed: snapshot.monthsOfRunway >= 6 },
         ],
         agentNotes: `At current savings rate of ${snapshot.savingsRate.toFixed(0)}%, projected completion in ${Math.ceil((financials.emergencyFundGoal - financials.savings) / (snapshot.disposableIncome || 1))} months.`,
-      });
+      };
+      goals.push(goal);
     }
 
     // Debt Freedom Goal
     if (financials.debts > 0) {
-      goals.push({
+      const goal: LongTermGoal = {
         id: 'goal-debt',
         title: 'Debt Freedom',
         targetAmount: 0,
         currentAmount: financials.debts,
-        status: 'active' as const,
+        status: 'active',
         progress: 0,
         milestones: [
           { title: 'Pay off high interest', completed: false },
           { title: 'Reduce DTI < 10%', completed: snapshot.debtToIncomeRatio < 10 },
         ],
         agentNotes: 'High priority goal. Suggest "Snowball" or "Avalanche" method once emergency buffer is established.',
-      });
+      };
+      goals.push(goal);
     }
 
     // Investment Goal
     if (snapshot.healthScore > 70 && emergencyProgress >= 100 && financials.debts === 0) {
-      goals.push({
+      const goal: LongTermGoal = {
         id: 'goal-invest',
         title: 'First Investment Portfolio',
         targetAmount: 10000,
         currentAmount: 0,
-        status: 'active' as const,
+        status: 'active',
         progress: 0,
         milestones: [
           { title: 'Open Brokerage Account', completed: false },
           { title: 'First $1,000 Invested', completed: false },
         ],
         agentNotes: 'User is ready for wealth accumulation phase.',
-      });
+      };
+      goals.push(goal);
     }
 
     return goals;
