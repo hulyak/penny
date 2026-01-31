@@ -146,14 +146,14 @@ Do not include any explanation, markdown formatting, or code blocks. Just the ra
   }
 }
 
-function zodToJsonSchema(schema: z.ZodType<unknown>): Record<string, unknown> {
+function zodToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
   if (schema instanceof z.ZodObject) {
     const shape = schema.shape;
     const properties: Record<string, unknown> = {};
     const required: string[] = [];
 
     for (const [key, value] of Object.entries(shape)) {
-      properties[key] = zodToJsonSchema(value as z.ZodType<unknown>);
+      properties[key] = zodToJsonSchema(value as z.ZodTypeAny);
       if (!(value instanceof z.ZodOptional)) {
         required.push(key);
       }
@@ -175,7 +175,7 @@ function zodToJsonSchema(schema: z.ZodType<unknown>): Record<string, unknown> {
   }
 
   if (schema instanceof z.ZodArray) {
-    return { type: 'array', items: zodToJsonSchema(schema.element) };
+    return { type: 'array', items: zodToJsonSchema(schema.element as z.ZodTypeAny) };
   }
 
   if (schema instanceof z.ZodEnum) {
@@ -183,7 +183,7 @@ function zodToJsonSchema(schema: z.ZodType<unknown>): Record<string, unknown> {
   }
 
   if (schema instanceof z.ZodOptional) {
-    return zodToJsonSchema(schema.unwrap());
+    return zodToJsonSchema(schema.unwrap() as z.ZodTypeAny);
   }
 
   return { type: 'string' };
