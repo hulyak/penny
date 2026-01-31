@@ -21,7 +21,7 @@ const Colors = {
   warningMuted: '#FFFBEB',
 
   danger: '#EF476F', // Friendly red/pink
-  dangerLight: '#F78CADD',
+  dangerLight: '#F78CAD',
   dangerMuted: '#FFF1F2',
 
   // Neutrals - Clean and airy
@@ -74,6 +74,6 @@ const Colors = {
     gradientStart: '#16C47F',
     gradientEnd: '#B5E48C',
   },
-};
+} as const;
 
 export default Colors;
