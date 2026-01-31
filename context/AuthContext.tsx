@@ -50,6 +50,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setIsLoading(false);
     }, 5000);
 
+    if (!auth) {
+      console.warn('[AuthContext] Firebase auth not initialized');
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       clearTimeout(timeoutId);
       console.log('[AuthContext] Auth state changed:', fbUser ? 'user exists' : 'no user');
@@ -118,6 +124,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return false;
     }
 
+    if (!auth) {
+      setError('Firebase not initialized');
+      return false;
+    }
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -152,8 +163,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return false;
     }
 
-    if (!isFirebaseConfigured) {
-      setError('Firebase not configured');
+    if (!isFirebaseConfigured || !auth) {
+      setError('Firebase not configured. Use Demo mode.');
       return false;
     }
 
@@ -176,8 +187,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[AuthContext] Starting Google sign in...');
     setError(null);
 
-    if (!isFirebaseConfigured) {
-      setError('Firebase not configured');
+    if (!isFirebaseConfigured || !auth) {
+      setError('Firebase not configured. Use Demo mode.');
       return false;
     }
 
@@ -218,8 +229,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[AuthContext] Starting Apple sign in...');
     setError(null);
 
-    if (!isFirebaseConfigured) {
-      setError('Firebase not configured');
+    if (!isFirebaseConfigured || !auth) {
+      setError('Firebase not configured. Use Demo mode.');
       return false;
     }
 
@@ -287,7 +298,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signOut = useCallback(async () => {
     console.log('[AuthContext] Signing out...');
     try {
-      if (!isDemoMode && isFirebaseConfigured) {
+      if (!isDemoMode && isFirebaseConfigured && auth) {
         await firebaseSignOut(auth);
       }
       setUser(null);
@@ -325,7 +336,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[AuthContext] Sending password reset email to:', email);
     setError(null);
 
-    if (!isFirebaseConfigured) {
+    if (!isFirebaseConfigured || !auth) {
       setError('Firebase not configured');
       return false;
     }

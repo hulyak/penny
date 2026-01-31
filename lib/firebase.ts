@@ -40,28 +40,37 @@ export const isFirebaseConfigured = Boolean(
 );
 
 if (!isFirebaseConfigured) {
-  console.warn('[Firebase] Missing credentials - auth will not work');
+  console.warn('[Firebase] Missing credentials - auth will not work. Demo mode available.');
 }
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
 
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
+// Only initialize Firebase if credentials are configured
+if (isFirebaseConfigured) {
+  try {
+    if (getApps().length === 0) {
+      app = initializeApp(firebaseConfig);
 
-  if (Platform.OS === 'web') {
-    auth = getAuth(app);
-  } else {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
+      if (Platform.OS === 'web') {
+        auth = getAuth(app);
+      } else {
+        auth = initializeAuth(app, {
+          persistence: getReactNativePersistence(AsyncStorage),
+        });
+      }
+      db = getFirestore(app);
+    } else {
+      app = getApps()[0];
+      // Use getAuth for existing app (initializeAuth was already called)
+      auth = getAuth(app);
+      db = getFirestore(app);
+    }
+    console.log('[Firebase] Initialized successfully');
+  } catch (error) {
+    console.error('[Firebase] Initialization error:', error);
   }
-  db = getFirestore(app);
-} else {
-  app = getApps()[0];
-  auth = getAuth(app);
-  db = getFirestore(app);
 }
 
 export { app, auth, db };
@@ -70,14 +79,14 @@ export { app, auth, db };
 export const firestoreHelpers = {
   // User financial data
   async saveUserFinancials(userId: string, financials: Record<string, unknown>) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'financials');
     await setDoc(ref, { ...financials, updatedAt: serverTimestamp() }, { merge: true });
     return true;
   },
 
   async getUserFinancials(userId: string) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'financials');
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
@@ -85,14 +94,14 @@ export const firestoreHelpers = {
 
   // Learning progress
   async saveLearningProgress(userId: string, completedCards: string[]) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'learning');
     await setDoc(ref, { completedCards, updatedAt: serverTimestamp() }, { merge: true });
     return true;
   },
 
   async getLearningProgress(userId: string) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'learning');
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
@@ -100,14 +109,14 @@ export const firestoreHelpers = {
 
   // Goals
   async saveUserGoals(userId: string, goals: Record<string, unknown>[]) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'goals');
     await setDoc(ref, { goals, updatedAt: serverTimestamp() }, { merge: true });
     return true;
   },
 
   async getUserGoals(userId: string) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'goals');
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
@@ -115,14 +124,14 @@ export const firestoreHelpers = {
 
   // Coach messages
   async saveCoachMessages(userId: string, messages: Record<string, unknown>[]) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'coach');
     await setDoc(ref, { messages, updatedAt: serverTimestamp() }, { merge: true });
     return true;
   },
 
   async getCoachMessages(userId: string) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured || !db) return null;
     const ref = doc(db, 'users', userId, 'data', 'coach');
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
