@@ -8,6 +8,8 @@ import {
   ScrollView,
   Image,
   TextInput,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { 
   X, 
@@ -115,21 +117,30 @@ export function CoachDrawer() {
             </Pressable>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {activeTab === 'messages' ? (
-              <MessagesTab 
-                messages={recentMessages}
-                onSpeak={speakMessage}
-                isSpeaking={isSpeaking}
-                onMarkRead={markAsRead}
-                formatTime={formatTime}
-              />
-            ) : activeTab === 'actions' ? (
-              <ActionsTab />
-            ) : (
-              <VisionTab isLoading={isAnalyzingImage} />
-            )}
-          </ScrollView>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <ScrollView 
+              style={styles.content} 
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {activeTab === 'messages' ? (
+                <MessagesTab 
+                  messages={recentMessages}
+                  onSpeak={speakMessage}
+                  isSpeaking={isSpeaking}
+                  onMarkRead={markAsRead}
+                  formatTime={formatTime}
+                />
+              ) : activeTab === 'actions' ? (
+                <ActionsTab />
+              ) : (
+                <VisionTab isLoading={isAnalyzingImage} />
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
 
           {activeTab === 'messages' && recentMessages.length > 0 && (
             <Pressable style={styles.markAllButton} onPress={markAllAsRead}>
@@ -490,17 +501,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   drawer: {
+    height: '90%',
+    maxHeight: '94%',
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '85%',
-    minHeight: 400,
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: 48,
+    height: 6,
     backgroundColor: Colors.border,
-    borderRadius: 2,
+    borderRadius: 3,
     alignSelf: 'center',
     marginTop: 12,
   },
@@ -543,21 +554,27 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    gap: 8,
+    paddingTop: 16,
+    paddingBottom: 8,
+    gap: 12,
   },
   tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
     backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   tabActive: {
     backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: Colors.textSecondary,
   },
   tabTextActive: {
@@ -566,6 +583,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   emptyState: {
     alignItems: 'center',
@@ -703,8 +723,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   actionDesc: {
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
   },
   purchaseForm: {
     backgroundColor: Colors.background,
@@ -712,10 +734,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   formTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   inputGroup: {
     marginBottom: 14,
@@ -792,7 +814,7 @@ const styles = StyleSheet.create({
   },
   previewImage: {
     width: '100%',
-    height: 150,
+    height: 200,
     borderRadius: 12,
     backgroundColor: Colors.surface,
     borderWidth: 1,
@@ -825,12 +847,20 @@ const styles = StyleSheet.create({
   mediaButton: {
     flex: 1,
     backgroundColor: Colors.surface,
-    padding: 12,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3.84,
+    elevation: 2,
   },
   mediaIcon: {
     width: 44,
