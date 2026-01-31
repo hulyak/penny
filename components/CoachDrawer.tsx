@@ -17,7 +17,10 @@ import {
   Volume2,
   Clock,
   CheckCircle,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
 import * as Speech from 'expo-speech';
@@ -319,24 +322,86 @@ function VisionTab({ isLoading }: { isLoading: boolean }) {
     setImageUrl(DEMO_IMAGE);
   };
 
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Sorry, we need camera permissions to make this work!');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setImageUrl(`data:${result.assets[0].mimeType ?? 'image/jpeg'};base64,${result.assets[0].base64}`);
+    }
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setImageUrl(`data:${result.assets[0].mimeType ?? 'image/jpeg'};base64,${result.assets[0].base64}`);
+    }
+  };
+
   return (
     <View style={styles.actionsContainer}>
       <View style={styles.purchaseForm}>
         <Text style={styles.formTitle}>Snap & Analyze</Text>
         <Text style={styles.actionDesc}>
-          Paste an image URL of a product to get an instant AI budget analysis.
+          Take a photo or upload an image of a product to get an instant AI budget analysis.
         </Text>
         
-        <View style={[styles.inputGroup, { marginTop: 16 }]}>
+        <View style={styles.mediaButtons}>
+          <Pressable style={styles.mediaButton} onPress={takePhoto}>
+            <View style={[styles.mediaIcon, { backgroundColor: Colors.accentMuted }]}>
+              <Camera size={24} color={Colors.accent} />
+            </View>
+            <Text style={styles.mediaLabel}>Camera</Text>
+          </Pressable>
+
+          <Pressable style={styles.mediaButton} onPress={pickImage}>
+            <View style={[styles.mediaIcon, { backgroundColor: Colors.lavenderMuted }]}>
+              <ImageIcon size={24} color={Colors.lavender} />
+            </View>
+            <Text style={styles.mediaLabel}>Gallery</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.divider}>
+          <View style={styles.line} />
+          <Text style={styles.orText}>OR</Text>
+          <View style={styles.line} />
+        </View>
+        
+        <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Image URL</Text>
           <TextInput
             style={styles.input}
             placeholder="https://..."
             placeholderTextColor={Colors.textMuted}
-            value={imageUrl}
+            value={imageUrl.startsWith('data:') ? 'Image selected from camera/gallery' : imageUrl}
             onChangeText={setImageUrl}
             autoCapitalize="none"
+            editable={!imageUrl.startsWith('data:')}
           />
+          {imageUrl.startsWith('data:') && (
+            <Pressable onPress={() => setImageUrl('')} style={styles.clearImageBtn}>
+              <X size={16} color={Colors.textMuted} />
+            </Pressable>
+          )}
         </View>
 
         {imageUrl.length > 10 && (
@@ -351,13 +416,15 @@ function VisionTab({ isLoading }: { isLoading: boolean }) {
         )}
 
         <View style={styles.visionButtons}>
-          <Pressable 
-            style={[styles.demoButton, isLoading && styles.submitButtonDisabled]}
-            onPress={handleDemo}
-            disabled={isLoading}
-          >
-            <Text style={styles.demoButtonText}>Use Demo Image</Text>
-          </Pressable>
+          {!imageUrl && (
+            <Pressable 
+              style={[styles.demoButton, isLoading && styles.submitButtonDisabled]}
+              onPress={handleDemo}
+              disabled={isLoading}
+            >
+              <Text style={styles.demoButtonText}>Use Demo Image</Text>
+            </Pressable>
+          )}
 
           <Pressable 
             style={[
@@ -727,5 +794,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.textSecondary,
+  },
+  mediaButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginVertical: 16,
+  },
+  mediaButton: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    gap: 8,
+  },
+  mediaIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.border,
+  },
+  orText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  clearImageBtn: {
+    position: 'absolute',
+    right: 12,
+    top: 38,
+    padding: 4,
   },
 });
