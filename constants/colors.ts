@@ -42,6 +42,14 @@ const Colors = {
   borderLight: '#F1F5F9',
   divider: '#F1F5F9',
 
+  // Added colors to support new design elements
+  lavender: '#8B5CF6', 
+  lavenderMuted: '#F5F3FF',
+  mint: '#34D399',
+  mintMuted: '#ECFDF5',
+  coral: '#FB7185',
+  coralMuted: '#FFF1F2',
+
   // Special UI Elements
   agents: {
     financialReality: '#16C47F',
