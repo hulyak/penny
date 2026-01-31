@@ -1,7 +1,7 @@
-import { generateText, generateObject } from '@rork-ai/toolkit-sdk';
 import { z } from 'zod';
+import { generateWithGemini, generateStructuredWithGemini, GEMINI_SYSTEM_PROMPT } from './gemini';
 
-const AI_TIMEOUT = 15000;
+const AI_TIMEOUT = 20000;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -19,12 +19,6 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-const SYSTEM_CONTEXT = `You are a calm, supportive financial coach powered by Google Deepmind. 
-You explain money concepts in plain language without jargon. 
-You NEVER give investment advice, recommend specific assets, or tell users what to buy/sell.
-You focus on education, awareness, and helping users understand their financial foundations.
-Keep responses concise, warm, and actionable. Use simple language.`;
-
 export interface AIGenerationParams {
   context: string;
   task: string;
@@ -34,9 +28,7 @@ export interface AIGenerationParams {
 export async function generateAIText(params: AIGenerationParams): Promise<string> {
   const { context, task, data } = params;
   
-  const prompt = `${SYSTEM_CONTEXT}
-
-Context: ${context}
+  const prompt = `Context: ${context}
 ${data ? `Data: ${JSON.stringify(data, null, 2)}` : ''}
 
 Task: ${task}
@@ -44,15 +36,18 @@ Task: ${task}
 Respond concisely and helpfully.`;
 
   try {
-    console.log('[AIService] Generating text...');
+    console.log('[AIService] Generating text with Gemini 3...');
     const result = await withTimeout(
-      generateText({ messages: [{ role: 'user', content: prompt }] }),
+      generateWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
+      }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Text generated successfully');
+    console.log('[AIService] Text generated successfully via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Text generation unavailable, using fallback');
+    console.log('[AIService] Gemini 3 text generation error:', error);
     throw error;
   }
 }
@@ -76,14 +71,12 @@ export async function generateFinancialSummary(params: {
   };
 }): Promise<{ summary: string; reasoning: string; whatWouldChange: string[] }> {
   const schema = z.object({
-    summary: z.string().describe('A 1-2 sentence plain-language summary of the financial health'),
-    reasoning: z.string().describe('A brief explanation of how you assessed their situation'),
-    whatWouldChange: z.array(z.string()).describe('2-3 specific things that would improve their situation'),
+    summary: z.string(),
+    reasoning: z.string(),
+    whatWouldChange: z.array(z.string()),
   });
 
-  const prompt = `${SYSTEM_CONTEXT}
-
-Analyze this financial snapshot and provide insights:
+  const prompt = `Analyze this financial snapshot and provide insights:
 
 Monthly Income: $${params.financials.monthlyIncome}
 Housing Cost: $${params.financials.housingCost}
@@ -99,21 +92,25 @@ Calculated Metrics:
 - Fixed Cost Ratio: ${params.snapshot.fixedCostRatio.toFixed(1)}%
 - Health Score: ${params.snapshot.healthScore}/100 (${params.snapshot.healthLabel})
 
-Generate a supportive, educational analysis. Be specific to their numbers.`;
+Provide:
+- summary: A 1-2 sentence plain-language summary of the financial health
+- reasoning: A brief explanation of how you assessed their situation
+- whatWouldChange: 2-3 specific things that would improve their situation`;
 
   try {
-    console.log('[AIService] Generating financial summary...');
+    console.log('[AIService] Generating financial summary with Gemini 3...');
     const result = await withTimeout(
-      generateObject({
-        messages: [{ role: 'user', content: prompt }],
+      generateStructuredWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Financial summary generated');
+    console.log('[AIService] Financial summary generated via Gemini 3');
     return result;
-  } catch {
-    console.log('[AIService] Financial summary unavailable, using fallback');
+  } catch (error) {
+    console.log('[AIService] Gemini 3 financial summary error, using fallback:', error);
     return {
       summary: `Your finances show a ${params.snapshot.healthLabel.toLowerCase()} foundation with ${params.snapshot.monthsOfRunway.toFixed(1)} months of runway.`,
       reasoning: `Based on your ${params.snapshot.savingsRate.toFixed(0)}% savings rate and $${params.snapshot.disposableIncome} monthly disposable income.`,
@@ -137,13 +134,11 @@ export async function generateScenarioInsights(params: {
   disposableIncome: number;
 }): Promise<{ recommendation: string; reasoning: string }> {
   const schema = z.object({
-    recommendation: z.string().describe('Which scenario approach might work best for their situation and why'),
-    reasoning: z.string().describe('The logic behind this suggestion based on their specific numbers'),
+    recommendation: z.string(),
+    reasoning: z.string(),
   });
 
-  const prompt = `${SYSTEM_CONTEXT}
-
-Help choose between saving scenarios:
+  const prompt = `Help choose between saving scenarios:
 
 Current Runway: ${params.currentRunway.toFixed(1)} months
 Emergency Fund Goal: $${params.emergencyGoal}
@@ -152,21 +147,26 @@ Monthly Disposable: $${params.disposableIncome}
 Scenarios:
 ${params.scenarios.map(s => `- ${s.name}: $${s.monthlyContribution}/month, ${s.monthsToGoal} months to goal, ${s.riskLevel} intensity`).join('\n')}
 
-Suggest which approach might fit their situation. Focus on sustainability, not speed.`;
+Provide:
+- recommendation: Which scenario approach might work best for their situation and why
+- reasoning: The logic behind this suggestion based on their specific numbers
+
+Focus on sustainability, not speed.`;
 
   try {
-    console.log('[AIService] Generating scenario insights...');
+    console.log('[AIService] Generating scenario insights with Gemini 3...');
     const result = await withTimeout(
-      generateObject({
-        messages: [{ role: 'user', content: prompt }],
+      generateStructuredWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Scenario insights generated');
+    console.log('[AIService] Scenario insights generated via Gemini 3');
     return result;
-  } catch {
-    console.log('[AIService] Scenario insights unavailable, using fallback');
+  } catch (error) {
+    console.log('[AIService] Gemini 3 scenario insights error, using fallback:', error);
     return {
       recommendation: 'The Balanced approach typically works well for building an emergency fund while maintaining quality of life.',
       reasoning: `With ${params.currentRunway.toFixed(1)} months of runway, a moderate approach balances urgency with sustainability.`,
@@ -182,14 +182,12 @@ export async function generateWeeklyCoaching(params: {
   emergencyProgress: number;
 }): Promise<{ weeklyMessage: string; focusArea: string; encouragement: string }> {
   const schema = z.object({
-    weeklyMessage: z.string().describe('A brief, motivating message for this week'),
-    focusArea: z.string().describe('The main area to focus on this week'),
-    encouragement: z.string().describe('A supportive note about their progress'),
+    weeklyMessage: z.string(),
+    focusArea: z.string(),
+    encouragement: z.string(),
   });
 
-  const prompt = `${SYSTEM_CONTEXT}
-
-Generate a weekly coaching message:
+  const prompt = `Generate a weekly coaching message:
 
 Health Status: ${params.healthLabel}
 Emergency Fund Progress: ${params.emergencyProgress.toFixed(0)}%
@@ -197,21 +195,27 @@ Runway: ${params.monthsOfRunway.toFixed(1)} months
 Savings Rate: ${params.savingsRate.toFixed(0)}%
 Weekly Available: $${(params.disposableIncome / 4).toFixed(0)}
 
+Provide:
+- weeklyMessage: A brief, motivating message for this week
+- focusArea: The main area to focus on this week
+- encouragement: A supportive note about their progress
+
 Be warm and specific. Small wins matter.`;
 
   try {
-    console.log('[AIService] Generating weekly coaching...');
+    console.log('[AIService] Generating weekly coaching with Gemini 3...');
     const result = await withTimeout(
-      generateObject({
-        messages: [{ role: 'user', content: prompt }],
+      generateStructuredWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Weekly coaching generated');
+    console.log('[AIService] Weekly coaching generated via Gemini 3');
     return result;
-  } catch {
-    console.log('[AIService] Weekly coaching unavailable, using fallback');
+  } catch (error) {
+    console.log('[AIService] Gemini 3 weekly coaching error, using fallback:', error);
     return {
       weeklyMessage: 'Focus on consistent small steps this week.',
       focusArea: 'Building your emergency buffer',
@@ -238,14 +242,12 @@ export async function generatePurchaseAnalysis(params: {
   const newRunway = monthlyExpenses > 0 ? newSavings / monthlyExpenses : 0;
 
   const schema = z.object({
-    impact: z.string().describe('How this purchase affects their financial position'),
-    tradeoffs: z.array(z.string()).describe('2-3 tradeoffs to consider'),
-    alternatives: z.array(z.string()).describe('2-3 alternative approaches'),
+    impact: z.string(),
+    tradeoffs: z.array(z.string()),
+    alternatives: z.array(z.string()),
   });
 
-  const prompt = `${SYSTEM_CONTEXT}
-
-Analyze this potential purchase:
+  const prompt = `Analyze this potential purchase:
 
 Item: ${params.itemName}
 Cost: $${params.cost}
@@ -257,21 +259,27 @@ Current Position:
 - Emergency Goal: $${params.emergencyGoal}
 - Monthly Disposable: $${params.disposableIncome}
 
-Explain the impact objectively. No judgment - just help them see the tradeoffs.`;
+Provide:
+- impact: How this purchase affects their financial position
+- tradeoffs: 2-3 tradeoffs to consider
+- alternatives: 2-3 alternative approaches
+
+Explain objectively. No judgment - just help them see the tradeoffs.`;
 
   try {
-    console.log('[AIService] Generating purchase analysis...');
+    console.log('[AIService] Generating purchase analysis with Gemini 3...');
     const result = await withTimeout(
-      generateObject({
-        messages: [{ role: 'user', content: prompt }],
+      generateStructuredWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Purchase analysis generated');
+    console.log('[AIService] Purchase analysis generated via Gemini 3');
     return { ...result, newRunway };
-  } catch {
-    console.log('[AIService] Purchase analysis unavailable, using fallback');
+  } catch (error) {
+    console.log('[AIService] Gemini 3 purchase analysis error, using fallback:', error);
     return {
       impact: `This $${params.cost} purchase would reduce your runway from ${params.monthsOfRunway.toFixed(1)} to ${newRunway.toFixed(1)} months.`,
       tradeoffs: [
@@ -310,14 +318,12 @@ export async function generateInvestmentReadiness(params: {
   const isReady = readinessScore >= 70;
 
   const schema = z.object({
-    explanation: z.string().describe('Plain-language explanation of their investment readiness'),
-    nextSteps: z.array(z.string()).describe('2-4 specific steps to improve readiness'),
-    educationalNote: z.string().describe('A brief educational note about why foundations matter'),
+    explanation: z.string(),
+    nextSteps: z.array(z.string()),
+    educationalNote: z.string(),
   });
 
-  const prompt = `${SYSTEM_CONTEXT}
-
-Assess investment readiness (education only, NO specific investment advice):
+  const prompt = `Assess investment readiness (education only, NO specific investment advice):
 
 Metrics:
 - Emergency Runway: ${params.monthsOfRunway.toFixed(1)} months (goal: 6+)
@@ -328,21 +334,27 @@ Metrics:
 
 ${isReady ? 'They have a solid foundation.' : 'They should focus on building foundations first.'}
 
+Provide:
+- explanation: Plain-language explanation of their investment readiness
+- nextSteps: 2-4 specific steps to improve readiness
+- educationalNote: A brief educational note about why foundations matter
+
 Explain why these foundations matter BEFORE considering investments. This is education, not advice.`;
 
   try {
-    console.log('[AIService] Generating investment readiness...');
+    console.log('[AIService] Generating investment readiness with Gemini 3...');
     const result = await withTimeout(
-      generateObject({
-        messages: [{ role: 'user', content: prompt }],
+      generateStructuredWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Investment readiness generated');
+    console.log('[AIService] Investment readiness generated via Gemini 3');
     return { isReady, readinessScore, ...result };
-  } catch {
-    console.log('[AIService] Investment readiness unavailable, using fallback');
+  } catch (error) {
+    console.log('[AIService] Gemini 3 investment readiness error, using fallback:', error);
     return {
       isReady,
       readinessScore,
@@ -356,13 +368,6 @@ Explain why these foundations matter BEFORE considering investments. This is edu
     };
   }
 }
-
-const marketContextFallback = {
-  summary: 'Current conditions are steady. Focus on building your financial foundation.',
-  educationalNote: 'Your personal financial readiness matters more than trying to time markets.',
-  sentiment: 'neutral' as const,
-};
-
 
 export async function analyzeProductImage(params: {
   image: string;
@@ -379,48 +384,49 @@ export async function analyzeProductImage(params: {
   alternative?: string;
 }> {
   const schema = z.object({
-    productName: z.string().describe('Name of the product identified in the image'),
-    estimatedCost: z.number().describe('Estimated cost in USD'),
-    category: z.string().describe('Product category (e.g., Electronics, Clothing, Home)'),
-    necessityScore: z.number().min(1).max(10).describe('1-10 score of how essential this item likely is'),
-    budgetImpact: z.enum(['low', 'medium', 'high', 'critical']).describe('Impact on budget'),
-    recommendation: z.string().describe('Advice on whether to buy, wait, or avoid'),
-    reasoning: z.string().describe('Why this recommendation was made'),
-    alternative: z.string().optional().describe('A cheaper or better alternative if applicable'),
+    productName: z.string(),
+    estimatedCost: z.number(),
+    category: z.string(),
+    necessityScore: z.number(),
+    budgetImpact: z.enum(['low', 'medium', 'high', 'critical']),
+    recommendation: z.string(),
+    reasoning: z.string(),
+    alternative: z.string().optional(),
   });
 
-  const prompt = `${SYSTEM_CONTEXT}
-
-Analyze this product image for financial impact:
+  const prompt = `Analyze this product image for financial impact:
 
 Context:
-- Monthly Disposable Income: ${params.monthlyDisposable}
-- Current Savings: ${params.currentSavings}
+- Monthly Disposable Income: $${params.monthlyDisposable}
+- Current Savings: $${params.currentSavings}
 
-Identify the product, estimate its cost, and analyze if it's a wise purchase given the financial context.
-Be realistic about necessity.`;
+Identify the product, estimate its cost, and analyze if it's a wise purchase.
+
+Provide:
+- productName: Name of the product identified
+- estimatedCost: Estimated cost in USD
+- category: Product category (Electronics, Clothing, Home, etc.)
+- necessityScore: 1-10 score of how essential this item likely is
+- budgetImpact: Impact on budget (low/medium/high/critical)
+- recommendation: Advice on whether to buy, wait, or avoid
+- reasoning: Why this recommendation was made
+- alternative: A cheaper or better alternative if applicable`;
 
   try {
-    console.log('[AIService] Analyzing product image...');
+    console.log('[AIService] Analyzing product image with Gemini 3 Vision...');
     const result = await withTimeout(
-      generateObject({
-        messages: [
-          { 
-            role: 'user', 
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image', image: params.image }
-            ] 
-          }
-        ],
+      generateStructuredWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
+        image: params.image,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Image analysis generated');
+    console.log('[AIService] Image analysis generated via Gemini 3');
     return result;
-  } catch {
-    console.log('[AIService] Image analysis unavailable, using fallback');
+  } catch (error) {
+    console.log('[AIService] Gemini 3 image analysis error, using fallback:', error);
     return {
       productName: 'Identified Item',
       estimatedCost: 50,
@@ -439,35 +445,92 @@ export async function generateMarketContext(): Promise<{
   sentiment: 'cautious' | 'neutral' | 'optimistic';
 }> {
   const schema = z.object({
-    summary: z.string().describe('A brief, educational summary of current economic conditions'),
-    educationalNote: z.string().describe('An educational note about how market conditions relate to personal finance'),
-    sentiment: z.enum(['cautious', 'neutral', 'optimistic']).describe('Overall market sentiment'),
+    summary: z.string(),
+    educationalNote: z.string(),
+    sentiment: z.enum(['cautious', 'neutral', 'optimistic']),
   });
 
-  const prompt = `${SYSTEM_CONTEXT}
-
-Provide educational context about current economic conditions (January 2025):
+  const prompt = `Provide educational context about current economic conditions (February 2026):
 
 Focus on:
 - General economic trends (inflation, interest rates, job market)
 - What this means for emergency funds and savings
 - Why personal foundations matter more than market timing
 
-This is purely educational context, not investment advice. Help users understand the environment they're saving in.`;
+Provide:
+- summary: A brief, educational summary of current economic conditions
+- educationalNote: An educational note about how market conditions relate to personal finance
+- sentiment: Overall market sentiment (cautious/neutral/optimistic)
+
+This is purely educational context, not investment advice.`;
 
   try {
-    console.log('[AIService] Generating market context...');
+    console.log('[AIService] Generating market context with Gemini 3...');
     const result = await withTimeout(
-      generateObject({
-        messages: [{ role: 'user', content: prompt }],
+      generateStructuredWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Market context generated successfully');
+    console.log('[AIService] Market context generated via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Market context unavailable, using fallback:', error instanceof Error ? error.message : 'Unknown error');
-    return marketContextFallback;
+    console.log('[AIService] Gemini 3 market context error, using fallback:', error);
+    return {
+      summary: 'Current conditions are steady. Focus on building your financial foundation.',
+      educationalNote: 'Your personal financial readiness matters more than trying to time markets.',
+      sentiment: 'neutral',
+    };
+  }
+}
+
+export async function generateCoachResponse(params: {
+  userMessage: string;
+  financialContext: {
+    healthScore: number;
+    healthLabel: string;
+    monthsOfRunway: number;
+    savingsRate: number;
+    emergencyProgress: number;
+    disposableIncome: number;
+  };
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+}): Promise<string> {
+  const contextSummary = `
+User's Financial Snapshot:
+- Health Score: ${params.financialContext.healthScore}/100 (${params.financialContext.healthLabel})
+- Emergency Runway: ${params.financialContext.monthsOfRunway.toFixed(1)} months
+- Savings Rate: ${params.financialContext.savingsRate.toFixed(0)}%
+- Emergency Fund Progress: ${params.financialContext.emergencyProgress.toFixed(0)}%
+- Monthly Disposable: $${params.financialContext.disposableIncome}`;
+
+  const historyContext = params.conversationHistory?.length 
+    ? `\nRecent conversation:\n${params.conversationHistory.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n')}`
+    : '';
+
+  const prompt = `${contextSummary}
+${historyContext}
+
+User asks: ${params.userMessage}
+
+Respond as their supportive financial coach. Be warm, specific to their numbers, and educational. Keep response under 150 words.`;
+
+  try {
+    console.log('[AIService] Generating coach response with Gemini 3...');
+    const result = await withTimeout(
+      generateWithGemini({
+        prompt,
+        systemInstruction: GEMINI_SYSTEM_PROMPT,
+        temperature: 0.7,
+      }),
+      AI_TIMEOUT
+    );
+    console.log('[AIService] Coach response generated via Gemini 3');
+    return result;
+  } catch (error) {
+    console.log('[AIService] Gemini 3 coach response error:', error);
+    return "I'm here to help with your financial journey. What would you like to know about building your financial foundation?";
   }
 }
