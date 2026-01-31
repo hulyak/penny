@@ -1,66 +1,78 @@
 import { Tabs } from 'expo-router';
 import { Home, GitBranch, BookOpen, User, ListChecks } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.accent,
+        tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           backgroundColor: Colors.surface,
-          borderTopColor: Colors.border,
+          borderTopColor: Colors.borderLight,
           borderTopWidth: 1,
+          elevation: 0,
+          shadowOpacity: 0,
+          height: Platform.OS === 'ios' ? 88 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: 2,
         },
         headerStyle: {
-          backgroundColor: Colors.surface,
-          borderBottomWidth: 1,
-          borderBottomColor: Colors.border,
+          backgroundColor: Colors.background,
+          borderBottomWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: '700',
           color: Colors.text,
+          fontSize: 18,
         },
+        headerTitleAlign: 'left',
+        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Overview',
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          headerShown: false, // Hidden because index.tsx has its own custom header now
+          tabBarIcon: ({ color, size }) => <Home size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen
         name="plan"
         options={{
           title: 'Plan',
-          tabBarIcon: ({ color, size }) => <ListChecks size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <ListChecks size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen
         name="scenarios"
         options={{
           title: 'Scenarios',
-          tabBarIcon: ({ color, size }) => <GitBranch size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <GitBranch size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen
         name="learn"
         options={{
           title: 'Learn',
-          tabBarIcon: ({ color, size }) => <BookOpen size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <BookOpen size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <User size={24} color={color} strokeWidth={2.5} />,
         }}
       />
     </Tabs>

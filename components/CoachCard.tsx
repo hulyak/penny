@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Animated } from 'react-native';
-import { MessageCircle, ChevronRight, Volume2 } from 'lucide-react-native';
+import { ChevronRight, Volume2 } from 'lucide-react-native';
 import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
 import { playTextToSpeech } from '@/lib/elevenLabs';
-
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 
 const MASCOT_URL = MASCOT_IMAGE_URL;
@@ -27,7 +26,6 @@ export function CoachCard({
   showSpeaker = false,
 }: CoachCardProps) {
   const isCompact = variant === 'compact';
-  const isHighlight = variant === 'highlight';
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const [isSpeaking, setIsSpeaking] = React.useState(false);
 
@@ -64,7 +62,6 @@ export function CoachCard({
         style={[
           styles.container,
           isCompact && styles.containerCompact,
-          isHighlight && styles.containerHighlight,
         ]}
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -76,28 +73,30 @@ export function CoachCard({
           style={[styles.mascot, isCompact && styles.mascotCompact]} 
         />
         <View style={styles.content}>
-          {title && <Text style={styles.title}>{title}</Text>}
-          <Text 
-            style={[styles.message, isCompact && styles.messageCompact]}
-            numberOfLines={isCompact ? 2 : 3}
-          >
-            {message}
-          </Text>
+          <View style={styles.textContainer}>
+            {title && <Text style={styles.title}>{title}</Text>}
+            <Text 
+              style={[styles.message, isCompact && styles.messageCompact]}
+              numberOfLines={isCompact ? 2 : 3}
+            >
+              {message}
+            </Text>
+          </View>
+          
           {showSpeaker && (
             <Pressable 
               style={[styles.speakerButton, isSpeaking && styles.speakerButtonDisabled]} 
               onPress={speakMessage}
               disabled={isSpeaking}
+              hitSlop={8}
             >
-              <Volume2 size={12} color={isSpeaking ? Colors.textMuted : Colors.accent} />
-              <Text style={[styles.speakerText, isSpeaking && styles.speakerTextDisabled]}>
-                {isSpeaking ? '...' : 'Listen'}
-              </Text>
+              <Volume2 size={16} color={isSpeaking ? Colors.textMuted : Colors.primary} />
             </Pressable>
           )}
         </View>
+        
         {showArrow && onPress && (
-          <ChevronRight size={18} color={Colors.textMuted} />
+          <ChevronRight size={16} color={Colors.neutralLight} style={styles.arrow} />
         )}
       </Pressable>
     </Animated.View>
@@ -114,11 +113,11 @@ export function ScreenCoachCard({ screenName }: { screenName: 'overview' | 'plan
     }
     
     const messages: Record<string, { title: string; message: string }> = {
-      overview: { title: 'Good to see you!', message: "Tap me anytime for tips or to check a purchase." },
-      plan: { title: 'Your Weekly Plan', message: "Let's tackle these tasks together!" },
-      scenarios: { title: 'Explore Paths', message: 'See how different choices affect your future.' },
-      learn: { title: 'Learn & Grow', message: 'Knowledge is your best financial tool!' },
-      profile: { title: 'Your Profile', message: 'Update anytime, I\'ll adjust your plan!' },
+      overview: { title: 'Hi there!', message: "Tap here if you need any help with your finances." },
+      plan: { title: 'Weekly Focus', message: "Stay on track with these priorities." },
+      scenarios: { title: 'Future View', message: "See how today's choices shape tomorrow." },
+      learn: { title: 'Smart Moves', message: "Expand your financial knowledge." },
+      profile: { title: 'Your Profile', message: 'Keep your details up to date.' },
     };
     return messages[screenName];
   };
@@ -131,7 +130,6 @@ export function ScreenCoachCard({ screenName }: { screenName: 'overview' | 'plan
         title={title}
         message={message}
         onPress={() => setIsDrawerOpen(true)}
-        variant={unreadCount > 0 ? 'highlight' : 'default'}
       />
       {unreadCount > 0 && (
         <View style={styles.unreadBadge}>
@@ -142,53 +140,56 @@ export function ScreenCoachCard({ screenName }: { screenName: 'overview' | 'plan
   );
 }
 
-export function CoachTip({ message, onPress }: { message: string; onPress?: () => void }) {
-  return (
-    <Pressable style={styles.tipContainer} onPress={onPress} disabled={!onPress}>
-      <View style={styles.tipIcon}>
-        <MessageCircle size={16} color={Colors.accent} />
-      </View>
-      <Text style={styles.tipText} numberOfLines={2}>{message}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    padding: 14,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 20,
+    shadowColor: Colors.neutral,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
   },
   containerCompact: {
     padding: 12,
-    borderRadius: 12,
-  },
-  containerHighlight: {
-    backgroundColor: Colors.accentMuted,
-    borderColor: Colors.accent + '40',
+    borderRadius: 16,
+    marginBottom: 12,
   },
   mascot: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 14,
+    backgroundColor: Colors.surfaceSecondary,
   },
   mascotCompact: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
   },
   content: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  textContainer: {
+    flex: 1,
+    paddingRight: 8,
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
     marginBottom: 2,
+    letterSpacing: -0.2,
   },
   message: {
     fontSize: 14,
@@ -200,39 +201,31 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   speakerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    backgroundColor: Colors.accentMuted,
-    borderRadius: 10,
-    gap: 4,
-  },
-  speakerText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.accent,
+    padding: 8,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 20,
+    marginLeft: 8,
   },
   speakerButtonDisabled: {
-    opacity: 0.7,
-    backgroundColor: Colors.border,
+    opacity: 0.5,
   },
-  speakerTextDisabled: {
-    color: Colors.textMuted,
+  arrow: {
+    marginLeft: 8,
+    opacity: 0.5,
   },
   screenCardContainer: {
     position: 'relative',
   },
   unreadBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    top: -6,
+    right: -6,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: Colors.danger,
+    borderWidth: 2,
+    borderColor: Colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
@@ -241,27 +234,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#fff',
-  },
-  tipContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.accentMuted,
-    padding: 12,
-    borderRadius: 10,
-  },
-  tipIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 13,
-    color: Colors.text,
-    lineHeight: 18,
   },
 });
