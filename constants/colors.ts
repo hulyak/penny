@@ -1,75 +1,70 @@
 const Colors = {
-  primary: '#1F2937',
-  primaryLight: '#374151',
+  // Brand Colors - Inspired by Acorns/Wealthsimple/modern fintech
+  primary: '#0B3B2D', // Deep forest green for text/headings - trustworthy
+  primaryLight: '#1A5342',
   
-  secondary: '#0D9488',
-  secondaryLight: '#14B8A6',
+  secondary: '#B5E48C', // Fresh lime/mint for accents - growth
+  secondaryLight: '#D9F99D',
+  secondaryDark: '#76C893',
+
+  accent: '#52B69A', // Ocean/Teal - secondary actions
+  accentLight: '#99D98C',
+  accentMuted: '#EAFDF5', // Very light mint for backgrounds
+
+  // Functional Colors
+  success: '#16C47F', // Vibrant green
+  successLight: '#6EE7B7',
+  successMuted: '#ECFDF5',
+
+  warning: '#FFD166', // Soft warm yellow/orange
+  warningLight: '#FFE5A0',
+  warningMuted: '#FFFBEB',
+
+  danger: '#EF476F', // Friendly red/pink
+  dangerLight: '#F78CADD',
+  dangerMuted: '#FFF1F2',
+
+  // Neutrals - Clean and airy
+  neutral: '#4B5563', // Body text
+  neutralLight: '#9CA3AF', // Subtitles
+  neutralMuted: '#F3F4F6', // Secondary backgrounds
   
-  accent: '#10B981',
-  accentLight: '#34D399',
-  accentMuted: '#D1FAE5',
-  
-  mint: '#99E5DC',
-  mintLight: '#B5EDE6',
-  mintMuted: '#E6FAF7',
-  
-  coral: '#F8A5A5',
-  coralLight: '#FBC4C4',
-  coralMuted: '#FEF0F0',
-  
-  lavender: '#C4B5FD',
-  lavenderLight: '#DDD6FE',
-  lavenderMuted: '#F5F3FF',
-  
-  success: '#10B981',
-  successLight: '#34D399',
-  successMuted: '#D1FAE5',
-  
-  warning: '#F59E0B',
-  warningLight: '#FBBF24',
-  warningMuted: '#FEF3C7',
-  
-  danger: '#EF4444',
-  dangerLight: '#F87171',
-  dangerMuted: '#FEE2E2',
-  
-  neutral: '#6B7280',
-  neutralLight: '#9CA3AF',
-  neutralMuted: '#F3F4F6',
-  
-  background: '#FAFCFB',
+  background: '#F8FAFC', // Very subtle cool gray/white
   surface: '#FFFFFF',
-  surfaceSecondary: '#F0FDF9',
-  
-  text: '#1F2937',
-  textSecondary: '#4B5563',
-  textMuted: '#9CA3AF',
+  surfaceSecondary: '#F1F8F5', // Very light green tint for surfaces
+
+  text: '#0B3B2D', // Deep green/black
+  textSecondary: '#52796F', // Muted green/gray
+  textMuted: '#84A98C', // Lightest readable text
   textLight: '#FFFFFF',
-  
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  divider: '#E5E7EB',
-  
+
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
+  divider: '#F1F5F9',
+
+  // Special UI Elements
   agents: {
-    financialReality: '#10B981',
-    marketContext: '#0D9488',
-    scenarioLearning: '#8B5CF6',
-    adaptation: '#F59E0B',
+    financialReality: '#16C47F',
+    marketContext: '#118AB2', // Blue
+    scenarioLearning: '#9D4EDD', // Purple
+    adaptation: '#FFD166', // Yellow
   },
   
   health: {
-    critical: '#EF4444',
-    needsAttention: '#F59E0B',
-    stable: '#0D9488',
-    strong: '#10B981',
-    excellent: '#059669',
+    critical: '#EF476F',
+    needsAttention: '#FFD166',
+    stable: '#118AB2',
+    strong: '#06D6A0',
+    excellent: '#16C47F',
   },
   
   chart: {
-    primary: '#10B981',
-    secondary: '#8B5CF6',
-    tertiary: '#0D9488',
-    quaternary: '#F59E0B',
+    primary: '#16C47F',
+    secondary: '#118AB2',
+    tertiary: '#FFD166',
+    quaternary: '#EF476F',
+    gradientStart: '#16C47F',
+    gradientEnd: '#B5E48C',
   },
 };
 
