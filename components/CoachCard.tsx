@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Image, Animated } from 'react-native
 import { MessageCircle, ChevronRight, Volume2 } from 'lucide-react-native';
 import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
-import * as Speech from 'expo-speech';
+import { playTextToSpeech } from '@/lib/elevenLabs';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 
@@ -29,6 +29,7 @@ export function CoachCard({
   const isCompact = variant === 'compact';
   const isHighlight = variant === 'highlight';
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
+  const [isSpeaking, setIsSpeaking] = React.useState(false);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -45,8 +46,16 @@ export function CoachCard({
     }).start();
   };
 
-  const speakMessage = () => {
-    Speech.speak(message, { language: 'en', rate: 0.9 });
+  const speakMessage = async () => {
+    if (isSpeaking) return;
+    try {
+      setIsSpeaking(true);
+      await playTextToSpeech(message);
+    } catch (error) {
+      console.error('Speech error:', error);
+    } finally {
+      setIsSpeaking(false);
+    }
   };
 
   return (
@@ -75,9 +84,15 @@ export function CoachCard({
             {message}
           </Text>
           {showSpeaker && (
-            <Pressable style={styles.speakerButton} onPress={speakMessage}>
-              <Volume2 size={12} color={Colors.accent} />
-              <Text style={styles.speakerText}>Listen</Text>
+            <Pressable 
+              style={[styles.speakerButton, isSpeaking && styles.speakerButtonDisabled]} 
+              onPress={speakMessage}
+              disabled={isSpeaking}
+            >
+              <Volume2 size={12} color={isSpeaking ? Colors.textMuted : Colors.accent} />
+              <Text style={[styles.speakerText, isSpeaking && styles.speakerTextDisabled]}>
+                {isSpeaking ? '...' : 'Listen'}
+              </Text>
             </Pressable>
           )}
         </View>
@@ -199,6 +214,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     color: Colors.accent,
+  },
+  speakerButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: Colors.border,
+  },
+  speakerTextDisabled: {
+    color: Colors.textMuted,
   },
   screenCardContainer: {
     position: 'relative',

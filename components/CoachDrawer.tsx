@@ -23,7 +23,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
-import * as Speech from 'expo-speech';
+import { playTextToSpeech } from '@/lib/elevenLabs';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 
@@ -33,12 +33,21 @@ export function CoachDrawer() {
   const { recentMessages, markAsRead, markAllAsRead, isDrawerOpen, setIsDrawerOpen, isAnalyzingImage } = useCoach();
   const [activeTab, setActiveTab] = useState<'messages' | 'actions' | 'vision'>('messages');
 
-  const speakMessage = (text: string) => {
-    Speech.speak(text, {
-      language: 'en',
-      pitch: 1.0,
-      rate: 0.9,
-    });
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const speakMessage = async (text: string) => {
+    if (isSpeaking) return;
+    
+    try {
+      setIsSpeaking(true);
+      await playTextToSpeech(text);
+    } catch (error) {
+      console.error('Speech error:', error);
+      // Fallback to default TTS if ElevenLabs fails
+      alert('Could not play audio. Please try again.');
+    } finally {
+      setIsSpeaking(false);
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -111,6 +120,7 @@ export function CoachDrawer() {
               <MessagesTab 
                 messages={recentMessages}
                 onSpeak={speakMessage}
+                isSpeaking={isSpeaking}
                 onMarkRead={markAsRead}
                 formatTime={formatTime}
               />
@@ -135,11 +145,13 @@ export function CoachDrawer() {
 function MessagesTab({ 
   messages, 
   onSpeak, 
+  isSpeaking,
   onMarkRead,
   formatTime,
 }: { 
   messages: any[];
   onSpeak: (text: string) => void;
+  isSpeaking: boolean;
   onMarkRead: (id: string) => void;
   formatTime: (date: Date) => string;
 }) {
@@ -182,11 +194,14 @@ function MessagesTab({
           <Text style={styles.messageText}>{msg.message}</Text>
           <View style={styles.messageActions}>
             <Pressable 
-              style={styles.speakButton}
+              style={[styles.speakButton, isSpeaking && styles.speakButtonDisabled]}
               onPress={() => onSpeak(msg.message)}
+              disabled={isSpeaking}
             >
-              <Volume2 size={14} color={Colors.accent} />
-              <Text style={styles.speakButtonText}>Listen</Text>
+              <Volume2 size={14} color={isSpeaking ? Colors.textMuted : Colors.accent} />
+              <Text style={[styles.speakButtonText, isSpeaking && styles.speakButtonTextDisabled]}>
+                {isSpeaking ? 'Playing...' : 'Listen'}
+              </Text>
             </Pressable>
             {!msg.read && (
               <View style={styles.unreadDot} />
@@ -650,6 +665,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.accent,
     fontWeight: '500',
+  },
+  speakButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: Colors.border,
+  },
+  speakButtonTextDisabled: {
+    color: Colors.textMuted,
   },
   actionsContainer: {
     gap: 12,

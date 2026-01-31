@@ -25,7 +25,7 @@ import {
 import { useCoach } from '@/context/CoachContext';
 import { WhatWouldChange } from '@/components/WhatWouldChange';
 import Colors from '@/constants/colors';
-import * as Speech from 'expo-speech';
+import { playTextToSpeech } from '@/lib/elevenLabs';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 
@@ -34,6 +34,7 @@ const MASCOT_URL = MASCOT_IMAGE_URL;
 export function PurchaseAnalysisModal() {
   const { showPurchaseModal, setShowPurchaseModal, currentAnalysis } = useCoach();
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -112,9 +113,18 @@ export function PurchaseAnalysisModal() {
   const config = getRecommendationConfig(currentAnalysis.recommendation);
   const Icon = config.icon;
 
-  const speakAnalysis = () => {
+  const speakAnalysis = async () => {
+    if (isSpeaking) return;
     const text = `${config.label}. ${currentAnalysis.reasoning}. ${currentAnalysis.adjustedPlan || ''}`;
-    Speech.speak(text, { language: 'en', rate: 0.9 });
+    
+    try {
+      setIsSpeaking(true);
+      await playTextToSpeech(text);
+    } catch (error) {
+      console.error('Speech error:', error);
+    } finally {
+      setIsSpeaking(false);
+    }
   };
 
   return (
@@ -159,9 +169,15 @@ export function PurchaseAnalysisModal() {
               <Image source={{ uri: MASCOT_URL }} style={styles.mascot} />
               <View style={styles.mascotBubble}>
                 <Text style={styles.reasoningText}>{currentAnalysis.reasoning}</Text>
-                <Pressable style={styles.speakButton} onPress={speakAnalysis}>
-                  <Volume2 size={14} color={Colors.accent} />
-                  <Text style={styles.speakButtonText}>Listen</Text>
+                <Pressable 
+                  style={[styles.speakButton, isSpeaking && styles.speakButtonDisabled]} 
+                  onPress={speakAnalysis}
+                  disabled={isSpeaking}
+                >
+                  <Volume2 size={14} color={isSpeaking ? Colors.textMuted : Colors.accent} />
+                  <Text style={[styles.speakButtonText, isSpeaking && styles.speakButtonTextDisabled]}>
+                    {isSpeaking ? 'Playing...' : 'Listen'}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -351,6 +367,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: Colors.accent,
+  },
+  speakButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: Colors.border,
+  },
+  speakButtonTextDisabled: {
+    color: Colors.textMuted,
   },
   metricsGrid: {
     flexDirection: 'row',

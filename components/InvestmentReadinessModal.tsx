@@ -17,7 +17,7 @@ import {
 } from 'lucide-react-native';
 import { useCoach } from '@/context/CoachContext';
 import Colors from '@/constants/colors';
-import * as Speech from 'expo-speech';
+import { playTextToSpeech } from '@/lib/elevenLabs';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 
@@ -25,6 +25,7 @@ const MASCOT_URL = MASCOT_IMAGE_URL;
 
 export function InvestmentReadinessModal() {
   const { showReadinessModal, setShowReadinessModal, currentReadiness } = useCoach();
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   if (!currentReadiness) return null;
 
@@ -45,9 +46,18 @@ export function InvestmentReadinessModal() {
     return Colors.danger;
   };
 
-  const speakSummary = () => {
+  const speakSummary = async () => {
+    if (isSpeaking) return;
     const text = `Your readiness score is ${currentReadiness.score} out of 100. ${currentReadiness.isReady ? 'You appear ready to start learning about investing.' : 'Focus on building your foundation first.'} ${currentReadiness.recommendation}`;
-    Speech.speak(text, { language: 'en', rate: 0.9 });
+    
+    try {
+      setIsSpeaking(true);
+      await playTextToSpeech(text);
+    } catch (error) {
+      console.error('Speech error:', error);
+    } finally {
+      setIsSpeaking(false);
+    }
   };
 
   return (
@@ -105,9 +115,15 @@ export function InvestmentReadinessModal() {
                 <Text style={styles.recommendationText}>
                   {currentReadiness.recommendation}
                 </Text>
-                <Pressable style={styles.speakButton} onPress={speakSummary}>
-                  <Volume2 size={14} color={Colors.accent} />
-                  <Text style={styles.speakButtonText}>Listen</Text>
+                <Pressable 
+                  style={[styles.speakButton, isSpeaking && styles.speakButtonDisabled]} 
+                  onPress={speakSummary}
+                  disabled={isSpeaking}
+                >
+                  <Volume2 size={14} color={isSpeaking ? Colors.textMuted : Colors.accent} />
+                  <Text style={[styles.speakButtonText, isSpeaking && styles.speakButtonTextDisabled]}>
+                    {isSpeaking ? 'Playing...' : 'Listen'}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -280,6 +296,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: Colors.accent,
+  },
+  speakButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: Colors.border,
+  },
+  speakButtonTextDisabled: {
+    color: Colors.textMuted,
   },
   nextStepsSection: {
     marginBottom: 16,
