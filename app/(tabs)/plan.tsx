@@ -1,21 +1,25 @@
-import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
   ScrollView,
   Pressable,
   Image,
 } from 'react-native';
-import { 
-  CheckCircle2, 
+import {
+  CheckCircle2,
   Circle,
   Sparkles,
   Zap,
   Flag,
+  Bot,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { ScreenCoachCard } from '@/components/CoachCard';
+import { MarathonAgentPanel } from '@/components/MarathonAgentPanel';
 import Colors from '@/constants/colors';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
@@ -23,7 +27,8 @@ import { MASCOT_IMAGE_URL } from '@/constants/images';
 const MASCOT_URL = MASCOT_IMAGE_URL;
 
 export default function PlanScreen() {
-  const { weeklyFocuses, updateFocusProgress, adaptationOutput } = useApp();
+  const { weeklyFocuses, updateFocusProgress, adaptationOutput, financials, snapshot } = useApp();
+  const [showMarathonAgent, setShowMarathonAgent] = useState(false);
 
   const completedCount = weeklyFocuses.filter(f => f.progress === 100).length;
   const totalCount = weeklyFocuses.length;
@@ -38,6 +43,40 @@ export default function PlanScreen() {
       showsVerticalScrollIndicator={false}
     >
       <ScreenCoachCard screenName="plan" />
+
+      {/* Marathon Agent Toggle */}
+      <Pressable
+        style={styles.agentToggle}
+        onPress={() => setShowMarathonAgent(!showMarathonAgent)}
+      >
+        <View style={styles.agentToggleIcon}>
+          <Bot size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.agentToggleInfo}>
+          <Text style={styles.agentToggleTitle}>Marathon Agent</Text>
+          <Text style={styles.agentToggleSubtitle}>Autonomous financial planning powered by Gemini 3</Text>
+        </View>
+        {showMarathonAgent ? (
+          <ChevronUp size={20} color={Colors.textMuted} />
+        ) : (
+          <ChevronDown size={20} color={Colors.textMuted} />
+        )}
+      </Pressable>
+
+      {showMarathonAgent && (
+        <MarathonAgentPanel
+          userId="user_default"
+          financialContext={{
+            monthlyIncome: financials.monthlyIncome,
+            monthlyExpenses: financials.housingCost + financials.carCost + financials.essentialsCost,
+            currentSavings: financials.savings,
+            debts: financials.debts,
+            savingsRate: snapshot.savingsRate,
+            monthsOfRunway: snapshot.monthsOfRunway,
+            healthScore: snapshot.healthScore,
+          }}
+        />
+      )}
 
       {longTermGoals.length > 0 && (
         <View style={styles.goalsSection}>
@@ -428,5 +467,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
     lineHeight: 20,
+  },
+
+  agentToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.mintMuted,
+  },
+  agentToggleIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.mintMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  agentToggleInfo: {
+    flex: 1,
+  },
+  agentToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  agentToggleSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });

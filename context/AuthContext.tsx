@@ -2,112 +2,107 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback } from 'react';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform } from 'react-native';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  updateProfile,
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithCredential,
+  OAuthProvider,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import { auth, isFirebaseConfigured, firestoreHelpers } from '@/lib/firebase';
 import { User } from '@/types';
-import { Session, AuthError } from '@supabase/supabase-js';
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
 
-  const mapSupabaseUser = useCallback((supabaseUser: any): User => {
+  const mapFirebaseUser = useCallback((fbUser: FirebaseUser): User => {
     return {
-      id: supabaseUser.id,
-      email: supabaseUser.email || '',
-      displayName: supabaseUser.user_metadata?.display_name || 
-                   supabaseUser.user_metadata?.full_name ||
-                   supabaseUser.email?.split('@')[0] || 
-                   'User',
-      provider: supabaseUser.app_metadata?.provider || 'email',
-      photoUrl: supabaseUser.user_metadata?.avatar_url,
-      createdAt: supabaseUser.created_at,
+      id: fbUser.uid,
+      email: fbUser.email || '',
+      displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+      provider: fbUser.providerData[0]?.providerId || 'email',
+      photoUrl: fbUser.photoURL || undefined,
+      createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
     };
   }, []);
 
   useEffect(() => {
-    console.log('[AuthContext] Initializing Supabase auth listener...');
-    console.log('[AuthContext] Supabase configured:', isSupabaseConfigured);
-    
-    if (!isSupabaseConfigured) {
-      console.warn('[AuthContext] Supabase not configured, skipping auth');
+    console.log('[AuthContext] Initializing Firebase auth listener...');
+    console.log('[AuthContext] Firebase configured:', isFirebaseConfigured);
+
+    if (!isFirebaseConfigured) {
+      console.warn('[AuthContext] Firebase not configured, skipping auth');
       setIsLoading(false);
       return;
     }
 
-    let mounted = true;
     const timeoutId = setTimeout(() => {
-      if (mounted) {
-        console.warn('[AuthContext] Session check timed out');
-        setIsLoading(false);
-      }
-    }, 3000);
+      console.warn('[AuthContext] Session check timed out');
+      setIsLoading(false);
+    }, 5000);
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (!mounted) return;
-        clearTimeout(timeoutId);
-        console.log('[AuthContext] Initial session:', session ? 'exists' : 'none');
-        setSession(session);
-        if (session?.user) {
-          setUser(mapSupabaseUser(session.user));
-        }
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        if (!mounted) return;
-        clearTimeout(timeoutId);
-        console.error('[AuthContext] Failed to get session:', err);
-        setIsLoading(false);
-      });
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      clearTimeout(timeoutId);
+      console.log('[AuthContext] Auth state changed:', fbUser ? 'user exists' : 'no user');
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        console.log('[AuthContext] Auth state changed:', event);
-        setSession(session);
-        if (session?.user) {
-          setUser(mapSupabaseUser(session.user));
-        } else {
-          setUser(null);
-        }
-        setIsLoading(false);
+      setFirebaseUser(fbUser);
+      if (fbUser) {
+        setUser(mapFirebaseUser(fbUser));
+      } else {
+        setUser(null);
       }
-    );
+      setIsLoading(false);
+    });
 
     return () => {
-      mounted = false;
       clearTimeout(timeoutId);
-      subscription.unsubscribe();
+      unsubscribe();
     };
-  }, [mapSupabaseUser]);
+  }, [mapFirebaseUser]);
 
-  const handleAuthError = (err: AuthError | Error): string => {
+  const handleAuthError = (err: any): string => {
     console.error('[AuthContext] Auth error:', err);
+    const code = err.code || '';
     const message = err.message || 'An error occurred';
-    
-    if (message.includes('Invalid login credentials')) {
+
+    if (code === 'auth/invalid-email') {
+      return 'Invalid email address';
+    }
+    if (code === 'auth/user-disabled') {
+      return 'This account has been disabled';
+    }
+    if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
       return 'Invalid email or password';
     }
-    if (message.includes('User already registered')) {
+    if (code === 'auth/email-already-in-use') {
       return 'An account with this email already exists';
     }
-    if (message.includes('Email not confirmed')) {
-      return 'Please check your email to confirm your account';
-    }
-    if (message.includes('Password should be at least')) {
+    if (code === 'auth/weak-password') {
       return 'Password must be at least 6 characters';
     }
-    
+    if (code === 'auth/too-many-requests') {
+      return 'Too many attempts. Please try again later';
+    }
+    if (code === 'auth/network-request-failed') {
+      return 'Network error. Please check your connection';
+    }
+
     return message;
   };
 
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
     console.log('[AuthContext] Signing up with email:', email);
     setError(null);
-    
+
     if (!email || !password || !displayName) {
       setError('Please fill in all fields');
       return false;
@@ -118,28 +113,27 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return false;
     }
 
+    if (!isFirebaseConfigured) {
+      setError('Firebase not configured');
+      return false;
+    }
+
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-        options: {
-          data: {
-            display_name: displayName.trim(),
-            full_name: displayName.trim(),
-          },
-        },
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
+      );
+
+      // Update display name
+      await updateProfile(userCredential.user, {
+        displayName: displayName.trim(),
       });
 
-      if (signUpError) {
-        setError(handleAuthError(signUpError));
-        return false;
-      }
-
-      if (data.user && !data.session) {
-        console.log('[AuthContext] Sign up successful, email confirmation required');
-        setError('Please check your email to confirm your account');
-        return false;
-      }
+      // Save initial user data to Firestore
+      await firestoreHelpers.saveUserFinancials(userCredential.user.uid, {
+        createdAt: new Date().toISOString(),
+      });
 
       console.log('[AuthContext] Sign up successful');
       return true;
@@ -158,16 +152,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return false;
     }
 
-    try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
-      });
+    if (!isFirebaseConfigured) {
+      setError('Firebase not configured');
+      return false;
+    }
 
-      if (signInError) {
-        setError(handleAuthError(signInError));
-        return false;
-      }
+    try {
+      await signInWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
+      );
 
       console.log('[AuthContext] Sign in successful');
       return true;
@@ -181,44 +176,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[AuthContext] Starting Google sign in...');
     setError(null);
 
+    if (!isFirebaseConfigured) {
+      setError('Firebase not configured');
+      return false;
+    }
+
     try {
-      const { data, error: googleError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: Platform.OS === 'web' 
-            ? window.location.origin 
-            : 'penny://auth/callback',
-          skipBrowserRedirect: Platform.OS !== 'web',
-        },
+      // For React Native, we need to use expo-auth-session or similar
+      // This is a simplified version - you may need to add expo-auth-session
+      if (Platform.OS === 'web') {
+        const { signInWithPopup } = await import('firebase/auth');
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+        return true;
+      }
+
+      // For native, you'll need to configure Google Sign-In
+      // Using expo-auth-session with Google OAuth
+      const { makeRedirectUri, AuthRequest } = await import('expo-auth-session');
+      const { maybeCompleteAuthSession } = await import('expo-web-browser');
+
+      maybeCompleteAuthSession();
+
+      const redirectUri = makeRedirectUri({
+        scheme: 'penny',
+        path: 'auth/callback',
       });
 
-      if (googleError) {
-        setError(handleAuthError(googleError));
-        return false;
-      }
-
-      if (Platform.OS !== 'web' && data.url) {
-        const WebBrowser = await import('expo-web-browser');
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          'penny://auth/callback'
-        );
-        
-        if (result.type === 'success' && 'url' in result) {
-          const url = new URL(result.url);
-          const accessToken = url.searchParams.get('access_token');
-          const refreshToken = url.searchParams.get('refresh_token');
-          
-          if (accessToken && refreshToken) {
-            await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-          }
-        }
-      }
-
-      return true;
+      // Note: You'll need to set up Google OAuth in Firebase Console
+      // and add the client ID to your app config
+      setError('Google Sign-In requires additional setup. Please use email/password or Apple Sign-In.');
+      return false;
     } catch (err: any) {
       console.error('[AuthContext] Google sign in error:', err);
       setError('Failed to sign in with Google');
@@ -230,22 +218,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('[AuthContext] Starting Apple sign in...');
     setError(null);
 
+    if (!isFirebaseConfigured) {
+      setError('Firebase not configured');
+      return false;
+    }
+
     try {
       if (Platform.OS === 'web') {
-        const { error: appleError } = await supabase.auth.signInWithOAuth({
-          provider: 'apple',
-          options: {
-            redirectTo: window.location.origin,
-          },
-        });
-
-        if (appleError) {
-          setError(handleAuthError(appleError));
-          return false;
-        }
+        const { signInWithPopup } = await import('firebase/auth');
+        const provider = new OAuthProvider('apple.com');
+        await signInWithPopup(auth, provider);
         return true;
       }
 
+      // Check if Apple Auth is available (iOS only)
       const isAvailable = await AppleAuthentication.isAvailableAsync();
       if (!isAvailable) {
         setError('Apple Sign In is not available on this device');
@@ -260,27 +246,24 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       });
 
       if (credential.identityToken) {
-        const { data, error: signInError } = await supabase.auth.signInWithIdToken({
-          provider: 'apple',
-          token: credential.identityToken,
+        // Create Firebase credential from Apple token
+        const provider = new OAuthProvider('apple.com');
+        const oAuthCredential = provider.credential({
+          idToken: credential.identityToken,
+          rawNonce: credential.authorizationCode || undefined,
         });
 
-        if (signInError) {
-          setError(handleAuthError(signInError));
-          return false;
-        }
+        const userCredential = await signInWithCredential(auth, oAuthCredential);
 
-        if (credential.fullName && data.user) {
-          const displayName = credential.fullName.givenName 
+        // Update display name if provided by Apple
+        if (credential.fullName && userCredential.user) {
+          const displayName = credential.fullName.givenName
             ? `${credential.fullName.givenName} ${credential.fullName.familyName || ''}`
             : undefined;
-          
+
           if (displayName) {
-            await supabase.auth.updateUser({
-              data: {
-                display_name: displayName.trim(),
-                full_name: displayName.trim(),
-              },
+            await updateProfile(userCredential.user, {
+              displayName: displayName.trim(),
             });
           }
         }
@@ -304,14 +287,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signOut = useCallback(async () => {
     console.log('[AuthContext] Signing out...');
     try {
-      if (!isDemoMode) {
-        const { error: signOutError } = await supabase.auth.signOut();
-        if (signOutError) {
-          console.error('[AuthContext] Sign out error:', signOutError);
-        }
+      if (!isDemoMode && isFirebaseConfigured) {
+        await firebaseSignOut(auth);
       }
       setUser(null);
-      setSession(null);
+      setFirebaseUser(null);
       setError(null);
       setIsDemoMode(false);
     } catch (err) {
@@ -323,21 +303,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setError(null);
   }, []);
 
-  const updateProfile = useCallback(async (updates: Partial<Pick<User, 'displayName' | 'photoUrl'>>) => {
-    if (!user) return false;
-    
-    try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: {
-          display_name: updates.displayName,
-          avatar_url: updates.photoUrl,
-        },
-      });
+  const updateUserProfile = useCallback(async (updates: Partial<Pick<User, 'displayName' | 'photoUrl'>>) => {
+    if (!firebaseUser) return false;
 
-      if (updateError) {
-        console.error('[AuthContext] Profile update error:', updateError);
-        return false;
-      }
+    try {
+      await updateProfile(firebaseUser, {
+        displayName: updates.displayName,
+        photoURL: updates.photoUrl,
+      });
 
       setUser(prev => prev ? { ...prev, ...updates } : null);
       console.log('[AuthContext] Profile updated');
@@ -346,27 +319,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[AuthContext] Profile update error:', err);
       return false;
     }
-  }, [user]);
+  }, [firebaseUser]);
 
   const resetPassword = useCallback(async (email: string) => {
     console.log('[AuthContext] Sending password reset email to:', email);
     setError(null);
 
+    if (!isFirebaseConfigured) {
+      setError('Firebase not configured');
+      return false;
+    }
+
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
-        {
-          redirectTo: Platform.OS === 'web' 
-            ? `${window.location.origin}/auth/reset-password`
-            : 'penny://auth/reset-password',
-        }
-      );
-
-      if (resetError) {
-        setError(handleAuthError(resetError));
-        return false;
-      }
-
+      await sendPasswordResetEmail(auth, email.trim().toLowerCase());
       return true;
     } catch (err: any) {
       setError(handleAuthError(err));
@@ -377,7 +342,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signInAsDemo = useCallback(async () => {
     console.log('[AuthContext] Signing in as demo user...');
     setError(null);
-    
+
     const demoUser: User = {
       id: 'demo-user-' + Date.now(),
       email: 'demo@penny.app',
@@ -385,7 +350,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       provider: 'demo',
       createdAt: new Date().toISOString(),
     };
-    
+
     setUser(demoUser);
     setIsDemoMode(true);
     setIsLoading(false);
@@ -395,8 +360,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   return {
     user,
-    session,
-    isAuthenticated: !!session || isDemoMode,
+    session: firebaseUser, // For compatibility
+    isAuthenticated: !!firebaseUser || isDemoMode,
     isLoading,
     error,
     isDemoMode,
@@ -407,7 +372,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     signInAsDemo,
     signOut,
     clearError,
-    updateProfile,
+    updateProfile: updateUserProfile,
     resetPassword,
   };
 });

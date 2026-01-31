@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   ScrollView,
   Pressable,
   Image,
 } from 'react-native';
-import { 
-  Clock, 
+import {
+  Clock,
   CheckCircle,
   PiggyBank,
   Wallet,
@@ -16,9 +16,15 @@ import {
   BookOpen,
   ChevronRight,
   Sparkles,
+  GraduationCap,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native';
 import { ScreenCoachCard } from '@/components/CoachCard';
+import { RealtimeTeacherCard } from '@/components/RealtimeTeacherCard';
+import { useApp } from '@/context/AppContext';
 import Colors from '@/constants/colors';
+import type { TeacherSession } from '@/lib/realtimeTeacher';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 
@@ -70,8 +76,25 @@ const CATEGORY_CONFIG: Record<string, { color: string; bg: string; label: string
 };
 
 export default function LearnScreen() {
+  const { snapshot } = useApp();
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [completedCards, setCompletedCards] = useState<string[]>([]);
+  const [showRealtimeTeacher, setShowRealtimeTeacher] = useState(false);
+
+  // Teacher session state
+  const [teacherSession] = useState<TeacherSession>({
+    sessionId: `session_${Date.now()}`,
+    userId: 'user_default',
+    currentLesson: null,
+    lessonHistory: [],
+    userLevel: 'beginner',
+    preferredPace: 'normal',
+    financialContext: {
+      healthScore: snapshot?.healthScore || 50,
+      primaryGoal: 'Build emergency fund',
+      weakAreas: ['budgeting', 'saving'],
+    },
+  });
 
   const toggleComplete = (id: string) => {
     setCompletedCards(prev => 
@@ -90,6 +113,34 @@ export default function LearnScreen() {
       showsVerticalScrollIndicator={false}
     >
       <ScreenCoachCard screenName="learn" />
+
+      {/* Real-Time Teacher Toggle */}
+      <Pressable
+        style={styles.teacherToggle}
+        onPress={() => setShowRealtimeTeacher(!showRealtimeTeacher)}
+      >
+        <View style={styles.teacherToggleIcon}>
+          <GraduationCap size={20} color={Colors.lavender} />
+        </View>
+        <View style={styles.teacherToggleInfo}>
+          <Text style={styles.teacherToggleTitle}>Real-Time Teacher</Text>
+          <Text style={styles.teacherToggleSubtitle}>Voice coaching with Gemini 3 Live API</Text>
+        </View>
+        {showRealtimeTeacher ? (
+          <ChevronUp size={20} color={Colors.textMuted} />
+        ) : (
+          <ChevronDown size={20} color={Colors.textMuted} />
+        )}
+      </Pressable>
+
+      {showRealtimeTeacher && (
+        <RealtimeTeacherCard
+          session={teacherSession}
+          onLessonComplete={(topic, score) => {
+            console.log(`Completed ${topic} with score ${score}`);
+          }}
+        />
+      )}
 
       <View style={styles.progressCard}>
         <View style={styles.progressHeader}>
@@ -411,5 +462,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
     lineHeight: 20,
+  },
+
+  teacherToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.lavenderMuted,
+  },
+  teacherToggleIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.lavenderMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  teacherToggleInfo: {
+    flex: 1,
+  },
+  teacherToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  teacherToggleSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });

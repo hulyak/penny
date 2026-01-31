@@ -1,31 +1,51 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   ScrollView,
   Pressable,
   Image,
 } from 'react-native';
-import { 
+import {
   ChevronDown,
   ChevronUp,
   Shield,
   Zap,
   Target,
   TrendingUp,
+  FlaskConical,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { ScreenCoachCard } from '@/components/CoachCard';
+import { VibeEngineeringPanel } from '@/components/VibeEngineeringPanel';
 import Colors from '@/constants/colors';
+import type { SimulationContext } from '@/lib/vibeEngineering';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 
 const MASCOT_URL = MASCOT_IMAGE_URL;
 
 export default function ScenariosScreen() {
-  const { scenarios, financials } = useApp();
+  const { scenarios, financials, snapshot } = useApp();
   const [expandedScenario, setExpandedScenario] = useState<string | null>(null);
+  const [showVibeEngineering, setShowVibeEngineering] = useState(false);
+
+  // Simulation context for Vibe Engineering
+  const simulationContext: SimulationContext = {
+    currentIncome: financials.monthlyIncome,
+    currentExpenses: financials.housingCost + financials.carCost + financials.essentialsCost,
+    currentSavings: financials.savings,
+    currentDebt: financials.debts,
+    interestRates: {
+      savings: 4.5, // APY
+      debt: 18, // Average credit card rate
+    },
+    monthlyContributions: {
+      savings: snapshot?.disposableIncome ? snapshot.disposableIncome * 0.2 : 200,
+      debtPayment: financials.debts > 0 ? Math.min(500, financials.debts * 0.05) : 0,
+    },
+  };
 
   const emergencyGap = financials.emergencyFundGoal - financials.savings;
 
@@ -36,6 +56,34 @@ export default function ScenariosScreen() {
       showsVerticalScrollIndicator={false}
     >
       <ScreenCoachCard screenName="scenarios" />
+
+      {/* Vibe Engineering Toggle */}
+      <Pressable
+        style={styles.vibeToggle}
+        onPress={() => setShowVibeEngineering(!showVibeEngineering)}
+      >
+        <View style={styles.vibeToggleIcon}>
+          <FlaskConical size={20} color={Colors.coral} />
+        </View>
+        <View style={styles.vibeToggleInfo}>
+          <Text style={styles.vibeToggleTitle}>Vibe Engineering</Text>
+          <Text style={styles.vibeToggleSubtitle}>Monte Carlo simulations & what-if analysis</Text>
+        </View>
+        {showVibeEngineering ? (
+          <ChevronUp size={20} color={Colors.textMuted} />
+        ) : (
+          <ChevronDown size={20} color={Colors.textMuted} />
+        )}
+      </Pressable>
+
+      {showVibeEngineering && (
+        <VibeEngineeringPanel
+          context={simulationContext}
+          onRecommendationApply={(recommendation) => {
+            console.log('Apply recommendation:', recommendation);
+          }}
+        />
+      )}
 
       <View style={styles.summaryCard}>
         <View style={styles.summaryItem}>
@@ -410,5 +458,44 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
+  },
+
+  vibeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.coralMuted,
+  },
+  vibeToggleIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.coralMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  vibeToggleInfo: {
+    flex: 1,
+  },
+  vibeToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  vibeToggleSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });

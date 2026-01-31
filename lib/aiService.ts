@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { generateWithGemini, generateStructuredWithGemini, GEMINI_SYSTEM_PROMPT } from './gemini';
+import { generateWithGemini, generateStructuredWithGemini, GEMINI_SYSTEM_PROMPT, type ThinkingLevel } from './gemini';
 
 const AI_TIMEOUT = 20000;
 
@@ -92,18 +92,19 @@ Calculated Metrics:
 - Fixed Cost Ratio: ${params.snapshot.fixedCostRatio.toFixed(1)}%
 - Health Score: ${params.snapshot.healthScore}/100 (${params.snapshot.healthLabel})
 
-Provide:
-- summary: A 1-2 sentence plain-language summary of the financial health
-- reasoning: A brief explanation of how you assessed their situation
-- whatWouldChange: 2-3 specific things that would improve their situation`;
+Provide a JSON object with these exact fields:
+- "summary": A 1-2 sentence plain-language summary of the financial health (string)
+- "reasoning": A brief explanation of how you assessed their situation (string)
+- "whatWouldChange": An array of 2-3 strings, each being a specific thing that would improve their situation (must be an array like ["item 1", "item 2", "item 3"])`;
 
   try {
-    console.log('[AIService] Generating financial summary with Gemini 3...');
+    console.log('[AIService] Generating financial summary with Gemini 3 (high reasoning)...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
         systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
+        thinkingLevel: 'high', // Use high reasoning for complex financial analysis
       }),
       AI_TIMEOUT
     );
@@ -342,12 +343,13 @@ Provide:
 Explain why these foundations matter BEFORE considering investments. This is education, not advice.`;
 
   try {
-    console.log('[AIService] Generating investment readiness with Gemini 3...');
+    console.log('[AIService] Generating investment readiness with Gemini 3 (high reasoning)...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
         systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
+        thinkingLevel: 'high', // Use high reasoning for investment readiness assessment
       }),
       AI_TIMEOUT
     );
@@ -420,6 +422,7 @@ Provide:
         systemInstruction: GEMINI_SYSTEM_PROMPT,
         schema,
         image: params.image,
+        thinkingLevel: 'medium', // Use medium reasoning for visual analysis
       }),
       AI_TIMEOUT
     );
@@ -524,6 +527,7 @@ Respond as their supportive financial coach. Be warm, specific to their numbers,
         prompt,
         systemInstruction: GEMINI_SYSTEM_PROMPT,
         temperature: 0.7,
+        thinkingLevel: 'low', // Use low thinking for faster chat responses
       }),
       AI_TIMEOUT
     );

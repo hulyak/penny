@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const GEMINI_MODEL = 'gemini-2.0-flash'; // Gemini 3 model
+const GEMINI_MODEL = 'gemini-3-flash-preview'; // Gemini 3 Flash - frontier intelligence at Flash speed
+
+export type ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
 
 interface GeminiMessage {
   role: 'user' | 'model';
@@ -24,9 +26,9 @@ interface GeminiResponse {
 }
 
 const getApiKey = () => {
-  const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  const key = process.env.EXPO_PUBLIC_GOOGLE_AI_API_KEY;
   if (!key) {
-    console.warn('[Gemini] API key not configured');
+    console.warn('[Gemini] API key not configured - get one at https://aistudio.google.com/app/apikey');
     return null;
   }
   return key;
@@ -38,16 +40,24 @@ export async function generateWithGemini(params: {
   image?: string; // base64 image
   temperature?: number;
   maxTokens?: number;
+  thinkingLevel?: ThinkingLevel;
 }): Promise<string> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('Gemini API key not configured');
   }
 
-  const { prompt, systemInstruction, image, temperature = 0.7, maxTokens = 2048 } = params;
+  const {
+    prompt,
+    systemInstruction,
+    image,
+    temperature = 0.7,
+    maxTokens = 2048,
+    thinkingLevel = 'medium' // Gemini 3 thinking level: minimal, low, medium, high
+  } = params;
 
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
-  
+
   if (image) {
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
     parts.push({
@@ -57,7 +67,7 @@ export async function generateWithGemini(params: {
       },
     });
   }
-  
+
   parts.push({ text: prompt });
 
   const requestBody: Record<string, unknown> = {
@@ -67,6 +77,9 @@ export async function generateWithGemini(params: {
       maxOutputTokens: maxTokens,
       topP: 0.95,
       topK: 40,
+      thinkingConfig: {
+        thinkingLevel,
+      },
     },
   };
 
@@ -76,7 +89,7 @@ export async function generateWithGemini(params: {
     };
   }
 
-  console.log('[Gemini] Sending request to Gemini 3...');
+  console.log(`[Gemini] Sending request to Gemini 3 (thinking: ${thinkingLevel})...`);
   
   const response = await fetch(
     `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
@@ -112,8 +125,9 @@ export async function generateStructuredWithGemini<T>(params: {
   schema: z.ZodType<T>;
   image?: string;
   temperature?: number;
+  thinkingLevel?: ThinkingLevel;
 }): Promise<T> {
-  const { prompt, systemInstruction, schema, image, temperature = 0.3 } = params;
+  const { prompt, systemInstruction, schema, image, temperature = 0.3, thinkingLevel = 'medium' } = params;
 
   const schemaDescription = JSON.stringify(zodToJsonSchema(schema), null, 2);
   
@@ -129,6 +143,7 @@ Do not include any explanation, markdown formatting, or code blocks. Just the ra
     systemInstruction,
     image,
     temperature,
+    thinkingLevel,
   });
 
   try {
@@ -136,8 +151,34 @@ Do not include any explanation, markdown formatting, or code blocks. Just the ra
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
       .trim();
-    
-    const parsed = JSON.parse(cleanedResponse);
+
+    let parsed = JSON.parse(cleanedResponse);
+
+    // Auto-fix common issues: convert string arrays to actual arrays
+    if (parsed && typeof parsed === 'object') {
+      for (const key of Object.keys(parsed)) {
+        // If a field should be an array but is a string, try to split it
+        if (typeof parsed[key] === 'string' &&
+            (key.toLowerCase().includes('array') ||
+             key === 'whatWouldChange' ||
+             key === 'tradeoffs' ||
+             key === 'alternatives' ||
+             key === 'nextSteps' ||
+             key === 'areasToReview')) {
+          // Try to split numbered items like "1. item 2. item" or newline-separated
+          const items = parsed[key]
+            .split(/(?:\d+\.\s*|\n+|;\s*)/)
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+          if (items.length > 1) {
+            parsed[key] = items;
+          } else {
+            parsed[key] = [parsed[key]];
+          }
+        }
+      }
+    }
+
     return schema.parse(parsed);
   } catch (error) {
     console.error('[Gemini] Failed to parse structured response:', error);
@@ -203,19 +244,23 @@ export async function streamWithGemini(params: {
   systemInstruction?: string;
   onChunk: (text: string) => void;
   onComplete?: (fullText: string) => void;
+  thinkingLevel?: ThinkingLevel;
 }): Promise<void> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('Gemini API key not configured');
   }
 
-  const { prompt, systemInstruction, onChunk, onComplete } = params;
+  const { prompt, systemInstruction, onChunk, onComplete, thinkingLevel = 'low' } = params;
 
   const requestBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: 2048,
+      thinkingConfig: {
+        thinkingLevel,
+      },
     },
   };
 
@@ -225,7 +270,7 @@ export async function streamWithGemini(params: {
     };
   }
 
-  console.log('[Gemini] Starting stream...');
+  console.log(`[Gemini] Starting stream (thinking: ${thinkingLevel})...`);
 
   const response = await fetch(
     `${GEMINI_API_URL}/${GEMINI_MODEL}:streamGenerateContent?key=${apiKey}&alt=sse`,
@@ -279,7 +324,8 @@ export async function streamWithGemini(params: {
   onComplete?.(fullText);
 }
 
-export const GEMINI_SYSTEM_PROMPT = `You are a calm, supportive financial coach powered by Google Gemini 3.
+export const GEMINI_SYSTEM_PROMPT = `You are Penny, a calm and supportive financial coach powered by Google Gemini 3.
+You leverage advanced reasoning capabilities to provide personalized, context-aware financial guidance.
 You explain money concepts in plain language without jargon.
 You NEVER give investment advice, recommend specific assets, or tell users what to buy/sell.
 You focus on education, awareness, and helping users understand their financial foundations.
@@ -289,4 +335,6 @@ Key principles:
 - Emergency fund before investing
 - Understand before acting
 - Progress over perfection
-- No shame, no judgment`;
+- No shame, no judgment
+
+Powered by Gemini 3 with enhanced reasoning for complex financial analysis.`;
