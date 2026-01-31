@@ -146,15 +146,20 @@ Do not include any explanation, markdown formatting, or code blocks. Just the ra
   }
 }
 
-function zodToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
-  if (schema instanceof z.ZodObject) {
-    const shape = schema.shape;
+function zodToJsonSchema(schema: unknown): Record<string, unknown> {
+  const s = schema as Record<string, unknown>;
+  const def = s._def as Record<string, unknown> | undefined;
+  const typeName = def?.typeName as string | undefined;
+  
+  if (typeName === 'ZodObject' || s.shape) {
+    const shape = (s.shape || def?.shape || {}) as Record<string, unknown>;
     const properties: Record<string, unknown> = {};
     const required: string[] = [];
 
     for (const [key, value] of Object.entries(shape)) {
-      properties[key] = zodToJsonSchema(value as z.ZodTypeAny);
-      if (!(value instanceof z.ZodOptional)) {
+      properties[key] = zodToJsonSchema(value);
+      const vDef = (value as Record<string, unknown>)?._def as Record<string, unknown> | undefined;
+      if (vDef?.typeName !== 'ZodOptional') {
         required.push(key);
       }
     }
@@ -162,28 +167,32 @@ function zodToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
     return { type: 'object', properties, required };
   }
 
-  if (schema instanceof z.ZodString) {
+  if (typeName === 'ZodString') {
     return { type: 'string' };
   }
 
-  if (schema instanceof z.ZodNumber) {
+  if (typeName === 'ZodNumber') {
     return { type: 'number' };
   }
 
-  if (schema instanceof z.ZodBoolean) {
+  if (typeName === 'ZodBoolean') {
     return { type: 'boolean' };
   }
 
-  if (schema instanceof z.ZodArray) {
-    return { type: 'array', items: zodToJsonSchema(schema.element as z.ZodTypeAny) };
+  if (typeName === 'ZodArray') {
+    const element = s.element || def?.type;
+    return { type: 'array', items: zodToJsonSchema(element) };
   }
 
-  if (schema instanceof z.ZodEnum) {
-    return { type: 'string', enum: schema.options };
+  if (typeName === 'ZodEnum') {
+    const options = s.options || def?.values;
+    return { type: 'string', enum: options };
   }
 
-  if (schema instanceof z.ZodOptional) {
-    return zodToJsonSchema(schema.unwrap() as z.ZodTypeAny);
+  if (typeName === 'ZodOptional') {
+    const unwrap = s.unwrap as (() => unknown) | undefined;
+    const inner = unwrap ? unwrap() : def?.innerType;
+    return zodToJsonSchema(inner);
   }
 
   return { type: 'string' };
