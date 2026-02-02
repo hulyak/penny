@@ -8,6 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OPIK_API_KEY = process.env.EXPO_PUBLIC_OPIK_API_KEY || '';
+const OPIK_WORKSPACE = process.env.EXPO_PUBLIC_OPIK_WORKSPACE || 'default';
 const OPIK_PROJECT_NAME = 'penny-financial-coach';
 const OPIK_BASE_URL = process.env.EXPO_PUBLIC_OPIK_URL || 'https://www.comet.com/opik/api';
 
@@ -236,6 +237,7 @@ class OpikClient {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPIK_API_KEY}`,
+        'Comet-Workspace': OPIK_WORKSPACE,
       },
       body: JSON.stringify(data),
     });
