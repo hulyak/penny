@@ -15,7 +15,8 @@ import {
 import { X, Send, Mic, MicOff } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { MASCOT_IMAGE_URL } from '@/constants/images';
-import { generateWithGemini, GEMINI_SYSTEM_PROMPT } from '@/lib/gemini';
+import { generateWithGemini, getCurrentTraceId, GEMINI_SYSTEM_PROMPT } from '@/lib/gemini';
+import { InlineFeedback } from './FeedbackButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CHAT_HISTORY_KEY = 'penny_chat_history';
@@ -26,6 +27,7 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  traceId?: string;
 }
 
 interface PennyChatModalProps {
@@ -137,13 +139,18 @@ Respond to the user's last message naturally and helpfully. Keep responses conci
         temperature: 0.8,
         maxTokens: 300,
         thinkingLevel: 'low',
+        feature: 'penny_chat',
       });
+
+      // Get the trace ID for feedback
+      const traceId = getCurrentTraceId();
 
       const assistantMessage: ChatMessage = {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
         content: response.trim(),
         timestamp: new Date().toISOString(),
+        traceId: traceId || undefined,
       };
 
       const updatedMessages = [...newMessages, assistantMessage];
@@ -244,6 +251,10 @@ Respond to the user's last message naturally and helpfully. Keep responses conci
                 >
                   {message.content}
                 </Text>
+                {/* Feedback for assistant messages */}
+                {message.role === 'assistant' && message.traceId && message.id !== 'welcome' && (
+                  <InlineFeedback traceId={message.traceId} feature="penny_chat" />
+                )}
               </View>
             </View>
           ))}

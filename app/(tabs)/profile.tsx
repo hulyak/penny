@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   ScrollView,
   Pressable,
   TextInput,
   Alert,
   Image,
+  Modal,
 } from 'react-native';
-import { 
+import {
   DollarSign,
   Home,
   Car,
@@ -22,12 +23,16 @@ import {
   LogOut,
   User,
   Mail,
+  BarChart2,
+  ChevronRight,
+  X,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
 import { ScreenCoachCard } from '@/components/CoachCard';
+import { ObservabilityDashboard } from '@/components/ObservabilityDashboard';
 import Colors from '@/constants/colors';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
@@ -40,6 +45,7 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editedFinancials, setEditedFinancials] = useState({ ...financials });
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const handleSave = () => {
     updateFinancials(editedFinancials);
@@ -211,11 +217,41 @@ export default function ProfileScreen() {
         )}
       </Card>
 
+      {/* AI Observability Dashboard */}
+      <Pressable style={styles.dashboardButton} onPress={() => setShowDashboard(true)}>
+        <View style={styles.dashboardIcon}>
+          <BarChart2 size={20} color={Colors.accent} />
+        </View>
+        <View style={styles.dashboardInfo}>
+          <Text style={styles.dashboardTitle}>AI Observability</Text>
+          <Text style={styles.dashboardSubtitle}>View metrics, evaluations & feedback</Text>
+        </View>
+        <ChevronRight size={20} color={Colors.textMuted} />
+      </Pressable>
+
       {/* Reset Button */}
       <Pressable style={styles.resetButton} onPress={handleReset}>
         <RefreshCw size={18} color={Colors.danger} />
         <Text style={styles.resetText}>Reset to Demo Data</Text>
       </Pressable>
+
+      {/* Observability Dashboard Modal */}
+      <Modal
+        visible={showDashboard}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowDashboard(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>AI Performance</Text>
+            <Pressable style={styles.modalClose} onPress={() => setShowDashboard(false)}>
+              <X size={24} color={Colors.text} />
+            </Pressable>
+          </View>
+          <ObservabilityDashboard />
+        </View>
+      </Modal>
 
       {/* Tip Card */}
       <View style={styles.tipCard}>
@@ -430,5 +466,62 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dangerMuted,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  dashboardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  dashboardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.accentMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  dashboardInfo: {
+    flex: 1,
+  },
+  dashboardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  dashboardSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  modalClose: {
+    padding: 4,
   },
 });

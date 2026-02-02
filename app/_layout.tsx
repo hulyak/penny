@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, AppState } from "react-native";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CoachProvider } from "@/context/CoachContext";
@@ -15,6 +15,7 @@ import { InvestmentReadinessModal } from "@/components/InvestmentReadinessModal"
 import { FloatingCoachButton } from "@/components/FloatingCoachButton";
 import Colors from "@/constants/colors";
 import { trpc, trpcClient } from "@/lib/trpc";
+import { startSession, endSession } from "@/lib/analytics";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -127,6 +128,23 @@ function RootLayoutNav() {
 export default function RootLayout() {
   useEffect(() => {
     SplashScreen.hideAsync();
+
+    // Start analytics session
+    startSession();
+
+    // Handle app state changes for session tracking
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        endSession();
+      } else if (nextAppState === 'active') {
+        startSession();
+      }
+    });
+
+    return () => {
+      endSession();
+      subscription.remove();
+    };
   }, []);
 
   return (

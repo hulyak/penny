@@ -1,9 +1,19 @@
 import { z } from 'zod';
+import { opik, traceLLMCall } from './opik';
+import { trackAICall } from './analytics';
+import { quickEvaluate, runFullEvaluation, EvaluationContext } from './evaluation';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_MODEL = 'gemini-3-flash-preview'; // Gemini 3 Flash - frontier intelligence at Flash speed
 
 export type ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
+
+// Track the current trace for evaluation
+let currentTraceId: string | null = null;
+
+export function getCurrentTraceId(): string | null {
+  return currentTraceId;
+}
 
 interface GeminiMessage {
   role: 'user' | 'model';
@@ -41,6 +51,8 @@ export async function generateWithGemini(params: {
   temperature?: number;
   maxTokens?: number;
   thinkingLevel?: ThinkingLevel;
+  feature?: string; // For tracking which feature made the call
+  skipEvaluation?: boolean; // Skip evaluation for internal calls
 }): Promise<string> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -53,8 +65,24 @@ export async function generateWithGemini(params: {
     image,
     temperature = 0.7,
     maxTokens = 2048,
-    thinkingLevel = 'medium' // Gemini 3 thinking level: minimal, low, medium, high
+    thinkingLevel = 'medium', // Gemini 3 thinking level: minimal, low, medium, high
+    feature = 'unknown',
+    skipEvaluation = false,
   } = params;
+
+  // Start tracing
+  const startTime = Date.now();
+  const traceId = await opik.createTrace({
+    name: `gemini_${feature}`,
+    input: {
+      prompt: prompt.substring(0, 500), // Truncate for storage
+      hasImage: !!image,
+      thinkingLevel,
+      feature,
+    },
+    tags: ['gemini', feature, thinkingLevel],
+  });
+  currentTraceId = traceId;
 
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
@@ -90,33 +118,137 @@ export async function generateWithGemini(params: {
   }
 
   console.log(`[Gemini] Sending request to Gemini 3 (thinking: ${thinkingLevel})...`);
-  
-  const response = await fetch(
-    `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
+
+  let success = false;
+  let responseText = '';
+  let tokensUsed = { prompt: 0, completion: 0, total: 0 };
+
+  try {
+    const response = await fetch(
+      `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[Gemini] API error:', error);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
-  );
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('[Gemini] API error:', error);
-    throw new Error(`Gemini API error: ${response.status}`);
+    const data: GeminiResponse = await response.json();
+
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      throw new Error('No response from Gemini');
+    }
+
+    responseText = data.candidates[0].content.parts[0].text;
+    tokensUsed = {
+      prompt: data.usageMetadata?.promptTokenCount || 0,
+      completion: data.usageMetadata?.candidatesTokenCount || 0,
+      total: data.usageMetadata?.totalTokenCount || 0,
+    };
+    success = true;
+
+    console.log('[Gemini] Response received, tokens used:', tokensUsed.total);
+
+  } catch (error) {
+    // Log error to trace
+    await traceLLMCall({
+      traceId,
+      model: GEMINI_MODEL,
+      prompt: prompt.substring(0, 500),
+      response: `Error: ${String(error)}`,
+      latencyMs: Date.now() - startTime,
+      metadata: { error: true },
+    });
+    throw error;
   }
 
-  const data: GeminiResponse = await response.json();
-  
-  if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-    throw new Error('No response from Gemini');
+  const latencyMs = Date.now() - startTime;
+
+  // Log LLM call to Opik
+  await traceLLMCall({
+    traceId,
+    model: GEMINI_MODEL,
+    prompt: prompt.substring(0, 500),
+    response: responseText.substring(0, 500),
+    tokensUsed,
+    latencyMs,
+    metadata: { feature, thinkingLevel },
+  });
+
+  // Track in analytics
+  await trackAICall({
+    traceId,
+    model: GEMINI_MODEL,
+    feature,
+    latencyMs,
+    success,
+    tokensUsed: tokensUsed.total,
+  });
+
+  // Run quick evaluation (heuristics only, no additional LLM call)
+  if (!skipEvaluation && feature !== 'evaluation') {
+    const evalResult = quickEvaluate({
+      userInput: prompt,
+      assistantResponse: responseText,
+    });
+
+    // Log quick eval score
+    await opik.logScore({
+      traceId,
+      metricName: 'quick_quality',
+      score: evalResult.score,
+      reason: evalResult.flags.join('; ') || 'Passed all checks',
+      evaluatedBy: 'heuristic',
+    });
+
+    // Log any flags
+    if (evalResult.flags.length > 0) {
+      console.log('[Gemini] Quality flags:', evalResult.flags);
+    }
   }
 
-  console.log('[Gemini] Response received, tokens used:', data.usageMetadata?.totalTokenCount);
-  
-  return data.candidates[0].content.parts[0].text;
+  return responseText;
+}
+
+/**
+ * Run full LLM-as-judge evaluation on a response
+ * Call this for important interactions that warrant deeper analysis
+ */
+export async function evaluateResponse(
+  userInput: string,
+  assistantResponse: string,
+  financialContext?: EvaluationContext['financialContext']
+): Promise<{ overallScore: number; details: unknown }> {
+  const traceId = currentTraceId || await opik.createTrace({
+    name: 'manual_evaluation',
+    input: { userInput: userInput.substring(0, 200) },
+    tags: ['evaluation'],
+  });
+
+  const result = await runFullEvaluation(traceId, {
+    userInput,
+    assistantResponse,
+    financialContext,
+  }, {
+    useLLM: true,
+    llmMetrics: ['helpfulness', 'financial_accuracy', 'safety', 'actionability'],
+  });
+
+  return {
+    overallScore: result.overallScore,
+    details: {
+      heuristic: result.heuristicResults,
+      llm: result.llmResults,
+    },
+  };
 }
 
 export async function generateStructuredWithGemini<T>(params: {
