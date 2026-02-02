@@ -63,7 +63,7 @@ export default function PlanScreen() {
         )}
       </Pressable>
 
-      {showMarathonAgent && (
+      {showMarathonAgent && snapshot && (
         <MarathonAgentPanel
           userId="user_default"
           financialContext={{

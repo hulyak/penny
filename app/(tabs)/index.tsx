@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,8 +23,11 @@ import {
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useCoach } from '@/context/CoachContext';
-import { ScreenCoachCard } from '@/components/CoachCard';
 import { WhatWouldChange } from '@/components/WhatWouldChange';
+import { DailyCoachCard } from '@/components/DailyCoachCard';
+import { AlertsBanner } from '@/components/AlertsBanner';
+import { CelebrationModal } from '@/components/CelebrationModal';
+import { checkAllMilestones, type CelebrationData } from '@/lib/milestones';
 import Colors from '@/constants/colors';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
@@ -41,12 +44,14 @@ export default function OverviewScreen() {
     hasOnboarded,
     financialRealityOutput,
   } = useApp();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { triggerDailyCheckIn } = useCoach();
 
   const [refreshing, setRefreshing] = React.useState(false);
   const [showHealthDetails, setShowHealthDetails] = useState(false);
+  const [celebration, setCelebration] = useState<CelebrationData | null>(null);
   const hasTriggeredCheckIn = React.useRef(false);
+  const hasCheckedMilestones = React.useRef(false);
 
   React.useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -65,6 +70,26 @@ export default function OverviewScreen() {
       return () => clearTimeout(timer);
     }
   }, [snapshot, triggerDailyCheckIn]);
+
+  // Check for milestone achievements
+  useEffect(() => {
+    if (snapshot && financials && !hasCheckedMilestones.current) {
+      hasCheckedMilestones.current = true;
+      checkAllMilestones({
+        savings: financials.savings,
+        monthsOfRunway: snapshot.monthsOfRunway,
+        streak: 0, // Would come from daily check-in tracking
+        savingsRate: snapshot.savingsRate,
+        lessonsCompleted: 0, // Would come from learning progress
+        monthsUnderBudget: 0, // Would come from budget tracking
+      }).then((celebrations) => {
+        if (celebrations.length > 0) {
+          // Show celebration for the first achievement
+          setCelebration(celebrations[0]);
+        }
+      });
+    }
+  }, [snapshot, financials]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -92,7 +117,44 @@ export default function OverviewScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />
       }
     >
-      <ScreenCoachCard screenName="overview" />
+      <DailyCoachCard
+        userName={user?.displayName?.split(' ')[0]}
+        context={{
+          monthlyIncome: financials.monthlyIncome,
+          monthlyExpenses: financials.housingCost + financials.carCost + financials.essentialsCost,
+          currentSavings: financials.savings,
+          savingsGoal: financials.emergencyFundGoal,
+          healthScore: snapshot.healthScore,
+          healthLabel: snapshot.healthLabel,
+          savingsRate: snapshot.savingsRate,
+          monthsOfRunway: snapshot.monthsOfRunway,
+        }}
+      />
+
+      <AlertsBanner
+        financialContext={{
+          healthScore: snapshot.healthScore,
+          savingsRate: snapshot.savingsRate,
+          streak: 0,
+        }}
+        onAlertPress={(alert) => {
+          // Navigate to relevant section based on alert type
+          if (alert.category) {
+            router.push('/(tabs)/scenarios' as any);
+          }
+        }}
+        onReminderPress={(trigger) => {
+          if (trigger.reminder.actionRoute) {
+            router.push(trigger.reminder.actionRoute as any);
+          }
+        }}
+      />
+
+      <CelebrationModal
+        visible={!!celebration}
+        onClose={() => setCelebration(null)}
+        celebration={celebration}
+      />
 
       <Pressable onPress={() => setShowHealthDetails(!showHealthDetails)}>
         <View style={styles.healthCard}>

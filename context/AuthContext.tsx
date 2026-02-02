@@ -25,11 +25,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [isDemoMode, setIsDemoMode] = useState(false);
 
   const mapFirebaseUser = useCallback((fbUser: FirebaseUser): User => {
+    const providerId = fbUser.providerData[0]?.providerId || 'password';
+    let provider: 'email' | 'google' | 'apple' | 'demo' = 'email';
+    if (providerId.includes('google')) provider = 'google';
+    else if (providerId.includes('apple')) provider = 'apple';
+
     return {
       id: fbUser.uid,
       email: fbUser.email || '',
       displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
-      provider: fbUser.providerData[0]?.providerId || 'email',
+      provider,
       photoUrl: fbUser.photoURL || undefined,
       createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
     };

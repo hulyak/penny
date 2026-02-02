@@ -2,8 +2,9 @@ import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   initializeAuth,
+  Auth,
+  // @ts-ignore - getReactNativePersistence may not be typed correctly
   getReactNativePersistence,
-  Auth
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -11,11 +12,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
