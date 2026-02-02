@@ -49,6 +49,33 @@ const MAX_RETRIES = 3;
 const INITIAL_DELAY_MS = 1000; // 1 second
 const MAX_DELAY_MS = 30000; // 30 seconds
 
+// Simple in-memory cache for repeated prompts
+const responseCache = new Map<string, { response: string; timestamp: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getCacheKey(prompt: string, feature: string): string {
+  return `${feature}:${prompt.substring(0, 100)}`;
+}
+
+function getCachedResponse(key: string): string | null {
+  const cached = responseCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    console.log('[Gemini] Using cached response');
+    return cached.response;
+  }
+  responseCache.delete(key);
+  return null;
+}
+
+function setCachedResponse(key: string, response: string): void {
+  // Limit cache size
+  if (responseCache.size > 50) {
+    const firstKey = responseCache.keys().next().value;
+    if (firstKey) responseCache.delete(firstKey);
+  }
+  responseCache.set(key, { response, timestamp: Date.now() });
+}
+
 /**
  * Sleep for a given number of milliseconds
  */
@@ -101,6 +128,15 @@ export async function generateWithGemini(params: {
     feature = 'unknown',
     skipEvaluation = false,
   } = params;
+
+  // Check cache first (skip for image prompts)
+  const cacheKey = !image ? getCacheKey(prompt, feature) : null;
+  if (cacheKey) {
+    const cachedResponse = getCachedResponse(cacheKey);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+  }
 
   // Start tracing
   const startTime = Date.now();
@@ -277,6 +313,11 @@ export async function generateWithGemini(params: {
     if (evalResult.flags.length > 0) {
       console.log('[Gemini] Quality flags:', evalResult.flags);
     }
+  }
+
+  // Cache the successful response
+  if (cacheKey) {
+    setCachedResponse(cacheKey, responseText);
   }
 
   return responseText;
