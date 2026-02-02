@@ -44,6 +44,38 @@ const getApiKey = () => {
   return key;
 };
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_DELAY_MS = 1000; // 1 second
+const MAX_DELAY_MS = 30000; // 30 seconds
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ */
+function getBackoffDelay(attempt: number): number {
+  // Exponential backoff: 1s, 2s, 4s, 8s, etc.
+  const exponentialDelay = INITIAL_DELAY_MS * Math.pow(2, attempt);
+  // Add random jitter (±25%) to prevent thundering herd
+  const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
+  const delay = Math.min(exponentialDelay + jitter, MAX_DELAY_MS);
+  return Math.round(delay);
+}
+
+/**
+ * Check if error is retryable (rate limit or server error)
+ */
+function isRetryableError(status: number): boolean {
+  // 429 = Rate limit, 500/502/503/504 = Server errors
+  return status === 429 || status >= 500;
+}
+
 export async function generateWithGemini(params: {
   prompt: string;
   systemInstruction?: string;
@@ -122,52 +154,84 @@ export async function generateWithGemini(params: {
   let success = false;
   let responseText = '';
   let tokensUsed = { prompt: 0, completion: 0, total: 0 };
+  let lastError: Error | null = null;
 
-  try {
-    const response = await fetch(
-      `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+  // Retry loop with exponential backoff
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        const delay = getBackoffDelay(attempt - 1);
+        console.log(`[Gemini] Retry attempt ${attempt}/${MAX_RETRIES} after ${delay}ms delay...`);
+        await sleep(delay);
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[Gemini] API error:', error);
-      throw new Error(`Gemini API error: ${response.status}`);
+      const response = await fetch(
+        `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Gemini] API error (${response.status}):`, errorText);
+
+        // Check if we should retry
+        if (isRetryableError(response.status) && attempt < MAX_RETRIES) {
+          console.log(`[Gemini] Rate limited or server error, will retry...`);
+          lastError = new Error(`Gemini API error: ${response.status}`);
+          continue; // Try again
+        }
+
+        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+      }
+
+      const data: GeminiResponse = await response.json();
+
+      if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('No response from Gemini');
+      }
+
+      responseText = data.candidates[0].content.parts[0].text;
+      tokensUsed = {
+        prompt: data.usageMetadata?.promptTokenCount || 0,
+        completion: data.usageMetadata?.candidatesTokenCount || 0,
+        total: data.usageMetadata?.totalTokenCount || 0,
+      };
+      success = true;
+
+      console.log('[Gemini] Response received, tokens used:', tokensUsed.total);
+      break; // Success! Exit the retry loop
+
+    } catch (error) {
+      lastError = error as Error;
+
+      // If it's a retryable error and we have retries left, continue
+      if (attempt < MAX_RETRIES) {
+        console.log(`[Gemini] Error occurred, will retry: ${String(error)}`);
+        continue;
+      }
+
+      // All retries exhausted, log and throw
+      await traceLLMCall({
+        traceId,
+        model: GEMINI_MODEL,
+        prompt: prompt.substring(0, 500),
+        response: `Error after ${MAX_RETRIES + 1} attempts: ${String(error)}`,
+        latencyMs: Date.now() - startTime,
+        metadata: { error: true, attempts: attempt + 1 },
+      });
+      throw error;
     }
+  }
 
-    const data: GeminiResponse = await response.json();
-
-    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error('No response from Gemini');
-    }
-
-    responseText = data.candidates[0].content.parts[0].text;
-    tokensUsed = {
-      prompt: data.usageMetadata?.promptTokenCount || 0,
-      completion: data.usageMetadata?.candidatesTokenCount || 0,
-      total: data.usageMetadata?.totalTokenCount || 0,
-    };
-    success = true;
-
-    console.log('[Gemini] Response received, tokens used:', tokensUsed.total);
-
-  } catch (error) {
-    // Log error to trace
-    await traceLLMCall({
-      traceId,
-      model: GEMINI_MODEL,
-      prompt: prompt.substring(0, 500),
-      response: `Error: ${String(error)}`,
-      latencyMs: Date.now() - startTime,
-      metadata: { error: true },
-    });
-    throw error;
+  // If we got here without success, throw the last error
+  if (!success && lastError) {
+    throw lastError;
   }
 
   const latencyMs = Date.now() - startTime;
