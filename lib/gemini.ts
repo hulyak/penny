@@ -391,10 +391,23 @@ Do not include any explanation, markdown formatting, or code blocks. Just the ra
 
     let parsed = JSON.parse(cleanedResponse);
 
-    // Auto-fix common issues: convert string arrays to actual arrays
+    // Auto-fix common issues
     if (parsed && typeof parsed === 'object') {
       for (const key of Object.keys(parsed)) {
-        // If a field should be an array but is a string, try to split it
+        // Lowercase enum fields (sentiment, priority, status, etc.)
+        if (typeof parsed[key] === 'string' &&
+            (key === 'sentiment' ||
+             key === 'priority' ||
+             key === 'status' ||
+             key === 'type' ||
+             key === 'category' ||
+             key === 'level' ||
+             key === 'risk' ||
+             key === 'healthLabel')) {
+          parsed[key] = parsed[key].toLowerCase();
+        }
+
+        // Convert string arrays to actual arrays
         if (typeof parsed[key] === 'string' &&
             (key.toLowerCase().includes('array') ||
              key === 'whatWouldChange' ||
