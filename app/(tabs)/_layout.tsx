@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, GitBranch, BookOpen, User, ListChecks } from 'lucide-react-native';
+import { Home, GitBranch, BookOpen, User, ListChecks, PieChart } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Platform } from 'react-native';
 
@@ -43,8 +43,16 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Overview',
-          headerShown: false, // Hidden because index.tsx has its own custom header now
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Home size={24} color={color} strokeWidth={2.5} />,
+        }}
+      />
+      <Tabs.Screen
+        name="portfolio"
+        options={{
+          title: 'Portfolio',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <PieChart size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen

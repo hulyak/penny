@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "rork-app",
+    "scheme": "penny",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,15 +15,30 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.clearpath-financial-app",
-      "usesAppleSignIn": true
+      "bundleIdentifier": "com.penny.financialapp",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.114545191096-h3jf6qkljg4c90jjrojpm47a4frjkbnk"
+            ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.114545191096-h3jf6qkljg4c90jjrojpm47a4frjkbnk"
+            ]
+          }
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.clearpath_financial_app",
+      "package": "com.penny.financialapp",
       "permissions": [
         "android.permission.VIBRATE"
       ]
@@ -44,6 +59,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://rork.com/"
+      },
+      "eas": {
+        "projectId": "13bb7bb4-2e9b-42d8-8c09-cc43c3337077"
+      }
     }
   }
 }

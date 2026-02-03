@@ -198,8 +198,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
 
     try {
-      // For React Native, we need to use expo-auth-session or similar
-      // This is a simplified version - you may need to add expo-auth-session
+      // For web, use Firebase popup
       if (Platform.OS === 'web') {
         const { signInWithPopup } = await import('firebase/auth');
         const provider = new GoogleAuthProvider();
@@ -207,21 +206,51 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return true;
       }
 
-      // For native, you'll need to configure Google Sign-In
-      // Using expo-auth-session with Google OAuth
-      const { makeRedirectUri, AuthRequest } = await import('expo-auth-session');
-      const { maybeCompleteAuthSession } = await import('expo-web-browser');
+      // For native iOS/Android, use expo-auth-session
+      const { openAuthSessionAsync } = await import('expo-web-browser');
 
-      maybeCompleteAuthSession();
+      const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 
-      const redirectUri = makeRedirectUri({
-        scheme: 'penny',
-        path: 'auth/callback',
-      });
+      if (!iosClientId) {
+        setError('Google Sign-In not configured');
+        return false;
+      }
 
-      // Note: You'll need to set up Google OAuth in Firebase Console
-      // and add the client ID to your app config
-      setError('Google Sign-In requires additional setup. Please use email/password or Apple Sign-In.');
+      // For iOS, use reversed client ID as redirect scheme
+      const reversedClientId = iosClientId.split('.').reverse().join('.');
+      const redirectUri = `${reversedClientId}:/oauth2callback`;
+
+      // Build Google OAuth URL
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${iosClientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=id_token&` +
+        `scope=${encodeURIComponent('openid profile email')}&` +
+        `nonce=${Math.random().toString(36).substring(7)}`;
+
+      const result = await openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type === 'success' && result.url) {
+        // Extract id_token from URL fragment
+        const url = result.url;
+        const params = new URLSearchParams(url.split('#')[1]);
+        const idToken = params.get('id_token');
+
+        if (idToken) {
+          // Sign in to Firebase with Google credential
+          const credential = GoogleAuthProvider.credential(idToken);
+          await signInWithCredential(auth, credential);
+          console.log('[AuthContext] Google sign in successful');
+          return true;
+        }
+      }
+
+      if (result.type === 'cancel') {
+        console.log('[AuthContext] Google sign in cancelled');
+        return false;
+      }
+
+      setError('Failed to get Google credentials');
       return false;
     } catch (err: any) {
       console.error('[AuthContext] Google sign in error:', err);

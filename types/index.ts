@@ -203,3 +203,149 @@ export interface OnboardingData {
   savings: number;
   debts: number;
 }
+
+// Portfolio Types
+export type AssetType =
+  | 'stock'
+  | 'etf'
+  | 'mutual_fund'
+  | 'bond'
+  | 'gold'
+  | 'real_estate'
+  | 'fixed_deposit'
+  | 'crypto'
+  | 'cash'
+  | 'other';
+
+export type AssetClass = 'equity' | 'debt' | 'commodity' | 'real_asset' | 'cash';
+
+export interface Holding {
+  id: string;
+  type: AssetType;
+  name: string;
+  symbol?: string;
+  quantity: number;
+  purchasePrice: number;
+  purchaseDate: string;
+  currency: string;
+
+  currentPrice?: number;
+  currentValue?: number;
+  lastPriceUpdate?: string;
+  isManualPricing: boolean;
+
+  maturityDate?: string;
+  interestRate?: number;
+
+  sector?: string;
+  country?: string;
+  assetClass: AssetClass;
+
+  notes?: string;
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Transaction {
+  id: string;
+  holdingId: string;
+  type: 'buy' | 'sell' | 'dividend' | 'interest' | 'split';
+  quantity: number;
+  price: number;
+  fees?: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PriceAlert {
+  id: string;
+  holdingId?: string;
+  type: 'price_above' | 'price_below' | 'maturity' | 'reminder';
+  targetValue?: number;
+  targetDate?: string;
+  message: string;
+  isActive: boolean;
+  lastTriggered?: string;
+  createdAt: string;
+}
+
+export interface PortfolioSettings {
+  defaultCurrency: string;
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+  notifications: {
+    priceAlerts: boolean;
+    reminders: boolean;
+  };
+  premiumTier: 'free' | 'premium';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PortfolioSnapshot {
+  date: string;
+  totalValue: number;
+  holdings: Record<string, { value: number; quantity: number }>;
+  allocation: {
+    byAssetClass: Record<AssetClass, number>;
+    bySector: Record<string, number>;
+    byCountry: Record<string, number>;
+  };
+  createdAt: string;
+}
+
+export interface PortfolioSummary {
+  totalValue: number;
+  totalInvested: number;
+  totalGain: number;
+  totalGainPercent: number;
+  dayChange: number;
+  dayChangePercent: number;
+  holdingsCount: number;
+}
+
+export interface AllocationItem {
+  label: string;
+  value: number;
+  percent: number;
+  color: string;
+}
+
+export interface PortfolioAnalysis {
+  summary: PortfolioSummary;
+  allocation: {
+    byAssetClass: AllocationItem[];
+    bySector: AllocationItem[];
+    byCountry: AllocationItem[];
+  };
+  riskMetrics: {
+    diversificationScore: number;
+    concentrationRisk: string[];
+    countryExposure: string[];
+    sectorExposure: string[];
+  };
+  recommendations: string[];
+}
+
+export const ASSET_TYPE_CONFIG: Record<AssetType, { label: string; icon: string; assetClass: AssetClass }> = {
+  stock: { label: 'Stock', icon: 'trending-up', assetClass: 'equity' },
+  etf: { label: 'ETF', icon: 'layers', assetClass: 'equity' },
+  mutual_fund: { label: 'Mutual Fund', icon: 'pie-chart', assetClass: 'equity' },
+  bond: { label: 'Bond', icon: 'file-text', assetClass: 'debt' },
+  gold: { label: 'Gold', icon: 'award', assetClass: 'commodity' },
+  real_estate: { label: 'Real Estate', icon: 'home', assetClass: 'real_asset' },
+  fixed_deposit: { label: 'Fixed Deposit', icon: 'lock', assetClass: 'debt' },
+  crypto: { label: 'Cryptocurrency', icon: 'cpu', assetClass: 'equity' },
+  cash: { label: 'Cash', icon: 'dollar-sign', assetClass: 'cash' },
+  other: { label: 'Other', icon: 'box', assetClass: 'other' as AssetClass },
+};
+
+export const ASSET_CLASS_COLORS: Record<AssetClass | 'other', string> = {
+  equity: '#4CAF50',
+  debt: '#2196F3',
+  commodity: '#FFC107',
+  real_asset: '#9C27B0',
+  cash: '#607D8B',
+  other: '#795548',
+};

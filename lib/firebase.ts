@@ -12,8 +12,14 @@ import {
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  orderBy,
   serverTimestamp,
 } from 'firebase/firestore';
+import type { Holding, Transaction, PriceAlert, PortfolioSettings } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -131,5 +137,92 @@ export const firestoreHelpers = {
     const ref = doc(db, 'users', userId, 'data', 'coach');
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
+  },
+
+  // Portfolio Settings
+  async savePortfolioSettings(userId: string, settings: Partial<PortfolioSettings>) {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'settings');
+    await setDoc(ref, { ...settings, updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+  },
+
+  async getPortfolioSettings(userId: string): Promise<PortfolioSettings | null> {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'settings');
+    const snap = await getDoc(ref);
+    return snap.exists() ? (snap.data() as PortfolioSettings) : null;
+  },
+
+  // Holdings
+  async saveHolding(userId: string, holding: Holding) {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'holdings', 'items', holding.id);
+    await setDoc(ref, { ...holding, updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+  },
+
+  async getHoldings(userId: string): Promise<Holding[]> {
+    if (!isFirebaseConfigured || !db) return [];
+    const ref = collection(db, 'users', userId, 'portfolio', 'holdings', 'items');
+    const q = query(ref, orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Holding);
+  },
+
+  async getHolding(userId: string, holdingId: string): Promise<Holding | null> {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'holdings', 'items', holdingId);
+    const snap = await getDoc(ref);
+    return snap.exists() ? (snap.data() as Holding) : null;
+  },
+
+  async deleteHolding(userId: string, holdingId: string) {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'holdings', 'items', holdingId);
+    await deleteDoc(ref);
+    return true;
+  },
+
+  // Transactions
+  async saveTransaction(userId: string, transaction: Transaction) {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'transactions', 'items', transaction.id);
+    await setDoc(ref, { ...transaction, createdAt: serverTimestamp() });
+    return true;
+  },
+
+  async getTransactions(userId: string, holdingId?: string): Promise<Transaction[]> {
+    if (!isFirebaseConfigured || !db) return [];
+    const ref = collection(db, 'users', userId, 'portfolio', 'transactions', 'items');
+    const q = query(ref, orderBy('date', 'desc'));
+    const snap = await getDocs(q);
+    const transactions = snap.docs.map(d => d.data() as Transaction);
+    if (holdingId) {
+      return transactions.filter(t => t.holdingId === holdingId);
+    }
+    return transactions;
+  },
+
+  // Alerts
+  async saveAlert(userId: string, alert: PriceAlert) {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'alerts', 'items', alert.id);
+    await setDoc(ref, { ...alert }, { merge: true });
+    return true;
+  },
+
+  async getAlerts(userId: string): Promise<PriceAlert[]> {
+    if (!isFirebaseConfigured || !db) return [];
+    const ref = collection(db, 'users', userId, 'portfolio', 'alerts', 'items');
+    const snap = await getDocs(ref);
+    return snap.docs.map(d => d.data() as PriceAlert);
+  },
+
+  async deleteAlert(userId: string, alertId: string) {
+    if (!isFirebaseConfigured || !db) return null;
+    const ref = doc(db, 'users', userId, 'portfolio', 'alerts', 'items', alertId);
+    await deleteDoc(ref);
+    return true;
   },
 };
