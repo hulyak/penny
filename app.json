@@ -55,7 +55,14 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#064E3B"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
