@@ -1,69 +1,69 @@
 const Colors = {
-  // Brand Colors - Sophisticated Financial Tech
-  primary: '#064E3B', // Darker, richer forest green
-  primaryLight: '#34D399', // Bright emerald for contrast
+  // Dark Theme - Modern Financial App
+  primary: '#0D9488', // Teal/Cyan primary
+  primaryLight: '#14B8A6', // Brighter teal
   
-  secondary: '#10B981', // Standard success green
-  secondaryLight: '#D1FAE5', // Very light mint
-  secondaryDark: '#047857',
+  secondary: '#0F766E', // Darker teal
+  secondaryLight: '#5EEAD4', // Light cyan
+  secondaryDark: '#0D9488',
   
-  // Accents - Used sparingly
-  accent: '#3B82F6', // Trustworthy Blue
-  accentLight: '#BFDBFE',
-  accentMuted: '#EFF6FF',
+  // Accents - Teal/Cyan focused
+  accent: '#14B8A6', // Bright teal accent
+  accentLight: '#5EEAD4',
+  accentMuted: '#134E4A',
   
   // Functional
-  success: '#059669',
+  success: '#10B981',
   successLight: '#34D399',
-  successMuted: '#ECFDF5',
+  successMuted: '#064E3B',
   
-  warning: '#D97706',
+  warning: '#F59E0B',
   warningLight: '#FBBF24',
-  warningMuted: '#FFFBEB',
+  warningMuted: '#78350F',
   
-  danger: '#DC2626',
+  danger: '#EF4444',
   dangerLight: '#F87171',
-  dangerMuted: '#FEF2F2',
+  dangerMuted: '#7F1D1D',
   
-  // Neutrals - Modern & Clean
-  neutral: '#1F2937', // Near black for text
-  neutralLight: '#6B7280', // Gray for secondary text
-  neutralMuted: '#F3F4F6', // Light gray backgrounds
+  // Dark Theme Neutrals
+  neutral: '#E5E7EB', // Light text on dark
+  neutralLight: '#9CA3AF', // Muted text
+  neutralMuted: '#1F2937', // Dark card backgrounds
   
-  background: '#F9FAFB', // Cool clean background
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F8FAFC', // Slightly distinct surface
+  background: '#000000', // Pure black background
+  surface: '#1F2937', // Dark gray for cards
+  surfaceSecondary: '#111827', // Slightly lighter than background
   
-  text: '#111827',
-  textSecondary: '#4B5563',
+  text: '#FFFFFF',
+  textSecondary: '#D1D5DB',
   textMuted: '#9CA3AF',
   textLight: '#FFFFFF',
   
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  divider: '#F3F4F6',
+  border: '#374151',
+  borderLight: '#1F2937',
+  divider: '#374151',
   
   // Design Elements
   lavender: '#8B5CF6',
-  lavenderMuted: '#F5F3FF',
+  lavenderMuted: '#4C1D95',
   mint: '#10B981',
-  mintMuted: '#ECFDF5',
+  mintMuted: '#064E3B',
   coral: '#F43F5E',
-  coralMuted: '#FFF1F2',
+  coralMuted: '#881337',
   
   // Charts & Data
   chart: {
-    primary: '#10B981',
+    primary: '#14B8A6',
     secondary: '#3B82F6',
     tertiary: '#F59E0B',
     quaternary: '#EC4899',
-    gradientStart: '#10B981',
-    gradientEnd: '#6EE7B7',
+    gradientStart: '#0D9488',
+    gradientEnd: '#5EEAD4',
   },
 
   // Agent Specific
   agents: {
-    financialReality: '#10B981',
+    financialReality: '#14B8A6',
     marketContext: '#3B82F6',
     scenarioLearning: '#8B5CF6',
     adaptation: '#F59E0B',
