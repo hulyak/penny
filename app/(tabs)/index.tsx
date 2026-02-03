@@ -27,6 +27,7 @@ import { WhatWouldChange } from '@/components/WhatWouldChange';
 import { DailyCoachCard } from '@/components/DailyCoachCard';
 import { AlertsBanner } from '@/components/AlertsBanner';
 import { CelebrationModal } from '@/components/CelebrationModal';
+import { ProgressBar } from '@/components/ProgressBar';
 import { checkAllMilestones, type CelebrationData } from '@/lib/milestones';
 import Colors from '@/constants/colors';
 
@@ -226,20 +227,18 @@ export default function OverviewScreen() {
       <View style={styles.fundCard}>
         <View style={styles.fundHeader}>
           <View style={styles.fundIconWrapper}>
-            <PiggyBank size={20} color={Colors.success} />
+            <PiggyBank size={22} color={Colors.success} />
           </View>
-          <View style={styles.fundInfo}>
-            <Text style={styles.fundTitle}>Emergency Fund</Text>
-            <Text style={styles.fundSubtitle}>
-              ${financials.savings.toLocaleString()} of ${financials.emergencyFundGoal.toLocaleString()}
-            </Text>
-          </View>
-          <Text style={styles.fundPercent}>{emergencyProgress.toFixed(0)}%</Text>
+          <Text style={styles.fundTitle}>Emergency Fund</Text>
         </View>
-
-        <View style={styles.fundProgressTrack}>
-          <View style={[styles.fundProgressFill, { width: `${emergencyProgress}%` }]} />
-        </View>
+        
+        <ProgressBar
+          current={financials.savings}
+          goal={financials.emergencyFundGoal}
+          color={Colors.success}
+          showPercentage={true}
+          height={10}
+        />
       </View>
 
       <View style={styles.sectionHeader}>
@@ -397,7 +396,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scoreNumber: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: '800',
   },
   scoreLabel: {
@@ -416,8 +415,8 @@ const styles = StyleSheet.create({
     minWidth: 70,
   },
   metricValue: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.text,
     marginTop: 6,
   },
@@ -466,7 +465,7 @@ const styles = StyleSheet.create({
   fundHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 18,
   },
   fundIconWrapper: {
     width: 48,
@@ -477,34 +476,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  fundInfo: {
-    flex: 1,
-  },
   fundTitle: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.text,
-  },
-  fundSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  fundPercent: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.success,
-  },
-  fundProgressTrack: {
-    height: 8,
-    backgroundColor: Colors.successMuted,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  fundProgressFill: {
-    height: '100%',
-    backgroundColor: Colors.success,
-    borderRadius: 4,
+    flex: 1,
   },
 
   sectionHeader: {
