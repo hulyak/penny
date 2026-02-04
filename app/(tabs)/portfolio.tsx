@@ -21,6 +21,8 @@ import {
   Wifi,
   Bell,
   BarChart3,
+  User,
+  Star,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import Colors from '@/constants/colors';
@@ -267,6 +269,28 @@ export default function PortfolioScreen() {
           </Text>
         </View>
       )}
+
+      {/* Creator Hub Card - Josh's Model Portfolio */}
+      <Pressable
+        style={styles.creatorCard}
+        onPress={() => router.push('/creator' as any)}
+      >
+        <View style={styles.creatorIconWrapper}>
+          <Star size={20} color={Colors.warning} fill={Colors.warning} />
+        </View>
+        <View style={styles.creatorContent}>
+          <View style={styles.creatorTitleRow}>
+            <Text style={styles.creatorTitle}>Josh's Model Portfolio</Text>
+            <View style={styles.creatorBadge}>
+              <Text style={styles.creatorBadgeText}>NEW</Text>
+            </View>
+          </View>
+          <Text style={styles.creatorSubtitle}>
+            View allocations, market insights & Q&A from @VisualFaktory
+          </Text>
+        </View>
+        <ChevronRight size={20} color={Colors.textMuted} />
+      </Pressable>
 
       {/* Insights Card */}
       {holdings.length >= 2 && (
@@ -546,6 +570,59 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  creatorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.warning + '40',
+  },
+  creatorIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.warningMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  creatorContent: {
+    flex: 1,
+  },
+  creatorTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  creatorTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  creatorBadge: {
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  creatorBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.textLight,
+  },
+  creatorSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
   insightsCard: {
     flexDirection: 'row',
     alignItems: 'center',

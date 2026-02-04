@@ -11,119 +11,168 @@ import {
   Flame,
   Sparkles,
   ChevronRight,
-  Sun,
-  Moon,
-  Heart,
   TrendingUp,
-  AlertCircle,
-  BookOpen,
+  TrendingDown,
+  AlertTriangle,
+  Target,
+  RefreshCw,
   PartyPopper,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { MASCOT_IMAGE_URL } from '@/constants/images';
 import {
-  generateMorningGreeting,
+  generatePortfolioGreeting,
+  generatePortfolioInsights,
   generateDailyTip,
-  getDailyCoachState,
-  recordCheckIn,
-  generatePersonalizedInsights,
-  type PersonalizedInsight,
-  type FinancialContext,
-} from '@/lib/dailyCoach';
+  getPortfolioGoals,
+  recordPortfolioCheckIn,
+  type PortfolioInsight,
+  type PortfolioCoachingContext,
+} from '@/lib/portfolioCoach';
+import { Holding, AssetClass } from '@/types';
+import { opik } from '@/lib/opik';
 
-interface DailyCoachCardProps {
+interface PortfolioCoachCardProps {
+  holdings: Holding[];
+  totalValue: number;
+  totalGain: number;
+  totalGainPercent: number;
   userName?: string;
-  context: FinancialContext;
-  onInsightPress?: (insight: PersonalizedInsight) => void;
+  onInsightPress?: (insight: PortfolioInsight) => void;
 }
 
-export function DailyCoachCard({
+export function PortfolioCoachCard({
+  holdings,
+  totalValue,
+  totalGain,
+  totalGainPercent,
   userName,
-  context,
   onInsightPress,
-}: DailyCoachCardProps) {
+}: PortfolioCoachCardProps) {
   const router = useRouter();
   const [greeting, setGreeting] = useState<string | null>(null);
   const [dailyTip, setDailyTip] = useState<string | null>(null);
+  const [insights, setInsights] = useState<PortfolioInsight[]>([]);
   const [streak, setStreak] = useState(0);
-  const [insights, setInsights] = useState<PersonalizedInsight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showInsights, setShowInsights] = useState(false);
 
   useEffect(() => {
-    loadDailyContent();
-  }, [context]);
+    loadCoachContent();
+  }, [holdings.length, totalValue]);
 
-  const loadDailyContent = async () => {
+  const loadCoachContent = async () => {
     setIsLoading(true);
     try {
-      // Record check-in and get streak
-      const { streak: currentStreak } = await recordCheckIn();
+      // Record check-in
+      const { streak: currentStreak } = await recordPortfolioCheckIn();
       setStreak(currentStreak);
 
-      // Generate greeting
-      const greetingText = await generateMorningGreeting(userName || '', context);
-      setGreeting(greetingText);
+      // Get user goals
+      const goals = await getPortfolioGoals();
 
-      // Generate daily tip
-      const tip = await generateDailyTip(context);
-      setDailyTip(tip);
-
-      // Generate insights (limited to avoid rate limits)
-      const state = await getDailyCoachState();
-      const today = new Date().toDateString();
-      if (state.lastInsightDate !== today) {
-        const newInsights = await generatePersonalizedInsights(context, 2);
-        setInsights(newInsights);
+      // Calculate allocation
+      const allocation: Record<AssetClass, number> = {
+        equity: 0, debt: 0, commodity: 0, real_asset: 0, cash: 0,
+      };
+      let total = 0;
+      holdings.forEach((h) => {
+        const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
+        total += value;
+        allocation[h.assetClass] = (allocation[h.assetClass] || 0) + value;
+      });
+      if (total > 0) {
+        Object.keys(allocation).forEach((key) => {
+          allocation[key as AssetClass] = (allocation[key as AssetClass] / total) * 100;
+        });
       }
+
+      const context: PortfolioCoachingContext = {
+        holdings,
+        goals,
+        totalValue,
+        totalGain,
+        totalGainPercent,
+        allocation,
+        userName,
+      };
+
+      // Run all AI calls in parallel for speed
+      const [greetingText, tip, newInsights] = await Promise.all([
+        generatePortfolioGreeting(context),
+        generateDailyTip(context),
+        generatePortfolioInsights(context, 2), // Reduced to 2 insights for speed
+      ]);
+
+      setGreeting(greetingText);
+      setDailyTip(tip);
+      setInsights(newInsights);
     } catch (error) {
-      console.error('[DailyCoachCard] Error loading content:', error);
-      setGreeting("Hey there! Ready to make progress on your financial goals today?");
+      console.error('[PortfolioCoachCard] Error loading content:', error);
+      setGreeting(holdings.length > 0
+        ? `Your portfolio is at $${totalValue.toLocaleString()}. Let's check in.`
+        : 'Ready to start building your investment portfolio?'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getTimeIcon = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 17) {
-      return <Sun size={16} color={Colors.warning} />;
-    }
-    return <Moon size={16} color={Colors.lavender} />;
-  };
-
-  const getInsightIcon = (type: PersonalizedInsight['type']) => {
+  const getInsightIcon = (type: PortfolioInsight['type']) => {
     switch (type) {
-      case 'celebration':
+      case 'milestone':
         return <PartyPopper size={16} color={Colors.success} />;
-      case 'tip':
+      case 'goal_progress':
+        return <Target size={16} color={Colors.accent} />;
+      case 'rebalance_needed':
+        return <RefreshCw size={16} color={Colors.warning} />;
+      case 'concentration_warning':
+        return <AlertTriangle size={16} color={Colors.coral} />;
+      case 'strategy_drift':
+        return <TrendingDown size={16} color={Colors.warning} />;
+      case 'action_reminder':
         return <Sparkles size={16} color={Colors.accent} />;
-      case 'warning':
-        return <AlertCircle size={16} color={Colors.warning} />;
-      case 'motivation':
-        return <Heart size={16} color={Colors.coral} />;
-      case 'education':
-        return <BookOpen size={16} color={Colors.lavender} />;
+      case 'market_context':
+        return <TrendingUp size={16} color={Colors.lavender} />;
       default:
         return <Sparkles size={16} color={Colors.accent} />;
     }
   };
 
-  const getInsightColor = (type: PersonalizedInsight['type']) => {
+  const getInsightColor = (type: PortfolioInsight['type']) => {
     switch (type) {
-      case 'celebration':
+      case 'milestone':
         return Colors.successMuted;
-      case 'tip':
+      case 'goal_progress':
         return Colors.accentMuted;
-      case 'warning':
+      case 'rebalance_needed':
         return Colors.warningMuted;
-      case 'motivation':
+      case 'concentration_warning':
         return Colors.coralMuted;
-      case 'education':
+      case 'strategy_drift':
+        return Colors.warningMuted;
+      case 'action_reminder':
+        return Colors.accentMuted;
+      case 'market_context':
         return Colors.lavenderMuted;
       default:
         return Colors.accentMuted;
+    }
+  };
+
+  const handleInsightPress = async (insight: PortfolioInsight) => {
+    // Log feedback to Opik
+    await opik.logFeedback({
+      traceId: insight.id,
+      rating: 'helpful',
+      timestamp: new Date().toISOString(),
+    });
+
+    if (onInsightPress) {
+      onInsightPress(insight);
+    } else if (insight.actionRoute) {
+      router.push(insight.actionRoute as any);
     }
   };
 
@@ -131,7 +180,11 @@ export function DailyCoachCard({
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Image source={{ uri: MASCOT_IMAGE_URL }} style={styles.mascotSmall} />
+          <Image
+            source={{ uri: MASCOT_IMAGE_URL }}
+            style={styles.mascotSmall}
+            resizeMode="contain"
+          />
           <ActivityIndicator size="small" color={Colors.accent} />
         </View>
       </View>
@@ -143,13 +196,21 @@ export function DailyCoachCard({
       {/* Main Greeting Card */}
       <Pressable
         style={styles.greetingCard}
-        onPress={() => router.push('/(tabs)/profile' as any)}
+        onPress={() => router.push('/(tabs)/portfolio' as any)}
       >
         <View style={styles.greetingHeader}>
-          <Image source={{ uri: MASCOT_IMAGE_URL }} style={styles.mascot} />
+          <Image
+            source={{ uri: MASCOT_IMAGE_URL }}
+            style={styles.mascot}
+            resizeMode="contain"
+          />
           <View style={styles.greetingContent}>
             <View style={styles.greetingMeta}>
-              {getTimeIcon()}
+              {totalGainPercent >= 0 ? (
+                <TrendingUp size={16} color={Colors.success} />
+              ) : (
+                <TrendingDown size={16} color={Colors.danger} />
+              )}
               {streak > 1 && (
                 <View style={styles.streakBadge}>
                   <Flame size={12} color={Colors.coral} />
@@ -167,7 +228,7 @@ export function DailyCoachCard({
         <View style={styles.tipCard}>
           <View style={styles.tipHeader}>
             <Sparkles size={14} color={Colors.accent} />
-            <Text style={styles.tipLabel}>Today's Tip</Text>
+            <Text style={styles.tipLabel}>Today's Focus</Text>
           </View>
           <Text style={styles.tipText}>{dailyTip}</Text>
         </View>
@@ -180,9 +241,9 @@ export function DailyCoachCard({
           onPress={() => setShowInsights(!showInsights)}
         >
           <View style={styles.insightsToggleLeft}>
-            <TrendingUp size={16} color={Colors.accent} />
+            <Target size={16} color={Colors.accent} />
             <Text style={styles.insightsToggleText}>
-              {insights.length} personalized insight{insights.length > 1 ? 's' : ''}
+              {insights.length} insight{insights.length > 1 ? 's' : ''} for you
             </Text>
           </View>
           <ChevronRight
@@ -198,7 +259,7 @@ export function DailyCoachCard({
         <Pressable
           key={insight.id}
           style={[styles.insightCard, { backgroundColor: getInsightColor(insight.type) }]}
-          onPress={() => onInsightPress?.(insight)}
+          onPress={() => handleInsightPress(insight)}
         >
           <View style={styles.insightIcon}>
             {getInsightIcon(insight.type)}
@@ -230,8 +291,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mascotSmall: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 50,
   },
 
   greetingCard: {
@@ -249,8 +310,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   mascot: {
-    width: 50,
-    height: 50,
+    width: 56,
+    height: 64,
     marginRight: 12,
   },
   greetingContent: {

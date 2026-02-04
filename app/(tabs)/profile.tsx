@@ -31,8 +31,8 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
-import { ScreenCoachCard } from '@/components/CoachCard';
 import { ObservabilityDashboard } from '@/components/ObservabilityDashboard';
+import { ReferralCard } from '@/components/ReferralCard';
 import Colors from '@/constants/colors';
 
 import { MASCOT_IMAGE_URL } from '@/constants/images';
@@ -162,8 +162,8 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Coach Card */}
-      <ScreenCoachCard screenName="profile" />
+      {/* Referral Card - Virality Feature */}
+      <ReferralCard userId={user?.id || 'guest'} compact />
 
       {/* Income & Expenses Card */}
       <Card style={styles.card}>

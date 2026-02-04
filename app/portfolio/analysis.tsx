@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import {
   Globe,
   Briefcase,
   RefreshCw,
+  Share2,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
@@ -31,6 +32,8 @@ import {
   AIAnalysisResult,
   PortfolioMetrics,
 } from '@/lib/portfolioAnalysis';
+import { PortfolioReportCard } from '@/components/PortfolioReportCard';
+import { PeerBenchmark, generateBenchmarkMetrics } from '@/components/PeerBenchmark';
 
 const HOLDINGS_STORAGE_KEY = 'penny_portfolio_holdings';
 
@@ -43,10 +46,49 @@ export default function AnalysisScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [useAI, setUseAI] = useState(true);
+  const [showReportCard, setShowReportCard] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Calculate data for virality features
+  const viralityData = useMemo(() => {
+    if (!metrics || !analysis) return null;
+
+    // Get allocation data
+    const allocation = Object.entries(metrics.assetClassDistribution).map(([assetClass, data]) => ({
+      assetClass: assetClass as AssetClass,
+      percent: data.percent,
+    }));
+
+    // Count unique sectors and countries
+    const sectors = new Set(holdings.map((h) => h.sector).filter(Boolean));
+    const countries = new Set(holdings.map((h) => h.country).filter(Boolean));
+
+    // Generate benchmark metrics
+    const userAllocation = {
+      equity: metrics.assetClassDistribution.equity?.percent || 0,
+      debt: metrics.assetClassDistribution.debt?.percent || 0,
+      commodity: metrics.assetClassDistribution.commodity?.percent || 0,
+      realAsset: metrics.assetClassDistribution.real_asset?.percent || 0,
+      cash: metrics.assetClassDistribution.cash?.percent || 0,
+    };
+
+    const benchmarkMetrics = generateBenchmarkMetrics(
+      userAllocation,
+      holdings.length,
+      sectors.size || 1,
+      countries.size || 1
+    );
+
+    return {
+      allocation,
+      sectorCount: sectors.size || 1,
+      countryCount: countries.size || 1,
+      benchmarkMetrics,
+    };
+  }, [metrics, analysis, holdings]);
 
   const loadData = async () => {
     try {
@@ -342,6 +384,42 @@ export default function AnalysisScreen() {
               </View>
             ))}
           </View>
+        </View>
+      )}
+
+      {/* Peer Benchmark */}
+      {viralityData && (
+        <View style={styles.section}>
+          <PeerBenchmark metrics={viralityData.benchmarkMetrics} />
+        </View>
+      )}
+
+      {/* Portfolio Report Card */}
+      {analysis && viralityData && (
+        <View style={styles.section}>
+          <Pressable
+            style={styles.shareReportButton}
+            onPress={() => setShowReportCard(!showReportCard)}
+          >
+            <Share2 size={20} color={Colors.accent} />
+            <Text style={styles.shareReportButtonText}>
+              {showReportCard ? 'Hide Report Card' : 'Share Portfolio Report Card'}
+            </Text>
+          </Pressable>
+
+          {showReportCard && (
+            <PortfolioReportCard
+              holdings={holdings}
+              diversificationScore={analysis.diversificationScore}
+              riskLevel={analysis.riskLevel}
+              assetClassCount={Object.keys(metrics?.assetClassDistribution || {}).length}
+              sectorCount={viralityData.sectorCount}
+              countryCount={viralityData.countryCount}
+              topStrength={analysis.strengths[0]}
+              topConcern={analysis.concerns[0]}
+              allocation={viralityData.allocation}
+            />
+          )}
         </View>
       )}
 
@@ -653,6 +731,23 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
   },
 
+  shareReportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.surface,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    marginBottom: 16,
+  },
+  shareReportButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
   footer: {
     paddingHorizontal: 16,
     paddingTop: 24,

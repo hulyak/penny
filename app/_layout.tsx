@@ -1,21 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import * as Notifications from "expo-notifications";
+import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, ActivityIndicator, StyleSheet, AppState } from "react-native";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { CoachProvider } from "@/context/CoachContext";
 import { PurchasesProvider } from "@/context/PurchasesContext";
 import { PaywallModal } from "@/components/PaywallModal";
-import { CoachDrawer } from "@/components/CoachDrawer";
-import { PurchaseAnalysisModal } from "@/components/PurchaseAnalysisModal";
-import { InvestmentReadinessModal } from "@/components/InvestmentReadinessModal";
-import { FloatingCoachButton } from "@/components/FloatingCoachButton";
 import Colors from "@/constants/colors";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { startSession, endSession } from "@/lib/analytics";
+import { registerAgentLoop, markInterventionResponded } from "@/lib/agentLoop";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -78,16 +75,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayoutNav() {
-  const { isAuthenticated } = useAuth();
-  const segments = useSegments();
-  
-  const isOnAuthOrOnboarding = (segments[0] as string) === 'auth' || (segments[0] as string) === 'onboarding';
-  const showCoachButton = isAuthenticated && !isOnAuthOrOnboarding;
-
   return (
     <AuthGate>
-      <Stack 
-        screenOptions={{ 
+      <Stack
+        screenOptions={{
           headerBackTitle: "Back",
           headerStyle: { backgroundColor: Colors.surface },
           headerTintColor: Colors.text,
@@ -95,42 +86,59 @@ function RootLayoutNav() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="onboarding" 
-          options={{ 
+        <Stack.Screen
+          name="onboarding"
+          options={{
             headerShown: false,
             presentation: 'fullScreenModal',
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="auth" 
-          options={{ 
+        <Stack.Screen
+          name="auth"
+          options={{
             headerShown: false,
             presentation: 'fullScreenModal',
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="modal" 
-          options={{ 
+        <Stack.Screen
+          name="modal"
+          options={{
             presentation: 'modal',
-            title: 'Agent Details',
-          }} 
+            title: 'Details',
+          }}
         />
       </Stack>
-      {showCoachButton && <FloatingCoachButton />}
-      <CoachDrawer />
-      <PurchaseAnalysisModal />
-      <InvestmentReadinessModal />
     </AuthGate>
   );
 }
 
 export default function RootLayout() {
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
+
   useEffect(() => {
     SplashScreen.hideAsync();
 
     // Start analytics session
     startSession();
+
+    // Register the agentic background loop
+    registerAgentLoop().catch(console.error);
+
+    // Listen for notification responses (user tapped notification)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.interventionId) {
+        // Mark intervention as responded - the agent learns from this
+        markInterventionResponded(data.interventionId as string, 'notification_tapped');
+        console.log('[Agent] User responded to intervention:', data.interventionId);
+      }
+    });
+
+    // Listen for notifications received while app is foregrounded
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification: Notifications.Notification) => {
+      console.log('[Agent] Notification received:', notification.request.content.title);
+    });
 
     // Handle app state changes for session tracking
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -144,6 +152,12 @@ export default function RootLayout() {
     return () => {
       endSession();
       subscription.remove();
+      if (notificationListener.current) {
+        notificationListener.current.remove();
+      }
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
     };
   }, []);
 
@@ -154,10 +168,8 @@ export default function RootLayout() {
         <AuthProvider>
         <AppProvider>
           <PurchasesProvider>
-          <CoachProvider>
             <RootLayoutNav />
             <PaywallModal />
-          </CoachProvider>
           </PurchasesProvider>
         </AppProvider>
         </AuthProvider>

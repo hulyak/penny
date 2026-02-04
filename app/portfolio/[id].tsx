@@ -249,7 +249,7 @@ function DetailRow({
     <View style={styles.detailRow}>
       <View style={styles.detailLabelRow}>
         {icon}
-        <Text style={[styles.detailLabel, icon && { marginLeft: 8 }]}>{label}</Text>
+        <Text style={[styles.detailLabel, icon ? { marginLeft: 8 } : undefined]}>{label}</Text>
       </View>
       <Text style={styles.detailValue}>{value}</Text>
     </View>

@@ -26,10 +26,14 @@ import {
   CheckCircle,
   TrendingUp,
   Brain,
+  Bot,
+  Bell,
+  Target,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { getAnalyticsSummary, getEvaluationMetrics, AnalyticsSummary } from '@/lib/analytics';
 import { isOpikConfigured } from '@/lib/opik';
+import { getAgentAnalytics, triggerAgentCheck, type Intervention, type AgentState } from '@/lib/agentLoop';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -40,20 +44,27 @@ interface DashboardData {
     scoreDistribution: Record<string, number[]>;
     recentEvaluations: Array<{ timestamp: string; metric: string; score: number }>;
   } | null;
+  agent: {
+    state: AgentState;
+    recentInterventions: Intervention[];
+    responseRate: number;
+    effectiveTypes: string[];
+  } | null;
 }
 
 export function ObservabilityDashboard() {
-  const [data, setData] = useState<DashboardData>({ analytics: null, evaluations: null });
+  const [data, setData] = useState<DashboardData>({ analytics: null, evaluations: null, agent: null });
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'evaluations' | 'feedback'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'agent' | 'evaluations' | 'feedback'>('overview');
 
   const loadData = async () => {
     try {
-      const [analytics, evaluations] = await Promise.all([
+      const [analytics, evaluations, agent] = await Promise.all([
         getAnalyticsSummary(),
         getEvaluationMetrics(),
+        getAgentAnalytics(),
       ]);
-      setData({ analytics, evaluations });
+      setData({ analytics, evaluations, agent });
     } catch (error) {
       console.error('[Dashboard] Error loading data:', error);
     }
@@ -95,7 +106,7 @@ export function ObservabilityDashboard() {
 
       {/* Tabs */}
       <View style={styles.tabs}>
-        {(['overview', 'evaluations', 'feedback'] as const).map((tab) => (
+        {(['overview', 'agent', 'evaluations', 'feedback'] as const).map((tab) => (
           <Pressable
             key={tab}
             style={[styles.tab, activeTab === tab && styles.tabActive]}
@@ -180,6 +191,111 @@ export function ObservabilityDashboard() {
                     />
                   </View>
                   <Text style={styles.featureCount}>{count}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        </>
+      )}
+
+      {activeTab === 'agent' && (
+        <>
+          {/* Agent Status */}
+          <View style={styles.card}>
+            <View style={styles.agentHeader}>
+              <View style={styles.agentIcon}>
+                <Bot size={24} color={Colors.accent} />
+              </View>
+              <View style={styles.agentInfo}>
+                <Text style={styles.cardTitle}>Agentic Loop Status</Text>
+                <Text style={styles.agentStatus}>
+                  Last check: {data.agent?.state.lastCheck
+                    ? new Date(data.agent.state.lastCheck).toLocaleString()
+                    : 'Never'}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              style={styles.triggerButton}
+              onPress={async () => {
+                await triggerAgentCheck();
+                await loadData();
+              }}
+            >
+              <Zap size={16} color={Colors.textLight} />
+              <Text style={styles.triggerButtonText}>Trigger Agent Check</Text>
+            </Pressable>
+          </View>
+
+          {/* Agent Metrics */}
+          <View style={styles.metricsGrid}>
+            <MetricCard
+              icon={<Bell size={20} color={Colors.coral} />}
+              label="Interventions"
+              value={data.agent?.state.weeklyInterventionCount || 0}
+              subtitle="this week"
+            />
+            <MetricCard
+              icon={<Target size={20} color={Colors.success} />}
+              label="Response Rate"
+              value={`${((data.agent?.responseRate || 0) * 100).toFixed(0)}%`}
+              subtitle="user engagement"
+            />
+          </View>
+
+          {/* Learning Status */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Agent Learning</Text>
+            <View style={styles.learningItem}>
+              <Text style={styles.learningLabel}>Preferred Intervention Hour</Text>
+              <Text style={styles.learningValue}>
+                {data.agent?.state.preferredInterventionHour || 9}:00
+              </Text>
+            </View>
+            <View style={styles.learningItem}>
+              <Text style={styles.learningLabel}>Effective Intervention Types</Text>
+              <View style={styles.typeTags}>
+                {(data.agent?.effectiveTypes || ['drift_alert', 'contribution_reminder']).map((type) => (
+                  <View key={type} style={styles.typeTag}>
+                    <Text style={styles.typeTagText}>{type.replace(/_/g, ' ')}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Recent Interventions */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Recent Interventions</Text>
+            {(data.agent?.recentInterventions || []).length === 0 ? (
+              <Text style={styles.emptyText}>No interventions yet. The agent will nudge you when needed.</Text>
+            ) : (
+              (data.agent?.recentInterventions || []).slice(-5).reverse().map((intervention) => (
+                <View key={intervention.id} style={styles.interventionRow}>
+                  <View style={styles.interventionInfo}>
+                    <Text style={styles.interventionTitle}>{intervention.title}</Text>
+                    <Text style={styles.interventionMessage} numberOfLines={1}>
+                      {intervention.message}
+                    </Text>
+                    <Text style={styles.interventionTime}>
+                      {new Date(intervention.timestamp).toLocaleString()}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.interventionStatus,
+                      { backgroundColor: intervention.responded ? Colors.successMuted : Colors.warningMuted },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.interventionStatusText,
+                        { color: intervention.responded ? Colors.success : Colors.warning },
+                      ]}
+                    >
+                      {intervention.responded ? 'Responded' : 'Pending'}
+                    </Text>
+                  </View>
                 </View>
               ))
             )}
@@ -715,6 +831,110 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  // Agent styles
+  agentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  agentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: Colors.accentMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  agentInfo: {
+    flex: 1,
+  },
+  agentStatus: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  triggerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.accent,
+    borderRadius: 12,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  triggerButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textLight,
+  },
+  learningItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  learningLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 6,
+  },
+  learningValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  typeTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  typeTag: {
+    backgroundColor: Colors.accentMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  typeTagText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.accent,
+    textTransform: 'capitalize',
+  },
+  interventionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  interventionInfo: {
+    flex: 1,
+  },
+  interventionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  interventionMessage: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  interventionTime: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
+  interventionStatus: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  interventionStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
 

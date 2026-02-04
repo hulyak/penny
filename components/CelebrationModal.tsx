@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,29 @@ import {
   Image,
   Animated,
   Dimensions,
+  Share,
 } from 'react-native';
-import { X } from 'lucide-react-native';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { cacheDirectory, copyAsync } from 'expo-file-system/legacy';
+import { X, Share2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { MASCOT_IMAGE_URL } from '@/constants/images';
-import { type CelebrationData } from '@/lib/milestones';
+
+// Define CelebrationData locally (previously from milestones)
+export interface MilestoneData {
+  icon: string;
+  title: string;
+  current: number;
+  unit: string;
+}
+
+export interface CelebrationData {
+  milestone: MilestoneData;
+  message: string;
+  badge?: string;
+  confettiColors: string[];
+}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CONFETTI_COUNT = 50;
@@ -35,6 +53,8 @@ interface CelebrationModalProps {
 export function CelebrationModal({ visible, celebration, onClose }: CelebrationModalProps) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const confettiPieces = useRef<ConfettiPiece[]>([]).current;
+  const cardRef = useRef<View>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (visible && celebration) {
@@ -90,6 +110,53 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
     }
   }, [visible, celebration]);
 
+  const handleShare = async () => {
+    if (!celebration) return;
+
+    setIsSharing(true);
+    try {
+      // Try to capture and share as image
+      if (cardRef.current) {
+        const uri = await captureRef(cardRef, {
+          format: 'png',
+          quality: 1,
+        });
+
+        const isAvailable = await Sharing.isAvailableAsync();
+
+        if (isAvailable) {
+          const filename = `achievement-${Date.now()}.png`;
+          const newPath = `${cacheDirectory}${filename}`;
+          await copyAsync({ from: uri, to: newPath });
+
+          await Sharing.shareAsync(newPath, {
+            mimeType: 'image/png',
+            dialogTitle: 'Share your achievement!',
+            UTI: 'public.png',
+          });
+        } else {
+          // Fallback to text sharing
+          await shareAsText();
+        }
+      } else {
+        await shareAsText();
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      await shareAsText();
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const shareAsText = async () => {
+    if (!celebration) return;
+
+    await Share.share({
+      message: `${celebration.milestone.icon} Achievement Unlocked!\n\n"${celebration.milestone.title}"\n\n${celebration.milestone.current} ${celebration.milestone.unit} achieved!\n\nTracking my portfolio with Penny 📊`,
+    });
+  };
+
   if (!celebration) return null;
 
   const { milestone, message, badge } = celebration;
@@ -136,6 +203,7 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
             },
           ]}
         >
+          <View ref={cardRef} collapsable={false} style={styles.shareableCard}>
           <Pressable style={styles.closeButton} onPress={onClose}>
             <X size={20} color={Colors.textMuted} />
           </Pressable>
@@ -164,10 +232,28 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
             </Text>
           </View>
 
-          {/* Close Button */}
-          <Pressable style={styles.celebrateButton} onPress={onClose}>
-            <Text style={styles.celebrateButtonText}>Keep Going! 🚀</Text>
-          </Pressable>
+          {/* App Branding for Share */}
+          <View style={styles.brandingRow}>
+            <Text style={styles.brandingText}>📊 Tracked with Penny</Text>
+          </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonRow}>
+            <Pressable
+              style={[styles.shareButton, isSharing && styles.shareButtonDisabled]}
+              onPress={handleShare}
+              disabled={isSharing}
+            >
+              <Share2 size={18} color={Colors.accent} />
+              <Text style={styles.shareButtonText}>
+                {isSharing ? 'Sharing...' : 'Share'}
+              </Text>
+            </Pressable>
+            <Pressable style={styles.celebrateButton} onPress={onClose}>
+              <Text style={styles.celebrateButtonText}>Keep Going! 🚀</Text>
+            </Pressable>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -266,15 +352,57 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.success,
   },
-  celebrateButton: {
-    backgroundColor: Colors.accent,
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-    borderRadius: 16,
+  shareableCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 20,
+  },
+  brandingRow: {
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  brandingText: {
+    fontSize: 12,
+    color: Colors.accent,
+    fontWeight: '600',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
     width: '100%',
   },
+  shareButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.surfaceSecondary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  shareButtonDisabled: {
+    opacity: 0.6,
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  celebrateButton: {
+    flex: 2,
+    backgroundColor: Colors.accent,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
   celebrateButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textLight,
     textAlign: 'center',

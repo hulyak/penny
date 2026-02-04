@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,102 +12,148 @@ import { useRouter } from 'expo-router';
 import {
   ChevronRight,
   TrendingUp,
-  Wallet,
-  PiggyBank,
-  Target,
-  Sparkles,
-  ChevronDown,
-  ChevronUp,
-  BookOpen,
+  TrendingDown,
+  Plus,
+  PieChart,
+  Bell,
+  BarChart3,
 } from 'lucide-react-native';
-import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { useCoach } from '@/context/CoachContext';
-import { WhatWouldChange } from '@/components/WhatWouldChange';
-import { DailyCoachCard } from '@/components/DailyCoachCard';
-import { AlertsBanner } from '@/components/AlertsBanner';
-import { CelebrationModal } from '@/components/CelebrationModal';
-import { ProgressBar } from '@/components/ProgressBar';
-import { checkAllMilestones, type CelebrationData } from '@/lib/milestones';
+import { PortfolioCoachCard } from '@/components/PortfolioCoachCard';
+import { CelebrationModal, type CelebrationData } from '@/components/CelebrationModal';
 import Colors from '@/constants/colors';
-
 import { MASCOT_IMAGE_URL } from '@/constants/images';
+import { Holding, ASSET_CLASS_COLORS, AssetClass } from '@/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hasLivePricing, batchGetPrices } from '@/lib/priceService';
 
-const MASCOT_URL = MASCOT_IMAGE_URL;
+const STORAGE_KEY = 'penny_portfolio_holdings';
 
-export default function OverviewScreen() {
+export default function HomeScreen() {
   const router = useRouter();
-  const {
-    snapshot,
-    financials,
-    weeklyFocuses,
-    isLoading,
-    hasOnboarded,
-    financialRealityOutput,
-  } = useApp();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-  const { triggerDailyCheckIn } = useCoach();
 
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [showHealthDetails, setShowHealthDetails] = useState(false);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationData | null>(null);
-  const hasTriggeredCheckIn = React.useRef(false);
-  const hasCheckedMilestones = React.useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.replace('/auth' as any);
-    } else if (!isLoading && !hasOnboarded && isAuthenticated) {
-      router.replace('/onboarding' as any);
     }
-  }, [isLoading, hasOnboarded, router, authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated]);
 
-  React.useEffect(() => {
-    if (snapshot && !hasTriggeredCheckIn.current) {
-      const timer = setTimeout(() => {
-        triggerDailyCheckIn();
-        hasTriggeredCheckIn.current = true;
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [snapshot, triggerDailyCheckIn]);
-
-  // Check for milestone achievements
   useEffect(() => {
-    if (snapshot && financials && !hasCheckedMilestones.current) {
-      hasCheckedMilestones.current = true;
-      checkAllMilestones({
-        savings: financials.savings,
-        monthsOfRunway: snapshot.monthsOfRunway,
-        streak: 0, // Would come from daily check-in tracking
-        savingsRate: snapshot.savingsRate,
-        lessonsCompleted: 0, // Would come from learning progress
-        monthsUnderBudget: 0, // Would come from budget tracking
-      }).then((celebrations) => {
-        if (celebrations.length > 0) {
-          // Show celebration for the first achievement
-          setCelebration(celebrations[0]);
-        }
-      });
+    if (isAuthenticated) {
+      loadHoldings();
     }
-  }, [snapshot, financials]);
+  }, [isAuthenticated]);
 
-  const onRefresh = React.useCallback(() => {
+  const loadHoldings = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const loadedHoldings = JSON.parse(stored);
+        setHoldings(loadedHoldings);
+
+        // Update prices for live holdings
+        await updatePrices(loadedHoldings);
+      }
+    } catch (error) {
+      console.error('Failed to load holdings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updatePrices = async (currentHoldings: Holding[]) => {
+    if (currentHoldings.length === 0) return;
+
+    try {
+      const holdingsToUpdate = currentHoldings
+        .filter((h) => hasLivePricing(h.type))
+        .map((h) => ({ id: h.id, type: h.type, symbol: h.symbol }));
+
+      if (holdingsToUpdate.length === 0) return;
+
+      const prices = await batchGetPrices(holdingsToUpdate);
+
+      const updatedHoldings = currentHoldings.map((h) => {
+        const priceData = prices[h.id];
+        if (priceData) {
+          return {
+            ...h,
+            currentPrice: priceData.price,
+            currentValue: h.quantity * priceData.price,
+            lastPriceUpdate: priceData.timestamp,
+          };
+        }
+        return h;
+      });
+
+      setHoldings(updatedHoldings);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHoldings));
+    } catch (error) {
+      console.error('Failed to update prices:', error);
+    }
+  };
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
+    await loadHoldings();
+    setRefreshing(false);
+  };
 
-  if (isLoading || authLoading || !snapshot) {
+  // Calculate portfolio summary
+  const summary = useMemo(() => {
+    let totalValue = 0;
+    let totalInvested = 0;
+
+    holdings.forEach((h) => {
+      const currentValue = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
+      const investedValue = h.quantity * h.purchasePrice;
+      totalValue += currentValue;
+      totalInvested += investedValue;
+    });
+
+    const totalGain = totalValue - totalInvested;
+    const totalGainPercent = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
+
+    return { totalValue, totalInvested, totalGain, totalGainPercent };
+  }, [holdings]);
+
+  // Calculate allocation
+  const allocation = useMemo(() => {
+    const byClass: Record<string, number> = {};
+    let total = 0;
+
+    holdings.forEach((h) => {
+      const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
+      total += value;
+      byClass[h.assetClass] = (byClass[h.assetClass] || 0) + value;
+    });
+
+    return Object.entries(byClass)
+      .map(([assetClass, value]) => ({
+        assetClass: assetClass as AssetClass,
+        value,
+        percent: total > 0 ? (value / total) * 100 : 0,
+        color: ASSET_CLASS_COLORS[assetClass as AssetClass] || Colors.textMuted,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [holdings]);
+
+  if (isLoading || authLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Image source={{ uri: MASCOT_URL }} style={styles.loadingMascot} />
-        <Text style={styles.loadingText}>Getting things ready...</Text>
+        <Image source={{ uri: MASCOT_IMAGE_URL }} style={styles.loadingMascot} />
+        <Text style={styles.loadingText}>Loading your portfolio...</Text>
       </View>
     );
   }
 
-  const emergencyProgress = Math.min(100, (financials.savings / financials.emergencyFundGoal) * 100);
-  const healthColor = getHealthColor(snapshot.healthLabel);
+  const isGain = summary.totalGain >= 0;
 
   return (
     <ScrollView
@@ -118,35 +164,16 @@ export default function OverviewScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />
       }
     >
-      <DailyCoachCard
+      {/* AI Coach Card */}
+      <PortfolioCoachCard
+        holdings={holdings}
+        totalValue={summary.totalValue}
+        totalGain={summary.totalGain}
+        totalGainPercent={summary.totalGainPercent}
         userName={user?.displayName?.split(' ')[0]}
-        context={{
-          monthlyIncome: financials.monthlyIncome,
-          monthlyExpenses: financials.housingCost + financials.carCost + financials.essentialsCost,
-          currentSavings: financials.savings,
-          savingsGoal: financials.emergencyFundGoal,
-          healthScore: snapshot.healthScore,
-          healthLabel: snapshot.healthLabel,
-          savingsRate: snapshot.savingsRate,
-          monthsOfRunway: snapshot.monthsOfRunway,
-        }}
-      />
-
-      <AlertsBanner
-        financialContext={{
-          healthScore: snapshot.healthScore,
-          savingsRate: snapshot.savingsRate,
-          streak: 0,
-        }}
-        onAlertPress={(alert) => {
-          // Navigate to relevant section based on alert type
-          if (alert.category) {
-            router.push('/(tabs)/scenarios' as any);
-          }
-        }}
-        onReminderPress={(trigger) => {
-          if (trigger.reminder.actionRoute) {
-            router.push(trigger.reminder.actionRoute as any);
+        onInsightPress={(insight) => {
+          if (insight.actionRoute) {
+            router.push(insight.actionRoute as any);
           }
         }}
       />
@@ -157,160 +184,145 @@ export default function OverviewScreen() {
         celebration={celebration}
       />
 
-      <Pressable onPress={() => setShowHealthDetails(!showHealthDetails)}>
-        <View style={styles.healthCard}>
-          <View style={styles.healthHeader}>
-            <View style={styles.healthTitleRow}>
-              <View style={[styles.healthDot, { backgroundColor: healthColor }]} />
-              <Text style={styles.healthTitle}>Financial Health</Text>
-            </View>
-            <View style={styles.healthBadge}>
-              <Text style={[styles.healthBadgeText, { color: healthColor }]}>
-                {snapshot.healthLabel}
-              </Text>
-              {showHealthDetails ? (
-                <ChevronUp size={16} color={Colors.textMuted} />
-              ) : (
-                <ChevronDown size={16} color={Colors.textMuted} />
-              )}
-            </View>
-          </View>
-
-          <View style={styles.scoreSection}>
-            <View style={[styles.scoreRing, { borderColor: healthColor + '30' }]}>
-              <Text style={[styles.scoreNumber, { color: healthColor }]}>
-                {snapshot.healthScore}
-              </Text>
-              <Text style={styles.scoreLabel}>Score</Text>
-            </View>
-
-            <View style={styles.metricsGrid}>
-              <View style={styles.metricItem}>
-                <Wallet size={18} color={Colors.accent} />
-                <Text style={styles.metricValue}>${snapshot.disposableIncome.toLocaleString()}</Text>
-                <Text style={styles.metricLabel}>Disposable</Text>
-              </View>
-              <View style={styles.metricItem}>
-                <TrendingUp size={18} color={Colors.success} />
-                <Text style={styles.metricValue}>{snapshot.savingsRate.toFixed(0)}%</Text>
-                <Text style={styles.metricLabel}>Savings Rate</Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Target size={18} color={Colors.warning} />
-                <Text style={styles.metricValue}>{snapshot.monthsOfRunway.toFixed(1)}mo</Text>
-                <Text style={styles.metricLabel}>Runway</Text>
-              </View>
+      {/* Portfolio Value Card */}
+      {holdings.length > 0 ? (
+        <Pressable
+          style={styles.valueCard}
+          onPress={() => router.push('/(tabs)/portfolio' as any)}
+        >
+          <View style={styles.valueHeader}>
+            <Text style={styles.valueLabel}>Portfolio Value</Text>
+            <View style={styles.headerButtons}>
+              <Pressable
+                style={styles.iconButton}
+                onPress={() => router.push('/portfolio/alerts' as any)}
+              >
+                <Bell size={18} color={Colors.textLight} />
+              </Pressable>
             </View>
           </View>
+          <Text style={styles.valueAmount}>
+            ${summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
+          <View style={styles.changeRow}>
+            {isGain ? (
+              <TrendingUp size={16} color={Colors.success} />
+            ) : (
+              <TrendingDown size={16} color={Colors.danger} />
+            )}
+            <Text style={[styles.changeText, { color: isGain ? Colors.success : Colors.danger }]}>
+              {isGain ? '+' : ''}${Math.abs(summary.totalGain).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {' '}({isGain ? '+' : ''}{summary.totalGainPercent.toFixed(2)}%)
+            </Text>
+            <Text style={styles.changeLabel}>All time</Text>
+          </View>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={styles.emptyCard}
+          onPress={() => router.push('/portfolio/add' as any)}
+        >
+          <Plus size={32} color={Colors.accent} />
+          <Text style={styles.emptyTitle}>Start Your Portfolio</Text>
+          <Text style={styles.emptySubtitle}>
+            Add your investments to track performance and get personalized AI coaching
+          </Text>
+        </Pressable>
+      )}
 
-          {showHealthDetails && (
-            <View style={styles.healthDetailsSection}>
-              {financialRealityOutput?.reasoning && (
-                <View style={styles.reasoningBox}>
-                  <Text style={styles.reasoningLabel}>Why this score?</Text>
-                  <Text style={styles.reasoningText}>{financialRealityOutput.reasoning}</Text>
-                </View>
-              )}
+      {/* Quick Stats */}
+      {holdings.length > 0 && (
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{holdings.length}</Text>
+            <Text style={styles.statLabel}>Holdings</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{allocation.length}</Text>
+            <Text style={styles.statLabel}>Asset Classes</Text>
+          </View>
+        </View>
+      )}
 
-              <WhatWouldChange
-                items={financialRealityOutput?.whatWouldChange || [
-                  'Increasing your savings rate by 5%',
-                  'Reducing fixed costs below 50% of income',
-                  'Building 3+ months of emergency runway',
+      {/* Allocation Preview */}
+      {allocation.length > 0 && (
+        <Pressable
+          style={styles.allocationCard}
+          onPress={() => router.push('/portfolio/analysis' as any)}
+        >
+          <View style={styles.allocationHeader}>
+            <View style={styles.allocationTitleRow}>
+              <PieChart size={18} color={Colors.accent} />
+              <Text style={styles.allocationTitle}>Allocation</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textMuted} />
+          </View>
+          <View style={styles.allocationBar}>
+            {allocation.map((item, index) => (
+              <View
+                key={item.assetClass}
+                style={[
+                  styles.allocationSegment,
+                  {
+                    backgroundColor: item.color,
+                    width: `${item.percent}%`,
+                    borderTopLeftRadius: index === 0 ? 6 : 0,
+                    borderBottomLeftRadius: index === 0 ? 6 : 0,
+                    borderTopRightRadius: index === allocation.length - 1 ? 6 : 0,
+                    borderBottomRightRadius: index === allocation.length - 1 ? 6 : 0,
+                  },
                 ]}
               />
-            </View>
-          )}
-        </View>
-      </Pressable>
-
-      <View style={styles.fundCard}>
-        <View style={styles.fundHeader}>
-          <View style={styles.fundIconWrapper}>
-            <PiggyBank size={22} color={Colors.success} />
+            ))}
           </View>
-          <Text style={styles.fundTitle}>Emergency Fund</Text>
-        </View>
-        
-        <ProgressBar
-          current={financials.savings}
-          goal={financials.emergencyFundGoal}
-          color={Colors.success}
-          showPercentage={true}
-          height={10}
-        />
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>This Week</Text>
-        <Pressable onPress={() => router.push('/(tabs)/plan' as any)} style={styles.seeAllButton}>
-          <Text style={styles.seeAllText}>View all</Text>
-          <ChevronRight size={16} color={Colors.accent} />
-        </Pressable>
-      </View>
-
-      {weeklyFocuses.slice(0, 2).map((focus) => (
-        <Pressable
-          key={focus.id}
-          style={styles.taskCard}
-          onPress={() => router.push('/(tabs)/plan' as any)}
-        >
-          <View style={[styles.taskPriorityBar, { backgroundColor: getPriorityColor(focus.priority) }]} />
-          <View style={styles.taskContent}>
-            <Text style={styles.taskTitle}>{focus.title}</Text>
-            <Text style={styles.taskDescription} numberOfLines={1}>
-              {focus.description}
-            </Text>
+          <View style={styles.allocationLegend}>
+            {allocation.slice(0, 3).map((item) => (
+              <View key={item.assetClass} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                <Text style={styles.legendLabel}>
+                  {item.assetClass.charAt(0).toUpperCase() + item.assetClass.slice(1).replace('_', ' ')}
+                </Text>
+                <Text style={styles.legendPercent}>{item.percent.toFixed(0)}%</Text>
+              </View>
+            ))}
           </View>
-          <ChevronRight size={18} color={Colors.textMuted} />
         </Pressable>
-      ))}
+      )}
 
+      {/* Quick Actions */}
       <View style={styles.quickActions}>
         <Pressable
           style={styles.quickAction}
-          onPress={() => router.push('/(tabs)/scenarios' as any)}
+          onPress={() => router.push('/portfolio/add' as any)}
         >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.lavenderMuted }]}>
-            <Sparkles size={22} color={Colors.lavender} />
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.accentMuted }]}>
+            <Plus size={22} color={Colors.accent} />
           </View>
-          <Text style={styles.quickLabel}>Scenarios</Text>
-          <Text style={styles.quickSubLabel}>Explore options</Text>
+          <Text style={styles.quickLabel}>Add Holding</Text>
         </Pressable>
 
         <Pressable
           style={styles.quickAction}
-          onPress={() => router.push('/(tabs)/learn' as any)}
+          onPress={() => router.push('/portfolio/analysis' as any)}
         >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.mintMuted }]}>
-            <BookOpen size={22} color={Colors.accent} />
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.lavenderMuted }]}>
+            <BarChart3 size={22} color={Colors.lavender} />
           </View>
-          <Text style={styles.quickLabel}>Learn</Text>
-          <Text style={styles.quickSubLabel}>Build skills</Text>
+          <Text style={styles.quickLabel}>Analysis</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.quickAction}
+          onPress={() => router.push('/portfolio/alerts' as any)}
+        >
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.warningMuted }]}>
+            <Bell size={22} color={Colors.warning} />
+          </View>
+          <Text style={styles.quickLabel}>Alerts</Text>
         </Pressable>
       </View>
     </ScrollView>
   );
-}
-
-function getHealthColor(label: string): string {
-  const colors: Record<string, string> = {
-    'Excellent': Colors.success,
-    'Strong': Colors.success,
-    'Stable': Colors.accent,
-    'Needs Attention': Colors.warning,
-    'Critical': Colors.danger,
-  };
-  return colors[label] || Colors.accent;
-}
-
-function getPriorityColor(priority: string): string {
-  const colors: Record<string, string> = {
-    'high': Colors.coral,
-    'medium': Colors.warning,
-    'low': Colors.accent,
-  };
-  return colors[priority] || Colors.accent;
 }
 
 const styles = StyleSheet.create({
@@ -339,236 +351,198 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  healthCard: {
-    backgroundColor: Colors.surface,
+  valueCard: {
+    backgroundColor: Colors.primary,
     borderRadius: 24,
     padding: 24,
     marginTop: 16,
-    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
-  healthHeader: {
+  valueHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  healthTitleRow: {
+  valueLabel: {
+    fontSize: 14,
+    color: Colors.textLight,
+    opacity: 0.8,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 4,
+    opacity: 0.8,
+  },
+  valueAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: Colors.textLight,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  changeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  changeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  changeLabel: {
+    fontSize: 12,
+    color: Colors.textLight,
+    opacity: 0.7,
+  },
+
+  emptyCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 24,
+    padding: 32,
+    marginTop: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginTop: 12,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+
+  allocationCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  allocationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  allocationTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  healthDot: {
+  allocationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  allocationBar: {
+    flexDirection: 'row',
+    height: 12,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  allocationSegment: {
+    height: '100%',
+  },
+  allocationLegend: {
+    gap: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
+    marginRight: 8,
   },
-  healthTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  healthBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  healthBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  scoreSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  scoreRing: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 24,
-    backgroundColor: Colors.background,
-  },
-  scoreNumber: {
-    fontSize: 42,
-    fontWeight: '800',
-  },
-  scoreLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: -2,
-  },
-  metricsGrid: {
+  legendLabel: {
     flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  metricItem: {
-    alignItems: 'center',
-    minWidth: 70,
-  },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    marginTop: 6,
-  },
-  metricLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  healthDetailsSection: {
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  reasoningBox: {
-    backgroundColor: Colors.surfaceSecondary,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  reasoningLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  reasoningText: {
     fontSize: 14,
     color: Colors.text,
-    lineHeight: 20,
   },
-
-  fundCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  fundHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  fundIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: Colors.successMuted,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  fundTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.text,
-    flex: 1,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  seeAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  seeAllText: {
+  legendPercent: {
     fontSize: 14,
-    color: Colors.accent,
-    fontWeight: '500',
-  },
-
-  taskCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    marginBottom: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  taskPriorityBar: {
-    width: 4,
-    alignSelf: 'stretch',
-  },
-  taskContent: {
-    flex: 1,
-    padding: 14,
-  },
-  taskTitle: {
-    fontSize: 15,
     fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  taskDescription: {
-    fontSize: 13,
     color: Colors.textSecondary,
   },
 
   quickActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 8,
+    marginTop: 20,
   },
   quickAction: {
     flex: 1,
     backgroundColor: Colors.surface,
-    padding: 20,
-    borderRadius: 20,
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   quickIconWrapper: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   quickLabel: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.text,
-  },
-  quickSubLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
   },
 });

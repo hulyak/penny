@@ -12,6 +12,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -131,6 +133,7 @@ async function scheduleReminderNotification(alert: PriceAlert): Promise<void> {
       data: { alertId: alert.id, type: alert.type },
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: targetDate,
     },
   });
@@ -149,6 +152,7 @@ async function scheduleReminderNotification(alert: PriceAlert): Promise<void> {
           data: { alertId: alert.id, type: 'maturity_reminder' },
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: dayBefore,
         },
       });

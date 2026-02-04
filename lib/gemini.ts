@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { opik, traceLLMCall } from './opik';
 import { trackAICall } from './analytics';
-import { quickEvaluate, runFullEvaluation, EvaluationContext } from './evaluation';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_MODEL = 'gemini-3-flash-preview'; // Gemini 3 Flash - frontier intelligence at Flash speed
@@ -111,7 +110,6 @@ export async function generateWithGemini(params: {
   maxTokens?: number;
   thinkingLevel?: ThinkingLevel;
   feature?: string; // For tracking which feature made the call
-  skipEvaluation?: boolean; // Skip evaluation for internal calls
 }): Promise<string> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -126,7 +124,6 @@ export async function generateWithGemini(params: {
     maxTokens = 2048,
     thinkingLevel = 'medium', // Gemini 3 thinking level: minimal, low, medium, high
     feature = 'unknown',
-    skipEvaluation = false,
   } = params;
 
   // Check cache first (skip for image prompts)
@@ -293,67 +290,12 @@ export async function generateWithGemini(params: {
     tokensUsed: tokensUsed.total,
   });
 
-  // Run quick evaluation (heuristics only, no additional LLM call)
-  if (!skipEvaluation && feature !== 'evaluation') {
-    const evalResult = quickEvaluate({
-      userInput: prompt,
-      assistantResponse: responseText,
-    });
-
-    // Log quick eval score
-    await opik.logScore({
-      traceId,
-      metricName: 'quick_quality',
-      score: evalResult.score,
-      reason: evalResult.flags.join('; ') || 'Passed all checks',
-      evaluatedBy: 'heuristic',
-    });
-
-    // Log any flags
-    if (evalResult.flags.length > 0) {
-      console.log('[Gemini] Quality flags:', evalResult.flags);
-    }
-  }
-
   // Cache the successful response
   if (cacheKey) {
     setCachedResponse(cacheKey, responseText);
   }
 
   return responseText;
-}
-
-/**
- * Run full LLM-as-judge evaluation on a response
- * Call this for important interactions that warrant deeper analysis
- */
-export async function evaluateResponse(
-  userInput: string,
-  assistantResponse: string,
-  financialContext?: EvaluationContext['financialContext']
-): Promise<{ overallScore: number; details: unknown }> {
-  const traceId = currentTraceId || await opik.createTrace({
-    name: 'manual_evaluation',
-    input: { userInput: userInput.substring(0, 200) },
-    tags: ['evaluation'],
-  });
-
-  const result = await runFullEvaluation(traceId, {
-    userInput,
-    assistantResponse,
-    financialContext,
-  }, {
-    useLLM: true,
-    llmMetrics: ['helpfulness', 'financial_accuracy', 'safety', 'actionability'],
-  });
-
-  return {
-    overallScore: result.overallScore,
-    details: {
-      heuristic: result.heuristicResults,
-      llm: result.llmResults,
-    },
-  };
 }
 
 export async function generateStructuredWithGemini<T>(params: {

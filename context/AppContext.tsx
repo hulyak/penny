@@ -1,248 +1,70 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { 
-  UserFinancials, 
-  FinancialSnapshot, 
-  WeeklyFocus, 
-  MarketContext,
-  Scenario,
-  AgentInsight,
-  FinancialRealityOutput,
-  MarketContextOutput,
-  ScenarioOutput,
-  AdaptationOutput,
-} from '@/types';
-import { 
-  financialRealityAgent,
-  marketContextAgent,
-  scenarioLearningAgent,
-  adaptationAgent,
-} from '@/agents';
-import { 
-  DEMO_FINANCIALS, 
-  DEMO_MARKET_CONTEXT,
-  DEMO_WEEKLY_FOCUSES,
-  DEMO_AGENT_INSIGHTS,
-} from '@/constants/mockData';
+import { UserFinancials, FinancialSnapshot } from '@/types';
 
 const STORAGE_KEYS = {
   FINANCIALS: 'clearpath_financials',
   ONBOARDED: 'clearpath_onboarded',
 };
 
+// Default financials for new users
+const DEFAULT_FINANCIALS: UserFinancials = {
+  monthlyIncome: 0,
+  housingCost: 0,
+  carCost: 0,
+  essentialsCost: 0,
+  savings: 0,
+  debts: 0,
+  emergencyFundGoal: 10000,
+};
+
 export const [AppProvider, useApp] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
-  const [financials, setFinancials] = useState<UserFinancials>(DEMO_FINANCIALS);
+  const [financials, setFinancials] = useState<UserFinancials>(DEFAULT_FINANCIALS);
   const [snapshot, setSnapshot] = useState<FinancialSnapshot | null>(null);
-  const [weeklyFocuses, setWeeklyFocuses] = useState<WeeklyFocus[]>(DEMO_WEEKLY_FOCUSES);
-  const [marketContext, setMarketContext] = useState<MarketContext>(DEMO_MARKET_CONTEXT);
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [agentInsights, setAgentInsights] = useState<AgentInsight[]>(DEMO_AGENT_INSIGHTS);
-  const [agentsProcessing, setAgentsProcessing] = useState(false);
-  
-  const [financialRealityOutput, setFinancialRealityOutput] = useState<FinancialRealityOutput | null>(null);
-  const [marketContextOutput, setMarketContextOutput] = useState<MarketContextOutput | null>(null);
-  const [scenarioOutput, setScenarioOutput] = useState<ScenarioOutput | null>(null);
-  const [adaptationOutput, setAdaptationOutput] = useState<AdaptationOutput | null>(null);
 
-  const runSyncFallback = useCallback((currentFinancials: UserFinancials) => {
-    console.log('[AppContext] Running sync fallback...');
-    try {
-      const frOutput = financialRealityAgent.analyzeSync(currentFinancials);
-      setFinancialRealityOutput(frOutput);
-      setSnapshot(frOutput.snapshot);
+  // Calculate snapshot from financials
+  const calculateSnapshot = useCallback((fin: UserFinancials): FinancialSnapshot => {
+    const totalExpenses = fin.housingCost + fin.carCost + fin.essentialsCost;
+    const disposableIncome = fin.monthlyIncome - totalExpenses;
+    const savingsRate = fin.monthlyIncome > 0 ? (disposableIncome / fin.monthlyIncome) * 100 : 0;
+    const monthsOfRunway = totalExpenses > 0 ? fin.savings / totalExpenses : 0;
+    const debtToIncomeRatio = fin.monthlyIncome > 0 ? (fin.debts / (fin.monthlyIncome * 12)) * 100 : 0;
+    const fixedCostRatio = fin.monthlyIncome > 0 ? (totalExpenses / fin.monthlyIncome) * 100 : 0;
 
-      const mcOutput = marketContextAgent.analyzeSync();
-      setMarketContextOutput(mcOutput);
+    let healthScore = 50;
+    let healthLabel: 'Critical' | 'Needs Attention' | 'Stable' | 'Strong' | 'Excellent' = 'Stable';
 
-      const legacyMarketContext: MarketContext = {
-        overallSentiment: mcOutput.sentiment,
-        stocksDescription: mcOutput.indicators.find(i => i.name === 'Stock Markets')?.description || '',
-        bondsDescription: mcOutput.indicators.find(i => i.name === 'Bond Yields')?.description || '',
-        inflationDescription: mcOutput.indicators.find(i => i.name === 'Inflation')?.description || '',
-        goldDescription: mcOutput.indicators.find(i => i.name === 'Precious Metals')?.description || '',
-        lastUpdated: mcOutput.timestamp,
-        educationalNote: mcOutput.educationalNote,
-      };
-      setMarketContext(legacyMarketContext);
-
-      const slOutput = scenarioLearningAgent.analyzeSync(currentFinancials, frOutput.snapshot);
-      setScenarioOutput(slOutput);
-      setScenarios(slOutput.scenarios);
-
-      const adOutput = adaptationAgent.analyzeSync(currentFinancials, frOutput.snapshot);
-      setAdaptationOutput(adOutput);
-
-      const newWeeklyFocuses: WeeklyFocus[] = adOutput.weeklyPlan.map(action => ({
-        id: action.id,
-        title: action.title,
-        description: action.description,
-        priority: action.priority,
-        category: action.category,
-        progress: action.completed ? 100 : 0,
-        agentReasoning: action.reasoning,
-      }));
-      setWeeklyFocuses(newWeeklyFocuses);
-
-      const insights: AgentInsight[] = [
-        {
-          id: `fr-${Date.now()}`,
-          agentName: 'Financial Reality',
-          agentType: 'financial-reality',
-          timestamp: frOutput.timestamp,
-          title: 'Snapshot Updated',
-          message: frOutput.summary,
-          reasoning: frOutput.reasoning,
-          actionTaken: 'Updated dashboard metrics.',
-          confidence: frOutput.confidence,
-          icon: 'wallet',
-        },
-        {
-          id: `mc-${Date.now()}`,
-          agentName: 'Market Context',
-          agentType: 'market-context',
-          timestamp: mcOutput.timestamp,
-          title: 'Context Refreshed',
-          message: mcOutput.summary,
-          reasoning: mcOutput.reasoning,
-          confidence: mcOutput.confidence,
-          icon: 'trending-up',
-        },
-        {
-          id: `sl-${Date.now()}`,
-          agentName: 'Scenario & Learning',
-          agentType: 'scenario-learning',
-          timestamp: slOutput.timestamp,
-          title: 'Projections Updated',
-          message: slOutput.summary,
-          reasoning: slOutput.reasoning,
-          confidence: slOutput.confidence,
-          icon: 'git-branch',
-        },
-        {
-          id: `ad-${Date.now()}`,
-          agentName: 'Adaptation',
-          agentType: 'adaptation',
-          timestamp: adOutput.timestamp,
-          title: 'Plan Updated',
-          message: adOutput.summary,
-          reasoning: adOutput.reasoning,
-          confidence: adOutput.confidence,
-          icon: 'refresh-cw',
-        },
-      ];
-      setAgentInsights(insights);
-    } catch (error) {
-      console.error('[AppContext] Sync fallback error:', error);
+    // Calculate health score
+    if (savingsRate >= 20 && monthsOfRunway >= 6) {
+      healthScore = 90;
+      healthLabel = 'Excellent';
+    } else if (savingsRate >= 15 && monthsOfRunway >= 3) {
+      healthScore = 75;
+      healthLabel = 'Strong';
+    } else if (savingsRate >= 10 && monthsOfRunway >= 1) {
+      healthScore = 60;
+      healthLabel = 'Stable';
+    } else if (savingsRate >= 0) {
+      healthScore = 40;
+      healthLabel = 'Needs Attention';
+    } else {
+      healthScore = 20;
+      healthLabel = 'Critical';
     }
+
+    return {
+      healthScore,
+      healthLabel,
+      disposableIncome: Math.max(0, disposableIncome),
+      savingsRate: Math.max(0, savingsRate),
+      monthsOfRunway: Math.max(0, monthsOfRunway),
+      debtToIncomeRatio,
+      fixedCostRatio,
+    };
   }, []);
-
-  const runAgentPipeline = useCallback(async (currentFinancials: UserFinancials) => {
-    console.log('[AppContext] Running AI-powered agent pipeline...');
-    setAgentsProcessing(true);
-
-    try {
-      console.log('[FinancialRealityAgent] Analyzing with AI...');
-      const frOutput = await financialRealityAgent.analyze(currentFinancials);
-      setFinancialRealityOutput(frOutput);
-      setSnapshot(frOutput.snapshot);
-
-      console.log('[MarketContextAgent] Analyzing with AI...');
-      const mcOutput = await marketContextAgent.analyze();
-      setMarketContextOutput(mcOutput);
-      
-      const legacyMarketContext: MarketContext = {
-        overallSentiment: mcOutput.sentiment,
-        stocksDescription: mcOutput.indicators.find(i => i.name === 'Stock Markets')?.description || '',
-        bondsDescription: mcOutput.indicators.find(i => i.name === 'Bond Yields')?.description || '',
-        inflationDescription: mcOutput.indicators.find(i => i.name === 'Inflation')?.description || '',
-        goldDescription: mcOutput.indicators.find(i => i.name === 'Precious Metals')?.description || '',
-        lastUpdated: mcOutput.timestamp,
-        educationalNote: mcOutput.educationalNote,
-      };
-      setMarketContext(legacyMarketContext);
-
-      console.log('[ScenarioLearningAgent] Analyzing with AI...');
-      const slOutput = await scenarioLearningAgent.analyze(currentFinancials, frOutput.snapshot);
-      setScenarioOutput(slOutput);
-      setScenarios(slOutput.scenarios);
-
-      console.log('[AdaptationAgent] Analyzing with AI...');
-      const adOutput = await adaptationAgent.analyze(currentFinancials, frOutput.snapshot);
-      setAdaptationOutput(adOutput);
-      
-      const newWeeklyFocuses: WeeklyFocus[] = adOutput.weeklyPlan.map(action => ({
-        id: action.id,
-        title: action.title,
-        description: action.description,
-        priority: action.priority,
-        category: action.category,
-        progress: action.completed ? 100 : 0,
-        agentReasoning: action.reasoning,
-      }));
-      setWeeklyFocuses(newWeeklyFocuses);
-
-      const insights: AgentInsight[] = [
-        {
-          id: `fr-${Date.now()}`,
-          agentName: 'Financial Reality',
-          agentType: 'financial-reality',
-          timestamp: frOutput.timestamp,
-          title: 'Snapshot Updated',
-          message: frOutput.summary,
-          reasoning: frOutput.reasoning,
-          actionTaken: 'Updated dashboard metrics and recalculated weekly priorities.',
-          confidence: frOutput.confidence,
-          icon: 'wallet',
-        },
-        {
-          id: `mc-${Date.now()}`,
-          agentName: 'Market Context',
-          agentType: 'market-context',
-          timestamp: mcOutput.timestamp,
-          title: 'Economic Context Refreshed',
-          message: mcOutput.summary,
-          reasoning: mcOutput.reasoning,
-          confidence: mcOutput.confidence,
-          icon: 'trending-up',
-        },
-        {
-          id: `sl-${Date.now()}`,
-          agentName: 'Scenario & Learning',
-          agentType: 'scenario-learning',
-          timestamp: slOutput.timestamp,
-          title: 'Projections Recalculated',
-          message: slOutput.summary,
-          reasoning: slOutput.reasoning,
-          actionTaken: 'Generated 3 scenario comparisons for review.',
-          confidence: slOutput.confidence,
-          icon: 'git-branch',
-        },
-        {
-          id: `ad-${Date.now()}`,
-          agentName: 'Adaptation',
-          agentType: 'adaptation',
-          timestamp: adOutput.timestamp,
-          title: 'Weekly Plan Updated',
-          message: adOutput.summary,
-          reasoning: adOutput.reasoning,
-          actionTaken: 'Generated personalized weekly action plan.',
-          confidence: adOutput.confidence,
-          icon: 'refresh-cw',
-        },
-      ];
-      setAgentInsights(insights);
-
-      console.log('[AppContext] AI agent pipeline completed');
-    } catch (error) {
-      console.error('[AppContext] Agent pipeline error:', error);
-      runSyncFallback(currentFinancials);
-    } finally {
-      setAgentsProcessing(false);
-    }
-  }, [runSyncFallback]);
 
   const loadStoredData = useCallback(async () => {
     try {
@@ -258,17 +80,17 @@ export const [AppProvider, useApp] = createContextHook(() => {
       if (storedFinancials) {
         const parsed = JSON.parse(storedFinancials);
         setFinancials(parsed);
-        runAgentPipeline(parsed);
+        setSnapshot(calculateSnapshot(parsed));
       } else {
-        runAgentPipeline(DEMO_FINANCIALS);
+        setSnapshot(calculateSnapshot(DEFAULT_FINANCIALS));
       }
     } catch (error) {
       console.error('[AppContext] Error loading stored data:', error);
-      runAgentPipeline(DEMO_FINANCIALS);
+      setSnapshot(calculateSnapshot(DEFAULT_FINANCIALS));
     } finally {
       setIsLoading(false);
     }
-  }, [runAgentPipeline]);
+  }, [calculateSnapshot]);
 
   useEffect(() => {
     loadStoredData();
@@ -277,20 +99,19 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const updateFinancials = useCallback(async (newFinancials: UserFinancials) => {
     console.log('[AppContext] Updating financials...');
     setFinancials(newFinancials);
-    
+    setSnapshot(calculateSnapshot(newFinancials));
+
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.FINANCIALS, JSON.stringify(newFinancials));
     } catch (error) {
       console.error('[AppContext] Error saving financials:', error);
     }
-
-    runAgentPipeline(newFinancials);
-  }, [runAgentPipeline]);
+  }, [calculateSnapshot]);
 
   const completeOnboarding = useCallback(async (onboardingFinancials: UserFinancials) => {
     console.log('[AppContext] Completing onboarding...');
     setHasOnboarded(true);
-    
+
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDED, 'true');
       await AsyncStorage.setItem(STORAGE_KEYS.FINANCIALS, JSON.stringify(onboardingFinancials));
@@ -299,45 +120,29 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
 
     setFinancials(onboardingFinancials);
-    runAgentPipeline(onboardingFinancials);
-  }, [runAgentPipeline]);
-
-  const updateFocusProgress = useCallback((focusId: string, progress: number) => {
-    setWeeklyFocuses(prev => 
-      prev.map(f => f.id === focusId ? { ...f, progress } : f)
-    );
-  }, []);
+    setSnapshot(calculateSnapshot(onboardingFinancials));
+  }, [calculateSnapshot]);
 
   const resetDemo = useCallback(async () => {
-    console.log('[AppContext] Resetting to demo mode...');
+    console.log('[AppContext] Resetting...');
     try {
       await AsyncStorage.multiRemove([STORAGE_KEYS.FINANCIALS, STORAGE_KEYS.ONBOARDED]);
     } catch (error) {
       console.error('[AppContext] Error resetting:', error);
     }
-    
+
     setHasOnboarded(false);
-    setFinancials(DEMO_FINANCIALS);
-    runAgentPipeline(DEMO_FINANCIALS);
-  }, [runAgentPipeline]);
+    setFinancials(DEFAULT_FINANCIALS);
+    setSnapshot(calculateSnapshot(DEFAULT_FINANCIALS));
+  }, [calculateSnapshot]);
 
   return {
     isLoading,
     hasOnboarded,
     financials,
     snapshot,
-    weeklyFocuses,
-    marketContext,
-    scenarios,
-    agentInsights,
-    agentsProcessing,
-    financialRealityOutput,
-    marketContextOutput,
-    scenarioOutput,
-    adaptationOutput,
     updateFinancials,
     completeOnboarding,
-    updateFocusProgress,
     resetDemo,
   };
 });

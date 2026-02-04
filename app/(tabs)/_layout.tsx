@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, GitBranch, BookOpen, User, ListChecks, PieChart } from 'lucide-react-native';
+import { Home, User, PieChart } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Platform } from 'react-native';
 
@@ -42,9 +42,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Overview',
+          title: 'Home',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Home size={24} color={color} strokeWidth={2.5} />,
+          tabBarIcon: ({ color }) => <Home size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen
@@ -52,35 +52,14 @@ export default function TabLayout() {
         options={{
           title: 'Portfolio',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <PieChart size={24} color={color} strokeWidth={2.5} />,
-        }}
-      />
-      <Tabs.Screen
-        name="plan"
-        options={{
-          title: 'Plan',
-          tabBarIcon: ({ color, size }) => <ListChecks size={24} color={color} strokeWidth={2.5} />,
-        }}
-      />
-      <Tabs.Screen
-        name="scenarios"
-        options={{
-          title: 'Scenarios',
-          tabBarIcon: ({ color, size }) => <GitBranch size={24} color={color} strokeWidth={2.5} />,
-        }}
-      />
-      <Tabs.Screen
-        name="learn"
-        options={{
-          title: 'Learn',
-          tabBarIcon: ({ color, size }) => <BookOpen size={24} color={color} strokeWidth={2.5} />,
+          tabBarIcon: ({ color }) => <PieChart size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <User size={24} color={color} strokeWidth={2.5} />,
+          tabBarIcon: ({ color }) => <User size={24} color={color} strokeWidth={2.5} />,
         }}
       />
     </Tabs>

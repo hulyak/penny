@@ -278,7 +278,6 @@ Consider factors like:
         prompt,
         systemInstruction: `${GEMINI_SYSTEM_PROMPT}\n\nYou are a portfolio analysis expert. Provide balanced, actionable insights for retail investors. Be specific but not overly technical.`,
         schema,
-        feature: 'portfolio_analysis',
       }),
       AI_TIMEOUT
     );
