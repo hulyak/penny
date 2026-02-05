@@ -115,7 +115,14 @@ export async function registerBackgroundRefresh(): Promise<boolean> {
 
     console.log('[BackgroundRefresh] Background fetch task registered');
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    // Gracefully handle the case where native module isn't configured yet
+    // This happens when running in Expo Go or before a native rebuild
+    if (error?.message?.includes('Background Fetch has not been configured') ||
+        error?.message?.includes('UIBackgroundModes')) {
+      console.warn('[BackgroundRefresh] Background fetch not available - requires native rebuild. Prices will refresh when app is open.');
+      return false;
+    }
     console.error('[BackgroundRefresh] Failed to register background fetch:', error);
     return false;
   }
