@@ -75,11 +75,16 @@ export function isOpikConfigured(): boolean {
 class OpikClient {
   private projectName: string;
   private isConfigured: boolean;
+  private hasLoggedNotConfigured: boolean = false;
   private tracesQueue: Array<{trace: TraceInput; spans: SpanInput[]; scores: EvaluationScore[]}> = [];
 
   constructor() {
     this.projectName = OPIK_PROJECT_NAME;
     this.isConfigured = isOpikConfigured();
+    if (!this.isConfigured && !this.hasLoggedNotConfigured) {
+      // Only log once that Opik is not configured
+      this.hasLoggedNotConfigured = true;
+    }
     this.loadQueuedTraces();
   }
 
@@ -126,7 +131,7 @@ class OpikClient {
       try {
         await this.sendToOpik('/traces', trace);
       } catch (error) {
-        console.warn('[Opik] Failed to send trace, queuing locally:', error);
+        // Silently queue - no need to warn for every failed request
         this.tracesQueue.push({ trace: input, spans: [], scores: [] });
         await this.saveQueuedTraces();
       }
@@ -136,7 +141,8 @@ class OpikClient {
       await this.saveQueuedTraces();
     }
 
-    console.log('[Opik] Created trace:', traceId, input.name);
+    // Only log in development when debugging
+    // console.log('[Opik] Created trace:', traceId, input.name);
     return traceId;
   }
 
@@ -155,11 +161,10 @@ class OpikClient {
       try {
         await this.sendToOpik('/spans', span);
       } catch (error) {
-        console.warn('[Opik] Failed to send span:', error);
+        // Silently fail - telemetry shouldn't affect app functionality
       }
     }
 
-    console.log('[Opik] Created span:', spanId, input.name);
     return spanId;
   }
 
@@ -178,7 +183,7 @@ class OpikClient {
       try {
         await this.sendToOpik(`/spans/${spanId}`, update, 'PATCH');
       } catch (error) {
-        console.warn('[Opik] Failed to update span:', error);
+        // Silently fail
       }
     }
   }
@@ -197,13 +202,12 @@ class OpikClient {
       try {
         await this.sendToOpik('/scores', scoreData);
       } catch (error) {
-        console.warn('[Opik] Failed to send score:', error);
+        // Silently fail
       }
     }
 
     // Always store locally for analytics
     await this.storeMetric('scores', scoreData);
-    console.log('[Opik] Logged score:', score.metricName, score.score);
   }
 
   /**
@@ -219,13 +223,12 @@ class OpikClient {
       try {
         await this.sendToOpik('/feedback', feedbackData);
       } catch (error) {
-        console.warn('[Opik] Failed to send feedback:', error);
+        // Silently fail
       }
     }
 
     // Always store locally
     await this.storeFeedback(feedbackData);
-    console.log('[Opik] Logged feedback:', feedback.rating);
   }
 
   /**
@@ -318,8 +321,6 @@ class OpikClient {
   async flushQueue(): Promise<void> {
     if (!this.isConfigured || this.tracesQueue.length === 0) return;
 
-    console.log('[Opik] Flushing', this.tracesQueue.length, 'queued traces');
-
     for (const item of this.tracesQueue) {
       try {
         await this.sendToOpik('/traces', item.trace);
@@ -330,8 +331,8 @@ class OpikClient {
           await this.sendToOpik('/scores', score);
         }
       } catch (error) {
-        console.warn('[Opik] Failed to flush trace:', error);
-        return; // Stop if we hit an error
+        // Stop if we hit an error - will retry later
+        return;
       }
     }
 
