@@ -242,7 +242,7 @@ export default function OpikDashboardScreen() {
         );
       })}
 
-      <View style={styles.experimentInfo}>
+      <View style={styles.experimentInfoCard}>
         <FlaskConical size={20} color={Colors.textMuted} />
         <Text style={styles.experimentInfoText}>
           Experiments compare different AI coaching styles to find the most effective approach.
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
   },
-  experimentInfo: {
+  experimentInfoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: Colors.surface,

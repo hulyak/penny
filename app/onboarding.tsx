@@ -17,7 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
-import { MASCOT_IMAGE_URL } from '@/constants/images';
+import { PENNY_MASCOT } from '@/constants/images';
 import {
   OnboardingProvider,
   useOnboarding,
@@ -33,14 +33,14 @@ import { Holding } from '@/types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Floating asset bubbles data
-const ASSET_BUBBLES = [
-  { symbol: 'AAPL', change: '+2.34%', color: '#00D09C', size: 90, top: '8%', left: '5%' },
-  { symbol: 'BTC', change: '+5.12%', color: '#F7931A', size: 80, top: '15%', right: '10%' },
-  { symbol: 'ETH', change: '+3.67%', color: '#627EEA', size: 70, top: '5%', left: '35%' },
-  { symbol: 'NVDA', change: '+1.89%', color: '#76B900', size: 85, top: '30%', right: '5%' },
-  { symbol: 'TSLA', change: '+0.95%', color: '#CC0000', size: 95, top: '35%', left: '15%' },
-  { symbol: 'XAU', change: '+1.24%', color: '#FFD700', size: 75, top: '22%', left: '0%' },
+// Portfolio features for slide 2
+const PORTFOLIO_FEATURES = [
+  { icon: '📊', label: 'Stocks & ETFs', color: '#00D09C' },
+  { icon: '🪙', label: 'Crypto', color: '#F7931A' },
+  { icon: '🏠', label: 'Real Estate', color: '#627EEA' },
+  { icon: '💰', label: 'Gold & Commodities', color: '#FFD700' },
+  { icon: '📈', label: 'Mutual Funds', color: '#76B900' },
+  { icon: '💵', label: 'Fixed Deposits', color: '#00D09C' },
 ];
 
 // Josh's avatar URL
@@ -51,94 +51,59 @@ const INTRO_SLIDES = [
   {
     id: 'welcome',
     gradient: ['#1a1a2e', '#16213e', '#0f3460'],
-    title: 'Track Your\nWealth Journey',
-    subtitle: 'The smart portfolio tracker for DIY investors who want to learn and grow.',
-    highlight: 'wealth journey',
+    title: 'Meet Penny',
+    subtitle: 'Your AI-powered portfolio companion that helps you track, learn, and grow your wealth.',
+    highlight: 'portfolio companion',
   },
   {
     id: 'assets',
-    gradient: ['#ffeef8', '#fff0f5', '#ffe4ec'],
-    title: 'Add your assets.',
-    subtitle: 'Track everything you own and learn portfolio management principles.',
-    highlight: 'your complete financial picture in one place.',
-    darkText: true,
+    gradient: ['#0f172a', '#1e293b', '#334155'],
+    title: 'All Your Assets\nOne Place',
+    subtitle: 'Track stocks, crypto, real estate, gold, and more. See your complete net worth at a glance.',
+    highlight: 'complete net worth',
   },
   {
     id: 'learn',
     gradient: ['#1a1a2e', '#2d1b4e', '#1a1a2e'],
-    title: 'Learn from\nJosh',
+    title: 'Learn from\nExperts',
     subtitle: 'Get market insights, model portfolio ideas, and Q&A from @VisualFaktory.',
-    highlight: 'educational insights',
+    highlight: 'market insights',
   },
   {
     id: 'ai',
     gradient: ['#0f172a', '#1e1b4b', '#312e81'],
-    title: 'AI-Powered\nInsights',
-    subtitle: 'Get personalized portfolio analysis and recommendations powered by AI.',
-    highlight: 'portfolio management and investing.',
+    title: 'AI-Powered\nCoaching',
+    subtitle: 'Scan documents, get voice coaching, and receive personalized insights powered by Gemini.',
+    highlight: 'personalized insights',
   },
 ];
 
-// Floating Asset Bubble Component
-function AssetBubble({ symbol, change, color, size, style, animValue }: {
-  symbol: string;
-  change: string;
+// Portfolio Feature Card Component
+function FeatureCard({ icon, label, color, index, animValue }: {
+  icon: string;
+  label: string;
   color: string;
-  size: number;
-  style: any;
+  index: number;
   animValue: Animated.Value;
 }) {
-  const isPositive = change.startsWith('+');
-
   return (
     <Animated.View
       style={[
-        styles.assetBubble,
+        styles.featureCard,
         {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: color + '20',
-          borderColor: color + '40',
+          backgroundColor: color + '15',
+          borderColor: color + '30',
           transform: [
             { translateY: animValue.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, -10],
-            })},
-            { scale: animValue.interpolate({
-              inputRange: [0, 0.5, 1],
-              outputRange: [1, 1.05, 1],
-            })},
-          ],
-        },
-        style,
-      ]}
-    >
-      <Text style={[styles.bubbleSymbol, { color }]}>{symbol}</Text>
-      <Text style={[styles.bubbleChange, { color: isPositive ? Colors.success : Colors.danger }]}>
-        {change}
-      </Text>
-    </Animated.View>
-  );
-}
-
-// Add Button Bubble
-function AddBubble({ animValue }: { animValue: Animated.Value }) {
-  return (
-    <Animated.View
-      style={[
-        styles.addBubble,
-        {
-          transform: [
-            { scale: animValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [1, 1.1],
+              outputRange: [0, -5],
             })},
           ],
         },
       ]}
     >
-      <Text style={styles.addBubbleIcon}>+</Text>
+      <Text style={styles.featureIcon}>{icon}</Text>
+      <Text style={[styles.featureLabel, { color }]}>{label}</Text>
     </Animated.View>
   );
 }
@@ -157,24 +122,24 @@ function OnboardingContent() {
   const [introSlide, setIntroSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const bubbleAnims = useRef(ASSET_BUBBLES.map(() => new Animated.Value(0))).current;
+  const featureAnims = useRef(PORTFOLIO_FEATURES.map(() => new Animated.Value(0))).current;
 
   const slide = INTRO_SLIDES[introSlide];
   const isLastIntroSlide = introSlide === INTRO_SLIDES.length - 1;
 
-  // Animate bubbles
+  // Animate feature cards
   useEffect(() => {
-    const animations = bubbleAnims.map((anim, index) =>
+    const animations = featureAnims.map((anim, index) =>
       Animated.loop(
         Animated.sequence([
           Animated.timing(anim, {
             toValue: 1,
-            duration: 2000 + index * 300,
+            duration: 2000 + index * 200,
             useNativeDriver: true,
           }),
           Animated.timing(anim, {
             toValue: 0,
-            duration: 2000 + index * 300,
+            duration: 2000 + index * 200,
             useNativeDriver: true,
           }),
         ])
@@ -297,7 +262,7 @@ function OnboardingContent() {
           <View style={styles.slideContent}>
             <View style={styles.brandContainer}>
               <Image
-                source={{ uri: MASCOT_IMAGE_URL }}
+                source={PENNY_MASCOT}
                 style={styles.mascotLogo}
               />
               <Text style={styles.brandName}>Penny</Text>
@@ -309,21 +274,24 @@ function OnboardingContent() {
       case 'assets':
         return (
           <View style={styles.slideContent}>
-            <View style={styles.bubblesContainer}>
-              {ASSET_BUBBLES.map((bubble, index) => (
-                <AssetBubble
-                  key={bubble.symbol}
-                  {...bubble}
-                  style={{
-                    position: 'absolute',
-                    top: bubble.top,
-                    left: bubble.left,
-                    right: bubble.right,
-                  }}
-                  animValue={bubbleAnims[index]}
-                />
-              ))}
-              <AddBubble animValue={bubbleAnims[0]} />
+            <View style={styles.portfolioPreview}>
+              {/* Net Worth Card */}
+              <View style={styles.netWorthCard}>
+                <Text style={styles.netWorthLabel}>Total Net Worth</Text>
+                <Text style={styles.netWorthAmount}>$127,450</Text>
+                <Text style={styles.netWorthChange}>+12.4% all time</Text>
+              </View>
+              {/* Asset Types Grid */}
+              <View style={styles.featuresGrid}>
+                {PORTFOLIO_FEATURES.map((feature, index) => (
+                  <FeatureCard
+                    key={feature.label}
+                    {...feature}
+                    index={index}
+                    animValue={featureAnims[index]}
+                  />
+                ))}
+              </View>
             </View>
           </View>
         );
@@ -414,12 +382,12 @@ function OnboardingContent() {
     );
   }
 
-  // Default: Render intro slides
-  const textColor = slide?.darkText ? Colors.textInverse : Colors.text;
-  const subtitleColor = slide?.darkText ? '#666' : Colors.textSecondary;
-  const highlightColor = slide?.darkText ? Colors.textInverse : Colors.text;
-  const dotColor = slide?.darkText ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)';
-  const dotActiveColor = slide?.darkText ? '#000' : '#fff';
+  // Default: Render intro slides (all dark backgrounds now)
+  const textColor = Colors.text;
+  const subtitleColor = Colors.textSecondary;
+  const highlightColor = Colors.text;
+  const dotColor = 'rgba(255, 255, 255, 0.3)';
+  const dotActiveColor = '#fff';
 
   return (
     <View style={styles.container}>
@@ -568,46 +536,60 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Asset Bubbles
-  bubblesContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.45,
-    position: 'relative',
-  },
-  assetBubble: {
-    justifyContent: 'center',
+  // Portfolio Preview
+  portfolioPreview: {
+    width: SCREEN_WIDTH - 48,
     alignItems: 'center',
-    borderWidth: 2,
+    gap: 20,
   },
-  bubbleSymbol: {
+  netWorthCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  netWorthLabel: {
     fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 8,
+  },
+  netWorthAmount: {
+    fontSize: 42,
     fontWeight: '700',
+    color: '#fff',
+    letterSpacing: -1,
   },
-  bubbleChange: {
-    fontSize: 12,
+  netWorthChange: {
+    fontSize: 16,
+    color: Colors.success,
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: 8,
   },
-  addBubble: {
-    position: 'absolute',
-    bottom: '15%',
-    right: '20%',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#1a1a2e',
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
+    gap: 10,
+    width: '100%',
   },
-  addBubbleIcon: {
-    fontSize: 36,
-    color: '#FF69B4',
-    fontWeight: '300',
+  featureCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  featureIcon: {
+    fontSize: 18,
+  },
+  featureLabel: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Mentor/Phone mockup

@@ -37,9 +37,7 @@ import { ObservabilityDashboard } from '@/components/ObservabilityDashboard';
 import { ReferralCard } from '@/components/ReferralCard';
 import Colors from '@/constants/colors';
 
-import { MASCOT_IMAGE_URL } from '@/constants/images';
-
-const MASCOT_URL = MASCOT_IMAGE_URL;
+import { PENNY_MASCOT } from '@/constants/images';
 
 export default function ProfileScreen() {
   const router = useRouter();

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
-import { MASCOT_IMAGE_URL } from '@/constants/images';
+import { PENNY_MASCOT } from '@/constants/images';
 import {
   generatePortfolioGreeting,
   generatePortfolioInsights,
@@ -182,7 +182,7 @@ export function PortfolioCoachCard({
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <Image
-            source={{ uri: MASCOT_IMAGE_URL }}
+            source={PENNY_MASCOT}
             style={styles.mascotSmall}
             resizeMode="contain"
           />
@@ -201,7 +201,7 @@ export function PortfolioCoachCard({
       >
         <View style={styles.greetingHeader}>
           <Image
-            source={{ uri: MASCOT_IMAGE_URL }}
+            source={PENNY_MASCOT}
             style={styles.mascot}
             resizeMode="contain"
           />

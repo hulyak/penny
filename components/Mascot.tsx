@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, View, StyleSheet } from 'react-native';
-import { MASCOT_IMAGE_URL } from '@/constants/images';
+import { PENNY_MASCOT } from '@/constants/images';
 
 interface MascotProps {
   size?: 'small' | 'medium' | 'large' | 'xlarge';
@@ -21,7 +21,7 @@ export function Mascot({ size = 'medium', showBubble = false }: MascotProps) {
   return (
     <View style={styles.container}>
       <Image
-        source={{ uri: MASCOT_IMAGE_URL }}
+        source={PENNY_MASCOT}
         style={{ width: dimension, height: dimension }}
         resizeMode="contain"
       />

@@ -1,59 +1,28 @@
 /**
- * Opik Client - Official SDK Integration
+ * Opik Client - Local LLM Observability
  *
- * Provides comprehensive LLM observability for Penny:
+ * Provides LLM observability for Penny using local storage:
  * - Trace all Gemini calls
  * - LLM-as-judge evaluations
  * - Quality metrics tracking
  * - A/B prompt experiments
+ *
+ * Note: The opik SDK requires Node.js and is not compatible with React Native.
+ * This module provides equivalent functionality using AsyncStorage.
  */
 
-import { Opik } from 'opik';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const OPIK_API_KEY = process.env.EXPO_PUBLIC_OPIK_API_KEY || '';
-const OPIK_WORKSPACE = process.env.EXPO_PUBLIC_OPIK_WORKSPACE || 'default';
-const OPIK_PROJECT_NAME = 'penny-financial-coach';
 
 // Local storage keys for offline metrics
 const EVALUATIONS_KEY = 'opik_evaluations';
 const EXPERIMENTS_KEY = 'opik_experiments';
 const METRICS_SUMMARY_KEY = 'opik_metrics_summary';
 
-// Singleton client
-let opikClient: Opik | null = null;
-
 /**
- * Get or create Opik client
- */
-export function getOpikClient(): Opik | null {
-  if (!OPIK_API_KEY) {
-    console.log('[Opik] No API key configured - running in local mode');
-    return null;
-  }
-
-  if (!opikClient) {
-    try {
-      opikClient = new Opik({
-        apiKey: OPIK_API_KEY,
-        workspaceName: OPIK_WORKSPACE,
-        projectName: OPIK_PROJECT_NAME,
-      });
-      console.log('[Opik] Client initialized');
-    } catch (error) {
-      console.error('[Opik] Failed to initialize client:', error);
-      return null;
-    }
-  }
-
-  return opikClient;
-}
-
-/**
- * Check if Opik is properly configured
+ * Check if Opik is properly configured (always false in React Native - using local mode)
  */
 export function isOpikConfigured(): boolean {
-  return Boolean(OPIK_API_KEY);
+  return false; // SDK not available in React Native
 }
 
 // ============================================
@@ -194,21 +163,8 @@ export async function startTrace(params: {
   const traceId = `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
 
-  const client = getOpikClient();
-  if (client) {
-    try {
-      await client.trace({
-        name: params.name,
-        input: params.input,
-        metadata: {
-          feature: params.feature,
-          tags: params.tags || [],
-        },
-      });
-    } catch (error) {
-      // Silent fail - don't block the app
-    }
-  }
+  // Log locally for debugging
+  console.log(`[Opik] Starting trace: ${params.name} (${params.feature})`);
 
   return { traceId, startTime };
 }
@@ -225,28 +181,8 @@ export async function endTrace(params: {
 }): Promise<void> {
   const latencyMs = Date.now() - params.context.startTime;
 
-  const client = getOpikClient();
-  if (client) {
-    try {
-      // Log completion metrics
-      await client.logFeedbackScores([
-        {
-          name: 'latency_ms',
-          value: latencyMs,
-        },
-        {
-          name: 'success',
-          value: params.success ? 1 : 0,
-        },
-        {
-          name: 'tokens_used',
-          value: params.tokensUsed?.total || 0,
-        },
-      ]);
-    } catch (error) {
-      // Silent fail
-    }
-  }
+  // Log locally for debugging
+  console.log(`[Opik] Trace completed: ${params.context.traceId} (${latencyMs}ms, success: ${params.success})`);
 }
 
 // ============================================
@@ -374,23 +310,8 @@ export async function evaluateResponse(params: {
   // Save locally
   await saveEvaluation(evaluation);
 
-  // Log to Opik if configured
-  const client = getOpikClient();
-  if (client) {
-    try {
-      await client.logFeedbackScores([
-        { name: 'accuracy', value: criteria.accuracy },
-        { name: 'helpfulness', value: criteria.helpfulness },
-        { name: 'actionability', value: criteria.actionability },
-        { name: 'safety', value: criteria.safety },
-        { name: 'clarity', value: criteria.clarity },
-        { name: 'relevance', value: criteria.relevance },
-        { name: 'overall_score', value: overallScore },
-      ]);
-    } catch (error) {
-      // Silent fail
-    }
-  }
+  // Log evaluation summary
+  console.log(`[Opik] Evaluation saved: ${evaluation.id} (score: ${overallScore.toFixed(2)})`);
 
   return evaluation;
 }
@@ -561,7 +482,6 @@ export async function clearEvaluationData(): Promise<void> {
 }
 
 export default {
-  getOpikClient,
   isOpikConfigured,
   startTrace,
   endTrace,

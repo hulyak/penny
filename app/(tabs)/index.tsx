@@ -33,7 +33,7 @@ import { CelebrationModal, type CelebrationData } from '@/components/Celebration
 import { MarketOverview } from '@/components/MarketOverview';
 import { PerformanceChart } from '@/components/PerformanceChart';
 import Colors from '@/constants/colors';
-import { MASCOT_IMAGE_URL } from '@/constants/images';
+import { PENNY_MASCOT } from '@/constants/images';
 import { Holding, ASSET_CLASS_COLORS, AssetClass } from '@/types';
 import { hasLivePricing, batchGetPrices } from '@/lib/priceService';
 import portfolioService from '@/lib/portfolioService';
@@ -215,7 +215,7 @@ export default function HomeScreen() {
   if (isLoading || authLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Image source={{ uri: MASCOT_IMAGE_URL }} style={styles.loadingMascot} />
+        <Image source={PENNY_MASCOT} style={styles.loadingMascot} />
         <Text style={styles.loadingText}>Loading your portfolio...</Text>
       </View>
     );

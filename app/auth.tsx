@@ -29,7 +29,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { usePurchases } from '@/context/PurchasesContext';
 import Colors from '@/constants/colors';
-import { MASCOT_IMAGE_URL } from '@/constants/images';
+import { PENNY_MASCOT } from '@/constants/images';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEMO_HOLDINGS } from '@/context/DemoModeContext';
 import portfolioService from '@/lib/portfolioService';
@@ -177,7 +177,7 @@ export default function AuthScreen() {
       {/* App Logo */}
       <View style={styles.logoContainer}>
         <Image
-          source={{ uri: MASCOT_IMAGE_URL }}
+          source={PENNY_MASCOT}
           style={styles.mascotLogo}
         />
         <Text style={styles.logoText}>Penny</Text>
@@ -433,7 +433,7 @@ export default function AuthScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#2d3a1f', '#1a2f1a', '#0f200f']}
+        colors={['#0A0E17', '#0F1419', '#151B26']}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
