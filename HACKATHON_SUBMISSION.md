@@ -4,42 +4,40 @@
 
 ## REQUIRED: Gemini Integration Description (~200 words)
 
-Penny demonstrates Gemini 3's full capabilities beyond simple chat through five deeply integrated features:
+Penny uses five Gemini 3 features together:
 
-**1. Vision API + Multimodal Understanding** - Users photograph brokerage statements and receipts. Gemini 3 extracts holdings from complex tables, charts, and text using genuine document understanding—not basic OCR. Each extraction includes confidence scores for reliability.
+**1. Vision API + Multimodal Understanding** - Users photograph brokerage statements and receipts. Gemini 3 extracts holdings from tables, charts, and text—parsing document structure, not running OCR. Each extraction includes confidence scores.
 
-**2. Configurable Thinking Levels** - We dynamically adjust reasoning depth per task: `thinkingLevel: high` for document analysis requiring deep reasoning, `medium` for personalized voice coaching, and `low`/`minimal` for quick market tips. Users see which level is active, making AI reasoning fully transparent.
+**2. Configurable Thinking Levels** - I set `thinkingLevel: high` for document analysis, `medium` for voice coaching, and `low`/`minimal` for quick tips. The UI shows which level is active.
 
-**3. Structured Output with Schema Validation** - Gemini returns type-safe JSON validated against Zod schemas. Holdings, confidence scores, and reasoning are programmatically reliable—production-grade integration, not prompt hacking.
+**3. Structured Output with Schema Validation** - Gemini returns type-safe JSON validated against Zod schemas. Holdings, confidence scores, and reasoning are programmatically reliable.
 
-**4. Streaming Responses** - Voice coaching uses streaming text generation spoken aloud via text-to-speech, creating fluid real-time conversational experiences with the AI.
+**4. Streaming Responses** - Voice coaching streams text generation to text-to-speech, so users hear responses as they generate.
 
-**5. Autonomous Marathon Agent** - A background agent monitors portfolios 24/7, detecting allocation drift and sending proactive push notifications without user prompting. It learns from user response patterns to optimize future interventions. All agent actions are logged in a transparent Activity Feed.
+**5. Autonomous Marathon Agent** - A background agent monitors portfolios 24/7, detects allocation drift, and sends push notifications without user prompting. It learns from response patterns to adjust intervention timing. All actions appear in an Activity Feed.
 
-Penny embodies Google's "Action Era" philosophy: AI that sees (camera), reasons at appropriate depth (thinking levels), and acts autonomously (imports holdings, sends alerts). It's not a chatbot wrapper—it's a true AI copilot.
+Penny follows Google's "Action Era" concept: AI that sees (camera), reasons at variable depth (thinking levels), and acts without prompting (imports holdings, sends alerts). Not a chatbot wrapper—a background copilot.
 
 ---
 
 ## Inspiration
 
-Most "AI apps" are chatbot wrappers. Text in, text out. We wanted to build something that showcases what Gemini 3 actually unlocks: **an AI that sees, reasons at different depths, and acts autonomously**.
+Most AI apps are chat wrappers. Text in, text out. I built an app where Gemini 3 watches documents, reasons at different depths, and takes actions without being asked.
 
-The challenge we set ourselves: Can we build an app where Gemini 3 isn't just answering questions, but actively **watching**, **understanding documents**, and **taking actions** on behalf of users—without being asked?
+I picked personal finance because it needs:
+- **Multimodal input** - statements, receipts, charts require vision
+- **Variable reasoning** - risk analysis needs depth; market updates need speed
+- **Autonomous action** - the AI should do things, not just explain
 
-We chose personal finance as our domain because it's:
-- **Multimodal by nature** - statements, receipts, charts need vision
-- **Reasoning-intensive** - risk analysis requires deep thinking
-- **Action-oriented** - the AI should do things, not just explain
-
-The result is Penny: an autonomous financial copilot that demonstrates Gemini 3's capabilities beyond chat.
+Penny is a financial copilot that uses Gemini 3 for more than conversation.
 
 ## What it does
 
-Penny showcases **five distinct Gemini 3 capabilities** working together:
+Penny combines five Gemini 3 features:
 
 ### 1. Multimodal Vision + Document Understanding
 
-Users photograph brokerage statements. Gemini 3 Vision extracts holdings from complex tables, text, and charts—understanding document structure, not just performing OCR.
+Users photograph brokerage statements. Gemini 3 Vision extracts holdings from tables, text, and charts by parsing document structure.
 
 ```
 Input: Photo of Fidelity statement
@@ -48,17 +46,17 @@ Output: Structured JSON with holdings, quantities, prices, confidence scores
 
 ### 2. Configurable Thinking Levels
 
-We dynamically adjust `thinkingLevel` based on task complexity:
+I adjust `thinkingLevel` by task:
 
-| Task | Thinking Level | Why |
-|------|----------------|-----|
-| Document analysis | `high` | Complex table extraction requires deep reasoning |
-| Risk analysis | `high` | Portfolio diversification needs careful consideration |
-| Voice coaching | `medium` | Balanced depth for conversational responses |
-| Daily tips | `low` | Quick, contextual suggestions |
-| Market updates | `minimal` | Speed over depth |
+| Task | Thinking Level | Reason |
+|------|----------------|--------|
+| Document analysis | `high` | Table extraction needs deep reasoning |
+| Risk analysis | `high` | Diversification scoring needs careful evaluation |
+| Voice coaching | `medium` | Conversational depth without latency |
+| Daily tips | `low` | Fast contextual suggestions |
+| Market updates | `minimal` | Speed matters more than depth |
 
-**Users see which level is active**, making AI reasoning transparent.
+The UI shows which level is active.
 
 ### 3. Structured Output with Confidence Scores
 
@@ -71,30 +69,30 @@ const DocumentAnalysisSchema = z.object({
     symbol: z.string().optional(),
     quantity: z.number(),
     price: z.number(),
-    confidence: z.number().min(0).max(1), // AI's certainty
+    confidence: z.number().min(0).max(1),
   })),
-  reasoning: z.string(), // Explanation of extraction logic
+  reasoning: z.string(),
 });
 ```
 
-This isn't prompt engineering—it's **production-grade AI integration**.
+This is schema-validated integration, not string parsing.
 
 ### 4. Autonomous Marathon Agent
 
-The AI doesn't wait for user prompts. It:
-- Monitors portfolios continuously in background
+The AI runs without user prompts:
+- Monitors portfolios in background
 - Detects allocation drift from user goals
 - Sends proactive push notifications
-- Learns from user response patterns to optimize intervention timing
-- Logs every action in a transparent Activity Feed
+- Learns from user response patterns to adjust timing
+- Logs every action in an Activity Feed
 
-This embodies Google's "**Action Era**" philosophy—AI that acts, not just responds.
+This follows Google's "Action Era" framing—AI that acts, not just responds.
 
 ### 5. Real-Time Voice Coaching
 
-Streaming Gemini responses are spoken aloud via text-to-speech. Users literally "talk to their money" and hear personalized coaching based on their actual portfolio data.
+Streaming Gemini responses play through text-to-speech. Users speak to the app and hear coaching based on their portfolio data.
 
-## How we built it
+## How I built it
 
 ### Architecture
 
@@ -131,7 +129,7 @@ Streaming Gemini responses are spoken aloud via text-to-speech. Users literally 
 
 - **Frontend**: React Native + Expo (iOS/Android)
 - **AI**: Gemini 3 Flash Preview (`gemini-3-flash-preview`)
-- **Observability**: Opik for LLM tracing and evaluation
+- **Observability**: Opik for LLM tracing
 - **Auth**: Firebase Authentication
 - **Storage**: AsyncStorage + Firebase
 - **Background Tasks**: expo-background-fetch + expo-task-manager
@@ -143,9 +141,9 @@ Streaming Gemini responses are spoken aloud via text-to-speech. Users literally 
 const result = await generateStructuredWithGemini({
   prompt: documentAnalysisPrompt,
   schema: DocumentAnalysisSchema,
-  image: base64Image,           // Multimodal input
-  thinkingLevel: 'high',        // Deep reasoning for complex docs
-  temperature: 0.2,             // Low temp for accuracy
+  image: base64Image,
+  thinkingLevel: 'high',
+  temperature: 0.2,
 });
 
 // Streaming for voice responses
@@ -160,113 +158,92 @@ await streamWithGemini({
 ### Autonomous Agent Loop
 
 ```typescript
-// Runs every hour when app is active + background fetch
 async function runAgentLoop() {
   const holdings = await loadPortfolio();
   const goals = await getUserGoals();
 
-  // Decision 1: Check allocation drift
   const drift = calculateDrift(holdings, goals.targetAllocation);
   if (drift > THRESHOLD && shouldIntervene(state)) {
     const message = await generateWithGemini({
       prompt: `Portfolio drifted: ${drift}. Write encouraging notification.`,
-      thinkingLevel: 'minimal', // Quick generation
+      thinkingLevel: 'minimal',
     });
     await sendPushNotification('Portfolio Drift', message);
     await logIntervention({ type: 'drift_alert', message });
   }
 
-  // Learn from user responses to optimize future interventions
   state.userResponseRate = calculateResponseRate(recentInterventions);
 }
 ```
 
-## Challenges we ran into
+## Challenges I ran into
 
-1. **Thinking level trade-offs** - `high` gives better document extraction but is slower. We benchmarked each task and chose levels that balance quality/speed appropriately.
+1. **Thinking level trade-offs** - `high` improves document extraction but adds latency. I benchmarked each task and picked levels that balance quality and speed.
 
-2. **Structured output reliability** - Gemini occasionally returns malformed JSON. We built auto-correction logic for common issues (case normalization, array parsing) before Zod validation.
+2. **Structured output reliability** - Gemini sometimes returns malformed JSON. I added auto-correction for common issues (case normalization, array parsing) before Zod validation.
 
-3. **Making autonomy trustworthy** - Users fear AI acting without permission. The Activity Log shows every agent decision with full reasoning, building trust through transparency.
+3. **Autonomous trust** - Users distrust AI acting without permission. The Activity Log shows every agent decision with reasoning.
 
-4. **Multimodal prompt engineering** - Document extraction required iterative prompt refinement. Adding "extract EVERY holding, even if partially visible" dramatically improved recall.
+4. **Multimodal prompt tuning** - Document extraction needed prompt iteration. Adding "extract EVERY holding, even if partially visible" improved recall.
 
-## Accomplishments that we're proud of
+## Accomplishments
 
-### This is NOT a chatbot wrapper
+### Not a chatbot wrapper
 
 | Typical AI App | Penny |
 |----------------|-------|
 | Text → Text | Camera → Structured Data → Portfolio Import |
-| Single reasoning mode | 4 thinking levels, task-appropriate |
+| Single reasoning mode | 4 thinking levels per task |
 | Reactive (waits for input) | Proactive (autonomous monitoring) |
 | Generic responses | Type-safe JSON with confidence scores |
 | Opaque | Transparent agent activity log |
 
-### Gemini 3 Features Demonstrated
+### Gemini 3 Features Used
 
-- ✅ Vision API (document + receipt scanning)
-- ✅ Configurable Thinking Levels (minimal → high)
-- ✅ Structured Output with schema validation
-- ✅ Streaming responses (voice coaching)
-- ✅ Autonomous agent behavior
+- Vision API (document + receipt scanning)
+- Configurable Thinking Levels (minimal → high)
+- Structured Output with schema validation
+- Streaming responses (voice coaching)
+- Autonomous agent behavior
 
-### Production Quality
+### Production Details
 
 - Exponential backoff retry logic
 - Response caching (5 min TTL)
-- LLM observability via Opik tracing
-- Parallel API calls for speed
-- Demo mode for instant judge access
+- LLM observability via Opik
+- Parallel API calls
+- Demo mode for judge access
 
-## What we learned
+## What I learned
 
-1. **Thinking levels are transformative** - The ability to dial reasoning depth per task unlocks new architectures. Document analysis *needs* `high`; quick tips work fine with `low`.
+1. **Thinking levels change architecture** - Variable reasoning depth lets you match compute to task. Document analysis needs `high`; tips work with `low`.
 
-2. **Multimodal is underexplored** - Most hackathon projects treat Gemini as a text API. Vision + structured output creates "magical" UX (scan → import).
+2. **Multimodal is underused** - Most projects treat Gemini as text-only. Vision + structured output enables scan-to-import flows.
 
-3. **Autonomous AI needs transparency** - The Activity Log was initially an afterthought. It became essential for user trust. Show users what the AI did and why.
+3. **Autonomous AI needs logs** - The Activity Log started as a debug tool. It became the main trust mechanism.
 
-4. **Structured output > free-form text** - For any action-oriented AI, typed JSON beats parsing prose. Gemini 3 handles schemas remarkably well.
+4. **Structured output beats text parsing** - For action-oriented AI, typed JSON is more reliable than parsing prose.
 
 ## What's next for Penny
 
-- **Gemini Live API** - Full duplex voice for true conversational coaching
-- **Multi-agent architecture** - Specialized agents for spending, investing, risk
-- **Deeper multimodal** - Video analysis of portfolio review sessions
-- **Fine-tuning** - Domain-specific model for financial document extraction
+- **Gemini Live API** - Full duplex voice for conversational coaching
+- **Multi-agent architecture** - Separate agents for spending, investing, risk
+- **Video analysis** - Process portfolio review recordings
+- **Fine-tuning** - Domain-specific model for financial documents
 
 ---
 
 ## Judging Criteria Alignment
 
-| Criteria | Weight | How Penny Delivers |
-|----------|--------|-------------------|
-| **Technical Execution** | 40% | 5 Gemini 3 features, production-quality code, Zod schemas, observability |
-| **Innovation / Wow Factor** | 30% | Autonomous agent, configurable thinking, multimodal document import |
-| **Potential Impact** | 20% | Real problem (fragmented portfolios), broad market (any investor) |
-| **Presentation / Demo** | 10% | Demo mode, architecture diagram, transparent AI reasoning |
-
----
-
-## Gemini 3 Integration Summary (~200 words)
-
-Penny demonstrates Gemini 3's capabilities beyond simple chat through five integrated features:
-
-**1. Vision API** - Users photograph brokerage statements and receipts. Gemini 3 extracts holdings from complex tables and text using genuine document understanding, not OCR. Each extraction includes confidence scores.
-
-**2. Configurable Thinking Levels** - We use `thinkingLevel: high` for document analysis requiring deep reasoning, `medium` for voice coaching, and `low`/`minimal` for quick tips. Users see which level is active, making AI reasoning transparent.
-
-**3. Structured Output** - Gemini returns type-safe JSON validated against Zod schemas. Holdings, confidence scores, and reasoning are programmatically reliable—not prompt hacking.
-
-**4. Streaming** - Voice coaching uses streaming responses spoken via text-to-speech, creating real-time conversational experiences.
-
-**5. Autonomous Agent** - A background agent monitors portfolios 24/7, detecting drift and sending proactive alerts without user prompting. It learns from response patterns to optimize interventions. All actions are logged transparently.
-
-Penny embodies the "Action Era" philosophy: AI that sees (camera), reasons (thinking levels), and acts (imports holdings, sends alerts) autonomously. It's not a chatbot wrapper—it's a copilot.
+| Criteria | Weight | How Penny Addresses It |
+|----------|--------|------------------------|
+| **Technical Execution** | 40% | 5 Gemini 3 features, Zod schemas, Opik observability |
+| **Innovation** | 30% | Autonomous agent, configurable thinking, multimodal import |
+| **Potential Impact** | 20% | Solves portfolio fragmentation for any investor |
+| **Presentation** | 10% | Demo mode, architecture diagram, visible AI reasoning |
 
 ---
 
 ## Demo Access
 
-**For Hackathon Judges**: Tap "Demo Mode" on the login screen to instantly access a pre-loaded portfolio with all features unlocked. No signup required.
+Tap "Demo Mode" on the login screen. Pre-loaded portfolio, all features unlocked, no signup.

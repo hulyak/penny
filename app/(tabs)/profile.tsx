@@ -231,14 +231,29 @@ export default function ProfileScreen() {
         )}
       </Card>
 
-      {/* AI Observability Dashboard */}
+      {/* AI Quality Dashboard (Opik) */}
+      <Pressable
+        style={styles.dashboardButton}
+        onPress={() => router.push('/portfolio/opik-dashboard' as any)}
+      >
+        <View style={styles.dashboardIcon}>
+          <BarChart2 size={20} color={Colors.primary} />
+        </View>
+        <View style={styles.dashboardInfo}>
+          <Text style={styles.dashboardTitle}>AI Quality Dashboard</Text>
+          <Text style={styles.dashboardSubtitle}>LLM evaluations, experiments & metrics</Text>
+        </View>
+        <ChevronRight size={20} color={Colors.textMuted} />
+      </Pressable>
+
+      {/* Legacy Observability Dashboard */}
       <Pressable style={styles.dashboardButton} onPress={() => setShowDashboard(true)}>
         <View style={styles.dashboardIcon}>
           <BarChart2 size={20} color={Colors.accent} />
         </View>
         <View style={styles.dashboardInfo}>
-          <Text style={styles.dashboardTitle}>AI Observability</Text>
-          <Text style={styles.dashboardSubtitle}>View metrics, evaluations & feedback</Text>
+          <Text style={styles.dashboardTitle}>Usage Analytics</Text>
+          <Text style={styles.dashboardSubtitle}>View AI usage & user feedback</Text>
         </View>
         <ChevronRight size={20} color={Colors.textMuted} />
       </Pressable>

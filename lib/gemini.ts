@@ -1,6 +1,16 @@
 import { z } from 'zod';
-import { opik, traceLLMCall } from './opik';
 import { trackAICall } from './analytics';
+import {
+  startTrace,
+  endTrace,
+  evaluateResponse,
+  TraceContext,
+} from './opikClient';
+import {
+  getExperimentForFeature,
+  getAssignedVariant,
+  recordExperimentResult,
+} from './experiments';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_MODEL = 'gemini-3-flash-preview'; // Gemini 3 Flash - frontier intelligence at Flash speed
@@ -9,9 +19,17 @@ export type ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
 
 // Track the current trace for evaluation
 let currentTraceId: string | null = null;
+let currentTraceContext: TraceContext | null = null;
 
 export function getCurrentTraceId(): string | null {
   return currentTraceId;
+}
+
+// Sample rate for evaluations (don't evaluate every single call)
+const EVALUATION_SAMPLE_RATE = 0.3; // 30% of calls get evaluated
+
+function shouldEvaluate(): boolean {
+  return Math.random() < EVALUATION_SAMPLE_RATE;
 }
 
 interface GeminiMessage {
@@ -135,19 +153,33 @@ export async function generateWithGemini(params: {
     }
   }
 
-  // Start tracing
+  // Check for active experiment and get variant
+  const experiment = getExperimentForFeature(feature);
+  let experimentVariant = null;
+  let experimentSystemPrompt = systemInstruction;
+
+  if (experiment) {
+    experimentVariant = await getAssignedVariant(experiment.id);
+    if (experimentVariant?.systemPrompt) {
+      experimentSystemPrompt = experimentVariant.systemPrompt;
+    }
+  }
+
+  // Start tracing with new Opik client
   const startTime = Date.now();
-  const traceId = await opik.createTrace({
+  const traceContext = await startTrace({
     name: `gemini_${feature}`,
+    feature,
     input: {
-      prompt: prompt.substring(0, 500), // Truncate for storage
+      prompt: prompt.substring(0, 500),
       hasImage: !!image,
       thinkingLevel,
-      feature,
+      experimentVariant: experimentVariant?.name,
     },
     tags: ['gemini', feature, thinkingLevel],
   });
-  currentTraceId = traceId;
+  currentTraceId = traceContext.traceId;
+  currentTraceContext = traceContext;
 
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
@@ -176,9 +208,11 @@ export async function generateWithGemini(params: {
     },
   };
 
-  if (systemInstruction) {
+  // Use experiment system prompt if available, otherwise use provided systemInstruction
+  const finalSystemPrompt = experimentSystemPrompt || systemInstruction;
+  if (finalSystemPrompt) {
     requestBody.systemInstruction = {
-      parts: [{ text: systemInstruction }],
+      parts: [{ text: finalSystemPrompt }],
     };
   }
 
@@ -250,13 +284,11 @@ export async function generateWithGemini(params: {
       }
 
       // All retries exhausted, log and throw
-      await traceLLMCall({
-        traceId,
-        model: GEMINI_MODEL,
-        prompt: prompt.substring(0, 500),
-        response: `Error after ${MAX_RETRIES + 1} attempts: ${String(error)}`,
-        latencyMs: Date.now() - startTime,
-        metadata: { error: true, attempts: attempt + 1 },
+      await endTrace({
+        context: traceContext,
+        output: { error: `Error after ${MAX_RETRIES + 1} attempts: ${String(error)}` },
+        success: false,
+        error: String(error),
       });
       throw error;
     }
@@ -269,26 +301,64 @@ export async function generateWithGemini(params: {
 
   const latencyMs = Date.now() - startTime;
 
-  // Log LLM call to Opik
-  await traceLLMCall({
-    traceId,
-    model: GEMINI_MODEL,
-    prompt: prompt.substring(0, 500),
-    response: responseText.substring(0, 500),
+  // End trace with new Opik client
+  await endTrace({
+    context: traceContext,
+    output: { response: responseText.substring(0, 500) },
     tokensUsed,
-    latencyMs,
-    metadata: { feature, thinkingLevel },
+    success,
   });
 
   // Track in analytics
   await trackAICall({
-    traceId,
+    traceId: traceContext.traceId,
     model: GEMINI_MODEL,
     feature,
     latencyMs,
     success,
     tokensUsed: tokensUsed.total,
   });
+
+  // Run LLM-as-judge evaluation (sampled to reduce API calls)
+  if (shouldEvaluate() && feature !== 'evaluation') {
+    // Async evaluation - don't block the response
+    (async () => {
+      try {
+        const evaluation = await evaluateResponse({
+          traceId: traceContext.traceId,
+          feature,
+          prompt: prompt.substring(0, 1000),
+          response: responseText.substring(0, 2000),
+          model: GEMINI_MODEL,
+          generateFn: async (evalPrompt) => {
+            // Use a separate call for evaluation to avoid recursion
+            const evalResponse = await generateWithGemini({
+              prompt: evalPrompt,
+              temperature: 0.1, // Low temperature for consistent evaluation
+              thinkingLevel: 'low',
+              feature: 'evaluation', // Mark as evaluation to prevent infinite recursion
+            });
+            return evalResponse;
+          },
+        });
+
+        // Record experiment result if this was part of an experiment
+        if (experiment && experimentVariant) {
+          await recordExperimentResult({
+            experimentId: experiment.id,
+            variantId: experimentVariant.id,
+            traceId: traceContext.traceId,
+            scores: evaluation.criteria,
+            overallScore: evaluation.overallScore,
+            latencyMs,
+            tokensUsed: tokensUsed.total,
+          });
+        }
+      } catch (evalError) {
+        console.error('[Gemini] Evaluation failed:', evalError);
+      }
+    })();
+  }
 
   // Cache the successful response
   if (cacheKey) {
