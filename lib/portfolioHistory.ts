@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Holding } from '@/types';
 
 const HISTORY_KEY = 'penny_portfolio_history';
+const HISTORY_VERSION_KEY = 'penny_portfolio_history_version';
+const CURRENT_HISTORY_VERSION = 2; // Bump this to force regeneration
 const MAX_HISTORY_DAYS = 365; // Keep 1 year of history
 
 export interface PortfolioSnapshot {
@@ -77,10 +79,21 @@ export async function getHistory(): Promise<PortfolioSnapshot[]> {
  * Creates synthetic data points going back in time with realistic variations
  */
 export async function generateInitialHistory(holdings: Holding[]): Promise<void> {
+  // Check if we need to regenerate due to version upgrade
+  const storedVersion = await AsyncStorage.getItem(HISTORY_VERSION_KEY);
+  const currentVersion = storedVersion ? parseInt(storedVersion, 10) : 0;
+
+  if (currentVersion < CURRENT_HISTORY_VERSION) {
+    // Clear old history and regenerate with new version
+    await AsyncStorage.removeItem(HISTORY_KEY);
+    await AsyncStorage.setItem(HISTORY_VERSION_KEY, String(CURRENT_HISTORY_VERSION));
+  }
+
   const existingHistory = await getHistory();
 
-  // Only generate if we have very little history (less than 7 days)
-  if (existingHistory.length >= 7) return;
+  // Only generate if we have less than 60 days of history
+  // This ensures users get enough data for meaningful period comparisons
+  if (existingHistory.length >= 60) return;
 
   // Calculate current totals
   let totalValue = 0;
@@ -108,8 +121,11 @@ export async function generateInitialHistory(holdings: Holding[]): Promise<void>
   const newHistory: PortfolioSnapshot[] = [];
   const today = new Date();
 
-  // Generate 30 days of historical data
-  for (let i = 30; i >= 0; i--) {
+  // Generate 365 days of historical data for full year view
+  // Use seeded randomness based on date for consistency
+  let runningValue = totalValue * 0.75; // Start at 75% of current value (simulating growth)
+
+  for (let i = 365; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
@@ -117,22 +133,26 @@ export async function generateInitialHistory(holdings: Holding[]): Promise<void>
     // Skip if we already have data for this date
     if (existingHistory.some(s => s.date === dateStr)) continue;
 
-    // Create realistic variation: random walk with slight upward bias
-    // Variation decreases as we get closer to today (converging to actual value)
-    const daysFactor = i / 30; // 1 at start, 0 at end
-    const maxVariation = 0.15 * daysFactor; // Up to 15% variation at the start
-    const randomVariation = (Math.random() - 0.45) * maxVariation; // Slight upward bias
+    // Create realistic variation: random walk with general upward trend
+    // Daily return ranges from -2% to +2.5% (slight upward bias)
+    const dailyReturn = (Math.random() - 0.45) * 0.025;
+    runningValue = runningValue * (1 + dailyReturn);
 
-    const historicalValue = totalValue * (1 - randomVariation);
-    const historicalGain = historicalValue - totalInvested;
+    // Ensure we converge to actual value at the end
+    if (i <= 7) {
+      const convergeFactor = i / 7;
+      runningValue = runningValue * convergeFactor + totalValue * (1 - convergeFactor);
+    }
+
+    const historicalGain = runningValue - totalInvested;
     const historicalGainPercent = totalInvested > 0 ? (historicalGain / totalInvested) * 100 : 0;
 
     // Scale asset breakdown proportionally
-    const scaleFactor = historicalValue / totalValue;
+    const scaleFactor = runningValue / totalValue;
 
     newHistory.push({
       date: dateStr,
-      totalValue: Math.round(historicalValue * 100) / 100,
+      totalValue: Math.round(runningValue * 100) / 100,
       totalInvested: Math.round(totalInvested * 100) / 100,
       totalGain: Math.round(historicalGain * 100) / 100,
       gainPercent: Math.round(historicalGainPercent * 100) / 100,
@@ -152,8 +172,9 @@ export async function generateInitialHistory(holdings: Holding[]): Promise<void>
   const mergedHistory = [...existingHistory, ...newHistory];
   mergedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
-  // Save
+  // Save history and version
   await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(mergedHistory));
+  await AsyncStorage.setItem(HISTORY_VERSION_KEY, String(CURRENT_HISTORY_VERSION));
 }
 
 /**
@@ -426,6 +447,15 @@ export async function clearHistory(): Promise<void> {
 }
 
 /**
+ * Force regenerate history with full year of data
+ * Use this when upgrading from older version with limited history
+ */
+export async function regenerateFullHistory(holdings: Holding[]): Promise<void> {
+  await clearHistory();
+  await generateInitialHistory(holdings);
+}
+
+/**
  * Get the latest snapshot
  */
 export async function getLatestSnapshot(): Promise<PortfolioSnapshot | null> {
@@ -537,6 +567,7 @@ export default {
   getHistory,
   saveSnapshot,
   generateInitialHistory,
+  regenerateFullHistory,
   getPerformanceData,
   getPerformanceSummary,
   getBenchmarkComparison,

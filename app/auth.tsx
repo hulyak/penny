@@ -27,8 +27,12 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
+import { usePurchases } from '@/context/PurchasesContext';
 import Colors from '@/constants/colors';
 import { MASCOT_IMAGE_URL } from '@/constants/images';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEMO_HOLDINGS } from '@/context/DemoModeContext';
+import portfolioService from '@/lib/portfolioService';
 
 type AuthMode = 'welcome' | 'signin' | 'signup';
 
@@ -47,6 +51,8 @@ export default function AuthScreen() {
     error,
     clearError,
   } = useAuth();
+
+  const { enableDemoMode } = usePurchases();
 
   const [mode, setMode] = useState<AuthMode>('welcome');
   const [email, setEmail] = useState('');
@@ -252,26 +258,50 @@ export default function AuthScreen() {
         </Pressable>
       </View>
 
-      {/* Demo mode */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.demoButton,
-          pressed && styles.demoButtonPressed,
-        ]}
-        onPress={async () => {
-          setIsLoading(true);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          const success = await signInAsDemo();
-          if (success) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.replace('/(tabs)');
-          }
-          setIsLoading(false);
-        }}
-        disabled={isLoading}
-      >
-        <Text style={styles.demoButtonText}>Try Demo Mode</Text>
-      </Pressable>
+      {/* Hackathon Demo Mode - Prominent for Judges */}
+      <View style={styles.demoSection}>
+        <View style={styles.demoLabelRow}>
+          <Sparkles size={14} color={Colors.gold} />
+          <Text style={styles.demoLabel}>HACKATHON JUDGES</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.demoButton,
+            pressed && styles.demoButtonPressed,
+          ]}
+          onPress={async () => {
+            setIsLoading(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            try {
+              // 1. Enable demo mode (grants premium access)
+              await enableDemoMode();
+
+              // 2. Sign in as demo user
+              const success = await signInAsDemo();
+
+              if (success) {
+                // 3. Load demo portfolio data
+                for (const holding of DEMO_HOLDINGS) {
+                  await portfolioService.saveHolding(holding);
+                }
+
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                router.replace('/(tabs)');
+              }
+            } catch (err) {
+              console.error('[Auth] Demo mode error:', err);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          disabled={isLoading}
+        >
+          <Sparkles size={18} color={Colors.primary} />
+          <Text style={styles.demoButtonText}>Try Full Demo</Text>
+        </Pressable>
+        <Text style={styles.demoHint}>No login required • Full premium access • Sample portfolio</Text>
+      </View>
     </Animated.View>
   );
 
@@ -599,22 +629,51 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
 
-  // Demo button
+  // Demo section - prominent for hackathon judges
+  demoSection: {
+    alignItems: 'center',
+    marginTop: 8,
+    width: '100%',
+  },
+  demoLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  demoLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.gold,
+    letterSpacing: 1,
+  },
   demoButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 208, 156, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderStyle: 'dashed',
+    borderColor: Colors.primary,
+    width: '100%',
   },
   demoButtonPressed: {
-    opacity: 0.7,
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   demoButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  demoHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 10,
+    textAlign: 'center',
   },
 
   // Form container

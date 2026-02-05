@@ -23,6 +23,9 @@ import {
   Briefcase,
   Sparkles,
   Upload,
+  Mic,
+  Receipt,
+  Bot,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { PortfolioCoachCard } from '@/components/PortfolioCoachCard';
@@ -36,6 +39,7 @@ import { hasLivePricing, batchGetPrices } from '@/lib/priceService';
 import portfolioService from '@/lib/portfolioService';
 import portfolioHistory from '@/lib/portfolioHistory';
 import { SparklineChart, generateMockChartData } from '@/components/onboarding';
+import { AgentActivityLog } from '@/components/AgentActivityLog';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -522,26 +526,35 @@ export default function HomeScreen() {
         </Pressable>
       )}
 
+      {/* Autonomous Agent Activity */}
+      {holdings.length > 0 && (
+        <AgentActivityLog
+          compact
+          maxItems={3}
+          onViewAll={() => router.push('/portfolio/agent-activity' as any)}
+        />
+      )}
+
       {/* Quick Actions */}
       <View style={styles.quickActions}>
         <Pressable
           style={styles.quickAction}
-          onPress={() => router.push('/portfolio/add' as any)}
+          onPress={() => router.push('/portfolio/voice-coach' as any)}
         >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.accentMuted }]}>
-            <Plus size={22} color={Colors.accent} />
+          <View style={[styles.quickIconWrapper, { backgroundColor: 'rgba(66, 133, 244, 0.15)' }]}>
+            <Mic size={22} color="#4285F4" />
           </View>
-          <Text style={styles.quickLabel}>Add</Text>
+          <Text style={styles.quickLabel}>Voice</Text>
         </Pressable>
 
         <Pressable
           style={styles.quickAction}
-          onPress={() => router.push('/portfolio/import' as any)}
+          onPress={() => router.push('/portfolio/receipt-scan' as any)}
         >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.primaryMuted }]}>
-            <Upload size={22} color={Colors.primary} />
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.goldMuted }]}>
+            <Receipt size={22} color={Colors.gold} />
           </View>
-          <Text style={styles.quickLabel}>Import</Text>
+          <Text style={styles.quickLabel}>Receipt</Text>
         </Pressable>
 
         <Pressable
@@ -556,12 +569,12 @@ export default function HomeScreen() {
 
         <Pressable
           style={styles.quickAction}
-          onPress={() => router.push('/portfolio/alerts' as any)}
+          onPress={() => router.push('/portfolio/add' as any)}
         >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.warningMuted }]}>
-            <Bell size={22} color={Colors.warning} />
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.accentMuted }]}>
+            <Plus size={22} color={Colors.accent} />
           </View>
-          <Text style={styles.quickLabel}>Alerts</Text>
+          <Text style={styles.quickLabel}>Add</Text>
         </Pressable>
       </View>
     </ScrollView>

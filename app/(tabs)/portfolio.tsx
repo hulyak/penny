@@ -27,6 +27,11 @@ import {
   CreditCard,
   DollarSign,
   Upload,
+  Camera,
+  Sparkles,
+  Mic,
+  Receipt,
+  Bot,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { usePurchases } from '@/context/PurchasesContext';
@@ -267,10 +272,10 @@ export default function PortfolioScreen() {
             <Bell size={20} color={Colors.text} />
           </Pressable>
           <Pressable
-            style={styles.alertButton}
-            onPress={() => router.push('/portfolio/import' as any)}
+            style={[styles.alertButton, styles.scanButton]}
+            onPress={() => router.push('/portfolio/scan' as any)}
           >
-            <Upload size={20} color={Colors.text} />
+            <Camera size={20} color="#4285F4" />
           </Pressable>
           <Pressable
             style={styles.addButton}
@@ -456,6 +461,40 @@ export default function PortfolioScreen() {
       {/* Performance Chart */}
       {holdings.length > 0 && <PerformanceChart />}
 
+      {/* AI Features Row - Voice Coach, Receipt Scan, Agent */}
+      <View style={styles.aiActionsRow}>
+        <Pressable
+          style={styles.aiActionCard}
+          onPress={() => router.push('/portfolio/voice-coach' as any)}
+        >
+          <View style={[styles.aiActionIcon, { backgroundColor: 'rgba(66, 133, 244, 0.15)' }]}>
+            <Mic size={20} color="#4285F4" />
+          </View>
+          <Text style={styles.aiActionTitle}>Voice Coach</Text>
+          <Text style={styles.aiActionSubtitle}>Talk to Gemini 3</Text>
+        </Pressable>
+        <Pressable
+          style={styles.aiActionCard}
+          onPress={() => router.push('/portfolio/receipt-scan' as any)}
+        >
+          <View style={[styles.aiActionIcon, { backgroundColor: Colors.goldMuted }]}>
+            <Receipt size={20} color={Colors.gold} />
+          </View>
+          <Text style={styles.aiActionTitle}>Scan Receipt</Text>
+          <Text style={styles.aiActionSubtitle}>Track expenses</Text>
+        </Pressable>
+        <Pressable
+          style={styles.aiActionCard}
+          onPress={() => router.push('/portfolio/agent-activity' as any)}
+        >
+          <View style={[styles.aiActionIcon, { backgroundColor: Colors.lavenderMuted }]}>
+            <Bot size={20} color={Colors.lavender} />
+          </View>
+          <Text style={styles.aiActionTitle}>Agent</Text>
+          <Text style={styles.aiActionSubtitle}>View activity</Text>
+        </Pressable>
+      </View>
+
       {/* Quick Actions - Loans & Dividends */}
       <View style={styles.quickActionsRow}>
         <Pressable
@@ -533,14 +572,37 @@ export default function PortfolioScreen() {
 
         {holdings.length === 0 ? (
           <View style={styles.emptyStateContainer}>
+            {/* Gemini 3 Multimodal Scan - HIGHLIGHT FOR HACKATHON */}
+            <Pressable
+              style={styles.scanCard}
+              onPress={() => router.push('/portfolio/scan' as any)}
+            >
+              <View style={styles.scanCardBadge}>
+                <Sparkles size={12} color="#4285F4" />
+                <Text style={styles.scanCardBadgeText}>Gemini 3 Vision</Text>
+              </View>
+              <View style={styles.scanCardIcon}>
+                <Camera size={32} color="#4285F4" />
+              </View>
+              <Text style={styles.scanCardTitle}>Scan Your Statement</Text>
+              <Text style={styles.scanCardSubtitle}>
+                Point your camera at any brokerage statement - AI extracts holdings instantly
+              </Text>
+              <View style={styles.scanCardFeatures}>
+                <Text style={styles.scanCardFeature}>• Multimodal document analysis</Text>
+                <Text style={styles.scanCardFeature}>• High thinking level reasoning</Text>
+                <Text style={styles.scanCardFeature}>• Auto-import to portfolio</Text>
+              </View>
+            </Pressable>
+
             <Pressable
               style={styles.emptyCard}
               onPress={() => router.push('/portfolio/add' as any)}
             >
               <Plus size={32} color={Colors.accent} />
-              <Text style={styles.emptyCardTitle}>Add your first investment</Text>
+              <Text style={styles.emptyCardTitle}>Add Manually</Text>
               <Text style={styles.emptyCardSubtitle}>
-                Track stocks, ETFs, mutual funds, gold, real estate and more
+                Enter holdings one by one
               </Text>
             </Pressable>
             <Pressable
@@ -549,9 +611,9 @@ export default function PortfolioScreen() {
             >
               <Upload size={24} color={Colors.primary} />
               <View style={styles.importCardContent}>
-                <Text style={styles.importCardTitle}>Import Multiple Holdings</Text>
+                <Text style={styles.importCardTitle}>Import CSV</Text>
                 <Text style={styles.importCardSubtitle}>
-                  CSV import or quick bulk entry
+                  Bulk import from spreadsheet
                 </Text>
               </View>
               <ChevronRight size={18} color={Colors.textMuted} />
@@ -657,6 +719,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scanButton: {
+    backgroundColor: 'rgba(66, 133, 244, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(66, 133, 244, 0.3)',
   },
   addButton: {
     width: 42,
@@ -926,6 +993,40 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
+  // AI Actions Row (Voice, Receipt, Agent)
+  aiActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  aiActionCard: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(66, 133, 244, 0.1)',
+  },
+  aiActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  aiActionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  aiActionSubtitle: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+
   // Quick Actions Row
   quickActionsRow: {
     flexDirection: 'row',
@@ -1022,6 +1123,61 @@ const styles = StyleSheet.create({
   // Empty State
   emptyStateContainer: {
     gap: 12,
+  },
+  // Gemini 3 Scan Card - Prominent for Hackathon
+  scanCard: {
+    backgroundColor: 'rgba(66, 133, 244, 0.08)',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(66, 133, 244, 0.3)',
+    marginBottom: 4,
+  },
+  scanCardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(66, 133, 244, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  scanCardBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4285F4',
+  },
+  scanCardIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(66, 133, 244, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  scanCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  scanCardSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  scanCardFeatures: {
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  scanCardFeature: {
+    fontSize: 12,
+    color: '#4285F4',
+    fontWeight: '500',
   },
   emptyCard: {
     backgroundColor: Colors.surface,

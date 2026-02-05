@@ -33,6 +33,7 @@ import { usePurchases } from '@/context/PurchasesContext';
 import portfolioService from '@/lib/portfolioService';
 import { generatePortfolioInsights, PortfolioInsight, PortfolioCoachingContext, getPortfolioGoals } from '@/lib/portfolioCoach';
 import { PremiumBadge } from '@/components/PremiumBadge';
+import { GeminiBadge } from '@/components/GeminiBadge';
 
 const INSIGHT_ICONS: Record<string, any> = {
   diversification: PieChart,
@@ -196,9 +197,9 @@ export default function AIInsightsScreen() {
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
         }
       >
-        {/* AI Banner */}
+        {/* AI Banner - Gemini 3 Branding */}
         <LinearGradient
-          colors={['#5B5FEF', '#8B5CF6']}
+          colors={['#4285F4', '#5B5FEF']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.aiBanner}
@@ -207,9 +208,14 @@ export default function AIInsightsScreen() {
             <Sparkles size={24} color="#FFFFFF" />
           </View>
           <View style={styles.aiBannerContent}>
-            <Text style={styles.aiBannerTitle}>Penny AI Coach</Text>
+            <View style={styles.aiBannerTitleRow}>
+              <Text style={styles.aiBannerTitle}>Penny AI Coach</Text>
+              <View style={styles.gemini3Badge}>
+                <Text style={styles.gemini3BadgeText}>Gemini 3</Text>
+              </View>
+            </View>
             <Text style={styles.aiBannerSubtitle}>
-              Personalized insights powered by Google Gemini AI
+              Advanced reasoning with thinking levels • Real-time analysis
             </Text>
           </View>
           {!isPremium && (
@@ -416,15 +422,31 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  aiBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   aiBannerTitle: {
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  gemini3Badge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  gemini3BadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   aiBannerSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
+    marginTop: 4,
   },
   premiumBadgeWrapper: {
     flexDirection: 'row',

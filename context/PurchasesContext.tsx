@@ -1,8 +1,11 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const DEMO_MODE_KEY = '@penny_demo_mode';
 
 function getRCToken() {
   if (__DEV__ || Platform.OS === "web") {
@@ -26,6 +29,21 @@ const ENTITLEMENT_ID = 'coach_plus';
 export const [PurchasesProvider, usePurchases] = createContextHook(() => {
   const queryClient = useQueryClient();
   const [isPaywallVisible, setIsPaywallVisible] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  // Check for demo mode on mount
+  useEffect(() => {
+    const checkDemoMode = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(DEMO_MODE_KEY);
+        setIsDemoMode(stored === 'true');
+        console.log('[Purchases] Demo mode:', stored === 'true');
+      } catch (error) {
+        console.error('[Purchases] Error checking demo mode:', error);
+      }
+    };
+    checkDemoMode();
+  }, []);
 
   const customerInfoQuery = useQuery({
     queryKey: ['customerInfo'],
@@ -80,7 +98,8 @@ export const [PurchasesProvider, usePurchases] = createContextHook(() => {
     },
   });
 
-  const isPremium = customerInfoQuery.data?.entitlements.active[ENTITLEMENT_ID]?.isActive ?? false;
+  // Demo mode = premium access for hackathon judges
+  const isPremium = isDemoMode || (customerInfoQuery.data?.entitlements.active[ENTITLEMENT_ID]?.isActive ?? false);
 
   const currentOffering = offeringsQuery.data?.current ?? null;
 
@@ -112,8 +131,24 @@ export const [PurchasesProvider, usePurchases] = createContextHook(() => {
     restoreMutate();
   }, [restoreMutate]);
 
+  // Demo mode functions for hackathon
+  const enableDemoMode = useCallback(async () => {
+    console.log('[Purchases] Enabling demo mode (premium access for judges)');
+    await AsyncStorage.setItem(DEMO_MODE_KEY, 'true');
+    setIsDemoMode(true);
+  }, []);
+
+  const disableDemoMode = useCallback(async () => {
+    console.log('[Purchases] Disabling demo mode');
+    await AsyncStorage.removeItem(DEMO_MODE_KEY);
+    setIsDemoMode(false);
+  }, []);
+
   return {
     isPremium,
+    isDemoMode,
+    enableDemoMode,
+    disableDemoMode,
     isLoading: customerInfoQuery.isLoading || offeringsQuery.isLoading,
     isPurchasing: purchaseMutation.isPending,
     isRestoring: restoreMutation.isPending,

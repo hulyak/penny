@@ -32,6 +32,7 @@ import {
 } from '@/lib/portfolioCoach';
 import { Holding, AssetClass } from '@/types';
 import { opik } from '@/lib/opik';
+import { GeminiBadge } from './GeminiBadge';
 
 interface PortfolioCoachCardProps {
   holdings: Holding[];
@@ -229,6 +230,9 @@ export function PortfolioCoachCard({
           <View style={styles.tipHeader}>
             <Sparkles size={14} color={Colors.accent} />
             <Text style={styles.tipLabel}>Today's Focus</Text>
+            <View style={styles.tipBadge}>
+              <GeminiBadge variant="inline" />
+            </View>
           </View>
           <Text style={styles.tipText}>{dailyTip}</Text>
         </View>
@@ -361,6 +365,10 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    flex: 1,
+  },
+  tipBadge: {
+    marginLeft: 'auto',
   },
   tipText: {
     fontSize: 14,
