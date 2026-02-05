@@ -34,8 +34,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Track your first $1,000 in investments',
     target: 1000,
     unit: 'dollars',
-    icon: '💰',
-    badge: '🌱',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'first_10k_tracked',
@@ -44,8 +44,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Track $10,000+ in investments',
     target: 10000,
     unit: 'dollars',
-    icon: '💵',
-    badge: '⭐',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'first_50k_tracked',
@@ -54,8 +54,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Track $50,000+ in investments',
     target: 50000,
     unit: 'dollars',
-    icon: '🏆',
-    badge: '💎',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'first_100k_tracked',
@@ -64,8 +64,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Track $100,000+ in investments',
     target: 100000,
     unit: 'dollars',
-    icon: '👑',
-    badge: '🏅',
+    icon: 'penny',
+    badge: 'penny',
   },
 
   // Holdings milestones
@@ -76,8 +76,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Add your first holding to track',
     target: 1,
     unit: 'holdings',
-    icon: '🎯',
-    badge: '📈',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'five_holdings',
@@ -86,8 +86,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Track 5 different investments',
     target: 5,
     unit: 'holdings',
-    icon: '📊',
-    badge: '🌟',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'ten_holdings',
@@ -96,8 +96,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Track 10+ different investments',
     target: 10,
     unit: 'holdings',
-    icon: '🎨',
-    badge: '🏆',
+    icon: 'penny',
+    badge: 'penny',
   },
 
   // Diversification milestones
@@ -108,8 +108,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Invest across 2 asset classes',
     target: 2,
     unit: 'asset classes',
-    icon: '🔀',
-    badge: '🌈',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'four_asset_classes',
@@ -118,8 +118,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Invest across 4+ asset classes',
     target: 4,
     unit: 'asset classes',
-    icon: '⚖️',
-    badge: '🎖️',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'high_diversification_score',
@@ -128,8 +128,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Achieve a 75+ diversification score',
     target: 75,
     unit: 'score',
-    icon: '🛡️',
-    badge: '💎',
+    icon: 'penny',
+    badge: 'penny',
   },
 
   // Performance milestones
@@ -140,8 +140,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'See your first positive return',
     target: 1,
     unit: 'percent',
-    icon: '📈',
-    badge: '🍀',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'ten_percent_gain',
@@ -150,8 +150,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Achieve 10%+ total returns',
     target: 10,
     unit: 'percent',
-    icon: '🚀',
-    badge: '🔥',
+    icon: 'penny',
+    badge: 'penny',
   },
 
   // Streak milestones
@@ -162,8 +162,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Check portfolio for 7 days straight',
     target: 7,
     unit: 'days',
-    icon: '🔥',
-    badge: '📅',
+    icon: 'penny',
+    badge: 'penny',
   },
   {
     id: 'month_tracking_streak',
@@ -172,8 +172,8 @@ export const DEFAULT_PORTFOLIO_MILESTONES: Omit<PortfolioMilestone, 'current' | 
     description: 'Track for 30 days straight',
     target: 30,
     unit: 'days',
-    icon: '🌟',
-    badge: '🏆',
+    icon: 'penny',
+    badge: 'penny',
   },
 ];
 

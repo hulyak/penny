@@ -26,6 +26,7 @@ import {
   Star,
   CreditCard,
   DollarSign,
+  Upload,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { usePurchases } from '@/context/PurchasesContext';
@@ -264,6 +265,12 @@ export default function PortfolioScreen() {
             onPress={() => router.push('/portfolio/alerts' as any)}
           >
             <Bell size={20} color={Colors.text} />
+          </Pressable>
+          <Pressable
+            style={styles.alertButton}
+            onPress={() => router.push('/portfolio/import' as any)}
+          >
+            <Upload size={20} color={Colors.text} />
           </Pressable>
           <Pressable
             style={styles.addButton}
@@ -525,16 +532,31 @@ export default function PortfolioScreen() {
         </View>
 
         {holdings.length === 0 ? (
-          <Pressable
-            style={styles.emptyCard}
-            onPress={() => router.push('/portfolio/add' as any)}
-          >
-            <Plus size={32} color={Colors.accent} />
-            <Text style={styles.emptyCardTitle}>Add your first investment</Text>
-            <Text style={styles.emptyCardSubtitle}>
-              Track stocks, ETFs, mutual funds, gold, real estate and more
-            </Text>
-          </Pressable>
+          <View style={styles.emptyStateContainer}>
+            <Pressable
+              style={styles.emptyCard}
+              onPress={() => router.push('/portfolio/add' as any)}
+            >
+              <Plus size={32} color={Colors.accent} />
+              <Text style={styles.emptyCardTitle}>Add your first investment</Text>
+              <Text style={styles.emptyCardSubtitle}>
+                Track stocks, ETFs, mutual funds, gold, real estate and more
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.importCard}
+              onPress={() => router.push('/portfolio/import' as any)}
+            >
+              <Upload size={24} color={Colors.primary} />
+              <View style={styles.importCardContent}>
+                <Text style={styles.importCardTitle}>Import Multiple Holdings</Text>
+                <Text style={styles.importCardSubtitle}>
+                  CSV import or quick bulk entry
+                </Text>
+              </View>
+              <ChevronRight size={18} color={Colors.textMuted} />
+            </Pressable>
+          </View>
         ) : (
           holdings.map((holding) => (
             <HoldingCard
@@ -997,7 +1019,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  // Empty Card
+  // Empty State
+  emptyStateContainer: {
+    gap: 12,
+  },
   emptyCard: {
     backgroundColor: Colors.surface,
     borderRadius: 20,
@@ -1018,6 +1043,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 20,
+  },
+  importCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+    gap: 12,
+  },
+  importCardContent: {
+    flex: 1,
+  },
+  importCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  importCardSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 
   // Holding Card

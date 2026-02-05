@@ -1,11 +1,13 @@
 import React, { useRef } from 'react';
-import { View, Text, StyleSheet, Share, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Share, Pressable, Image } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { cacheDirectory, copyAsync } from 'expo-file-system/legacy';
 import { Share2, Shield, PieChart, Globe, Briefcase } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Holding, AssetClass, ASSET_CLASS_COLORS } from '@/types';
+
+const PENNY_ICON = require('@/assets/images/bird-penny.png');
 
 interface PortfolioReportCardProps {
   holdings: Holding[];
@@ -74,7 +76,7 @@ export function PortfolioReportCard({
           });
         } else {
           await Share.share({
-            message: `My Portfolio Report Card\n\nDiversification Score: ${diversificationScore}/100 (${getScoreGrade()})\nRisk Level: ${riskLevel}\nHoldings: ${holdings.length}\nAsset Classes: ${assetClassCount}\nSectors: ${sectorCount}\nCountries: ${countryCount}\n\n📊 Tracked with Penny`,
+            message: `My Portfolio Report Card\n\nDiversification Score: ${diversificationScore}/100 (${getScoreGrade()})\nRisk Level: ${riskLevel}\nHoldings: ${holdings.length}\nAsset Classes: ${assetClassCount}\nSectors: ${sectorCount}\nCountries: ${countryCount}\n\nTracked with Penny`,
           });
         }
       }
@@ -163,7 +165,8 @@ export function PortfolioReportCard({
         )}
 
         <View style={styles.branding}>
-          <Text style={styles.brandingText}>📊 Generated with Penny</Text>
+          <Image source={PENNY_ICON} style={styles.brandingIcon} />
+          <Text style={styles.brandingText}>Generated with Penny</Text>
         </View>
       </View>
 
@@ -285,10 +288,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   branding: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+  },
+  brandingIcon: {
+    width: 20,
+    height: 20,
   },
   brandingText: {
     fontSize: 12,

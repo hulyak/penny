@@ -61,7 +61,7 @@ export default function ModelPortfolioScreen() {
       .join('\n');
 
     await Share.share({
-      message: `${JOSH_PROFILE.name}'s Model Portfolio 📊\n\n${portfolio.description}\n\nHoldings:\n${holdingsList}\n\nTrack your own portfolio with Penny!`,
+      message: `${JOSH_PROFILE.name}'s Model Portfolio\n\n${portfolio.description}\n\nHoldings:\n${holdingsList}\n\nTrack your own portfolio with Penny!`,
     });
   };
 

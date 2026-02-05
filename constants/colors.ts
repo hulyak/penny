@@ -5,6 +5,7 @@ const Colors = {
   primary: '#00D09C', // Mint green - finance apps love this
   primaryLight: '#00E6AC',
   primaryDark: '#00B386',
+  primaryMuted: 'rgba(0, 208, 156, 0.15)',
 
   secondary: '#5B5FEF', // Purple accent for premium feel
   secondaryLight: '#7B7FF2',

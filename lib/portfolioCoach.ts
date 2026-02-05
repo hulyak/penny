@@ -392,7 +392,7 @@ export async function generatePortfolioInsights(
         id: `goal_achieved_${Date.now()}`,
         type: "milestone",
         priority: "high",
-        title: "Goal Achieved! 🎉",
+        title: "Goal Achieved!",
         message: `You've reached your target of $${context.goals.targetValue.toLocaleString()}! Time to set a new goal?`,
         actionLabel: "Update Goal",
         actionRoute: "/portfolio/goals",

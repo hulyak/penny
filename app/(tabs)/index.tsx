@@ -22,6 +22,7 @@ import {
   Star,
   Briefcase,
   Sparkles,
+  Upload,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { PortfolioCoachCard } from '@/components/PortfolioCoachCard';
@@ -327,22 +328,33 @@ export default function HomeScreen() {
           </LinearGradient>
         </Pressable>
       ) : (
-        <Pressable
-          style={styles.emptyCard}
-          onPress={() => router.push('/portfolio/add' as any)}
-        >
-          <View style={styles.emptyIconWrapper}>
-            <Sparkles size={32} color={Colors.accent} />
+        <View style={styles.emptyStateContainer}>
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconWrapper}>
+              <Sparkles size={32} color={Colors.accent} />
+            </View>
+            <Text style={styles.emptyTitle}>Start Your Portfolio</Text>
+            <Text style={styles.emptySubtitle}>
+              Add your investments to track performance and get personalized AI coaching
+            </Text>
+            <View style={styles.emptyButtonsRow}>
+              <Pressable
+                style={styles.emptyButton}
+                onPress={() => router.push('/portfolio/add' as any)}
+              >
+                <Plus size={18} color={Colors.textLight} />
+                <Text style={styles.emptyButtonText}>Add Holding</Text>
+              </Pressable>
+              <Pressable
+                style={styles.emptyButtonSecondary}
+                onPress={() => router.push('/portfolio/import' as any)}
+              >
+                <Upload size={18} color={Colors.primary} />
+                <Text style={styles.emptyButtonSecondaryText}>Bulk Import</Text>
+              </Pressable>
+            </View>
           </View>
-          <Text style={styles.emptyTitle}>Start Your Portfolio</Text>
-          <Text style={styles.emptySubtitle}>
-            Add your investments to track performance and get personalized AI coaching
-          </Text>
-          <View style={styles.emptyButton}>
-            <Plus size={18} color={Colors.textLight} />
-            <Text style={styles.emptyButtonText}>Add First Holding</Text>
-          </View>
-        </Pressable>
+        </View>
       )}
 
       {/* Performance Chart */}
@@ -524,12 +536,22 @@ export default function HomeScreen() {
 
         <Pressable
           style={styles.quickAction}
-          onPress={() => router.push('/portfolio/analysis' as any)}
+          onPress={() => router.push('/portfolio/import' as any)}
+        >
+          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.primaryMuted }]}>
+            <Upload size={22} color={Colors.primary} />
+          </View>
+          <Text style={styles.quickLabel}>Import</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.quickAction}
+          onPress={() => router.push('/portfolio/ai-insights' as any)}
         >
           <View style={[styles.quickIconWrapper, { backgroundColor: Colors.purpleMuted }]}>
-            <BarChart3 size={22} color={Colors.purple} />
+            <Sparkles size={22} color={Colors.purple} />
           </View>
-          <Text style={styles.quickLabel}>Analyze</Text>
+          <Text style={styles.quickLabel}>AI Coach</Text>
         </Pressable>
 
         <Pressable
@@ -540,16 +562,6 @@ export default function HomeScreen() {
             <Bell size={22} color={Colors.warning} />
           </View>
           <Text style={styles.quickLabel}>Alerts</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.quickAction}
-          onPress={() => router.push('/creator' as any)}
-        >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.goldMuted }]}>
-            <Star size={22} color={Colors.gold} />
-          </View>
-          <Text style={styles.quickLabel}>Creator</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -701,11 +713,13 @@ const styles = StyleSheet.create({
   },
 
   // Empty Card
+  emptyStateContainer: {
+    marginTop: 16,
+  },
   emptyCard: {
     backgroundColor: Colors.surface,
     borderRadius: 24,
     padding: 32,
-    marginTop: 16,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
@@ -732,6 +746,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 20,
   },
+  emptyButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -745,6 +763,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.textLight,
+  },
+  emptyButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+  },
+  emptyButtonSecondaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 
   // Stats Grid

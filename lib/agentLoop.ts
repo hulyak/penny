@@ -355,7 +355,7 @@ Just respond with the message, nothing else.`,
 
       await sendIntervention(
         'drift_alert',
-        '📊 Portfolio Drift Detected',
+        'Portfolio Drift Detected',
         aiMessage.trim(),
         state
       );
@@ -371,8 +371,8 @@ Just respond with the message, nothing else.`,
     ) {
       await sendIntervention(
         'contribution_reminder',
-        '💰 Investment Day!',
-        `Time for your $${monthlyTarget} monthly contribution. Small steps lead to big gains! 🚀`,
+        'Investment Day!',
+        `Time for your $${monthlyTarget} monthly contribution. Small steps lead to big gains!`,
         state
       );
     }
@@ -389,8 +389,8 @@ Just respond with the message, nothing else.`,
 
       await sendIntervention(
         'goal_check',
-        '🎯 Weekly Check-in',
-        `Your portfolio is at $${totalValue.toLocaleString()}. Take 2 min to review your progress! 📈`,
+        'Weekly Check-in',
+        `Your portfolio is at $${totalValue.toLocaleString()}. Take 2 min to review your progress!`,
         state
       );
     }

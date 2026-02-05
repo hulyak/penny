@@ -160,7 +160,7 @@ async function scheduleReminderNotification(alert: PriceAlert): Promise<void> {
     await Notifications.scheduleNotificationAsync({
       identifier: alert.id,
       content: {
-        title: '🔔 Reminder',
+        title: 'Reminder',
         body: alert.message,
         data: { alertId: alert.id, type: alert.type },
       },
@@ -196,15 +196,15 @@ async function cancelMaturityReminders(alertId: string): Promise<void> {
 function getReminderTitle(daysBefore: number): string {
   switch (daysBefore) {
     case 0:
-      return '📅 Maturity Today!';
+      return 'Maturity Today!';
     case 1:
-      return '📅 Maturity Tomorrow';
+      return 'Maturity Tomorrow';
     case 7:
-      return '📅 Maturity in 1 Week';
+      return 'Maturity in 1 Week';
     case 30:
-      return '📅 Maturity in 30 Days';
+      return 'Maturity in 30 Days';
     default:
-      return `📅 Maturity in ${daysBefore} Days`;
+      return `Maturity in ${daysBefore} Days`;
   }
 }
 
@@ -279,7 +279,7 @@ export async function checkPriceAlerts(holdings: Holding[]): Promise<PriceAlert[
       // Send notification
       const direction = alert.type === 'price_above' ? 'above' : 'below';
       await sendNotification(
-        `🎯 Price Alert: ${holding.name}`,
+        `Price Alert: ${holding.name}`,
         `${holding.symbol || holding.name} is now $${currentPrice.toFixed(2)}, ${direction} your target of $${targetPrice.toFixed(2)}`,
         { alertId: alert.id, holdingId: holding.id }
       );
@@ -319,7 +319,7 @@ export async function checkDateAlerts(): Promise<PriceAlert[]> {
     // Check if today is the target date
     if (targetDate.getTime() === today.getTime()) {
       await sendNotification(
-        alert.type === 'maturity' ? '📅 Maturity Today!' : '🔔 Reminder',
+        alert.type === 'maturity' ? 'Maturity Today!' : 'Reminder',
         alert.message,
         { alertId: alert.id }
       );

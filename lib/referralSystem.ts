@@ -47,21 +47,21 @@ export const REFERRAL_TIERS: ReferralTier[] = [
   {
     name: 'Advocate',
     minReferrals: 3,
-    badge: '⭐',
+    badge: 'penny',
     perks: ['10 days PRO per referral', 'Early feature access'],
     premiumDaysPerReferral: 10,
   },
   {
     name: 'Champion',
     minReferrals: 5,
-    badge: '🏆',
+    badge: 'penny',
     perks: ['14 days PRO per referral', 'Priority support', 'Exclusive badge'],
     premiumDaysPerReferral: 14,
   },
   {
     name: 'Ambassador',
     minReferrals: 10,
-    badge: '💎',
+    badge: 'penny',
     perks: ['30 days PRO per referral', 'Direct feedback channel', 'Beta tester'],
     premiumDaysPerReferral: 30,
   },
@@ -276,13 +276,13 @@ export async function getTotalAvailablePremiumDays(): Promise<number> {
 }
 
 export function getShareMessage(referralCode: string, tier: ReferralTier): string {
-  return `I'm tracking my investments with Penny and loving it! ${tier.badge}
+  return `I'm tracking my investments with Penny and loving it!
 
 Use my code ${referralCode} when you sign up and we both get free PRO access.
 
-📊 Multi-asset tracking
-🤖 AI-powered insights
-🔔 Smart price alerts
+- Multi-asset tracking
+- AI-powered insights
+- Smart price alerts
 
 Download: https://penny.app/invite/${referralCode}`;
 }

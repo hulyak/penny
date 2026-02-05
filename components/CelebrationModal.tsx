@@ -15,7 +15,8 @@ import * as Sharing from 'expo-sharing';
 import { cacheDirectory, copyAsync } from 'expo-file-system/legacy';
 import { X, Share2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { MASCOT_IMAGE_URL } from '@/constants/images';
+
+const PENNY_ICON = require('@/assets/images/bird-penny.png');
 
 // Define CelebrationData locally (previously from milestones)
 export interface MilestoneData {
@@ -153,7 +154,7 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
     if (!celebration) return;
 
     await Share.share({
-      message: `${celebration.milestone.icon} Achievement Unlocked!\n\n"${celebration.milestone.title}"\n\n${celebration.milestone.current} ${celebration.milestone.unit} achieved!\n\nTracking my portfolio with Penny 📊`,
+      message: `Achievement Unlocked!\n\n"${celebration.milestone.title}"\n\n${celebration.milestone.current} ${celebration.milestone.unit} achieved!\n\nTracking my portfolio with Penny`,
     });
   };
 
@@ -210,8 +211,7 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
 
           {/* Badge & Icon */}
           <View style={styles.badgeContainer}>
-            <Text style={styles.milestoneIcon}>{milestone.icon}</Text>
-            {badge && <Text style={styles.badge}>{badge}</Text>}
+            <Image source={PENNY_ICON} style={styles.badgeIcon} />
           </View>
 
           {/* Title */}
@@ -219,7 +219,7 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
           <Text style={styles.milestoneTitle}>{milestone.title}</Text>
 
           {/* Mascot */}
-          <Image source={{ uri: MASCOT_IMAGE_URL }} style={styles.mascot} />
+          <Image source={PENNY_ICON} style={styles.mascot} />
 
           {/* Message */}
           <Text style={styles.message}>{message}</Text>
@@ -234,7 +234,8 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
 
           {/* App Branding for Share */}
           <View style={styles.brandingRow}>
-            <Text style={styles.brandingText}>📊 Tracked with Penny</Text>
+            <Image source={PENNY_ICON} style={styles.brandingIcon} />
+            <Text style={styles.brandingText}>Tracked with Penny</Text>
           </View>
           </View>
 
@@ -251,7 +252,7 @@ export function CelebrationModal({ visible, celebration, onClose }: CelebrationM
               </Text>
             </Pressable>
             <Pressable style={styles.celebrateButton} onPress={onClose}>
-              <Text style={styles.celebrateButtonText}>Keep Going! 🚀</Text>
+              <Text style={styles.celebrateButtonText}>Keep Going!</Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -298,11 +299,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
-  milestoneIcon: {
-    fontSize: 48,
-  },
-  badge: {
-    fontSize: 32,
+  badgeIcon: {
+    width: 64,
+    height: 64,
   },
   congratsText: {
     fontSize: 14,
@@ -358,11 +357,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   brandingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+  },
+  brandingIcon: {
+    width: 20,
+    height: 20,
   },
   brandingText: {
     fontSize: 12,
