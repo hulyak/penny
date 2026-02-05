@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Check, ChevronDown, Search, X } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
 import {
   AssetType,
@@ -22,8 +21,7 @@ import {
   ASSET_TYPE_CONFIG,
 } from '@/types';
 import { searchSymbols, searchCrypto } from '@/lib/priceService';
-
-const STORAGE_KEY = 'penny_portfolio_holdings';
+import portfolioService from '@/lib/portfolioService';
 
 const ASSET_TYPES: { type: AssetType; label: string; description: string }[] = [
   { type: 'stock', label: 'Stock', description: 'Individual company shares' },
@@ -213,15 +211,8 @@ export default function AddHoldingScreen() {
         updatedAt: new Date().toISOString(),
       };
 
-      // Load existing holdings
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      const holdings: Holding[] = stored ? JSON.parse(stored) : [];
-
-      // Add new holding
-      holdings.unshift(holding);
-
-      // Save
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(holdings));
+      // Save holding via portfolio service (syncs to Firebase)
+      await portfolioService.saveHolding(holding);
 
       router.back();
     } catch (error) {

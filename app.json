@@ -4,14 +4,14 @@
     "slug": "clearpath-financial-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/bird-penny.png",
     "scheme": "penny",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0E17"
     },
     "ios": {
       "supportsTablet": false,
@@ -30,13 +30,14 @@
             ]
           }
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["fetch", "processing"]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/bird-penny.png",
+        "backgroundColor": "#0A0E17"
       },
       "package": "com.penny.financialapp",
       "permissions": [
@@ -59,10 +60,12 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/bird-penny.png",
           "color": "#064E3B"
         }
-      ]
+      ],
+      "expo-background-fetch",
+      "expo-task-manager"
     ],
     "experiments": {
       "typedRoutes": true

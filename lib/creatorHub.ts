@@ -93,8 +93,8 @@ export interface CreatorNotificationSettings {
 export const JOSH_PROFILE: Creator = {
   id: 'josh_visualfaktory',
   name: 'Josh',
-  handle: '@VisualFaktory',
-  avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
+  handle: '@VisualPolitik',
+  avatar: 'https://static.wikia.nocookie.net/youtube/images/c/cc/VisualPolitik_EN_icon.jpg/revision/latest?cb=20201202125245',
   bio: 'Finance educator and creator of VisualPolitik & VisualEconomik. Helping DIY investors understand markets through visual storytelling.',
   followers: 2400000,
   verified: true,

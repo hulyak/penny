@@ -19,7 +19,6 @@ import {
   Clock,
   Check,
 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
 import { Holding, PriceAlert } from '@/types';
 import {
@@ -28,8 +27,7 @@ import {
   createDateAlert,
   requestNotificationPermissions,
 } from '@/lib/alertService';
-
-const HOLDINGS_STORAGE_KEY = 'penny_portfolio_holdings';
+import portfolioService from '@/lib/portfolioService';
 
 type AlertType = 'price_above' | 'price_below' | 'maturity' | 'reminder';
 
@@ -80,17 +78,14 @@ export default function AddAlertScreen() {
 
   const loadHolding = async () => {
     try {
-      const stored = await AsyncStorage.getItem(HOLDINGS_STORAGE_KEY);
-      if (stored) {
-        const holdings: Holding[] = JSON.parse(stored);
-        const found = holdings.find((h) => h.id === holdingId);
-        setHolding(found || null);
+      const holdings = await portfolioService.getHoldings();
+      const found = holdings.find((h) => h.id === holdingId);
+      setHolding(found || null);
 
-        // Pre-fill current price for price alerts
-        if (found) {
-          const currentPrice = found.currentPrice || found.purchasePrice;
-          setTargetPrice(currentPrice.toFixed(2));
-        }
+      // Pre-fill current price for price alerts
+      if (found) {
+        const currentPrice = found.currentPrice || found.purchasePrice;
+        setTargetPrice(currentPrice.toFixed(2));
       }
     } catch (error) {
       console.error('Failed to load holding:', error);

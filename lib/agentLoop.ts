@@ -14,8 +14,8 @@ import { opik } from './opik';
 import { generateWithGemini } from './gemini';
 import { Holding, AssetClass } from '@/types';
 import { getPortfolioGoals, PortfolioGoals } from './portfolioCoach';
+import portfolioService from './portfolioService';
 
-const HOLDINGS_KEY = 'penny_portfolio_holdings';
 const AGENT_STATE_KEY = 'penny_agent_state';
 const INTERVENTION_LOG_KEY = 'penny_interventions';
 
@@ -328,8 +328,7 @@ async function runAgentLoop(): Promise<void> {
     const goals = await getPortfolioGoals();
 
     // Load holdings
-    const holdingsStored = await AsyncStorage.getItem(HOLDINGS_KEY);
-    const holdings: Holding[] = holdingsStored ? JSON.parse(holdingsStored) : [];
+    const holdings = await portfolioService.getLocalHoldings();
 
     if (holdings.length === 0) {
       console.log('[AgentLoop] No holdings, skipping');

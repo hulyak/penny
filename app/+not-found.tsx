@@ -11,7 +11,7 @@ export default function NotFoundScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>Page Not Found</Text>
         <Text style={styles.subtitle}>
-          This screen does not exist in ClearPath.
+          This screen does not exist in Penny.
         </Text>
         <Link href="/" asChild>
           <Pressable style={styles.button}>

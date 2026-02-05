@@ -15,27 +15,33 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  Mail, 
-  Lock, 
-  User, 
-  Eye, 
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  Mail,
+  Lock,
+  User,
+  Eye,
   EyeOff,
   ChevronLeft,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import Colors from '@/constants/colors';
+import { MASCOT_IMAGE_URL } from '@/constants/images';
 
 type AuthMode = 'welcome' | 'signin' | 'signup';
+
+// Josh's avatar for branding
+const JOSH_AVATAR = 'https://pbs.twimg.com/profile_images/1745526817684033536/CKhbsnRa_400x400.jpg';
 
 export default function AuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { 
-    signInWithEmail, 
-    signUpWithEmail, 
-    signInWithGoogle, 
+  const {
+    signInWithEmail,
+    signUpWithEmail,
+    signInWithGoogle,
     signInWithApple,
     signInAsDemo,
     error,
@@ -153,7 +159,7 @@ export default function AuthScreen() {
   }, [signInWithApple, router]);
 
   const renderWelcome = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.contentContainer,
         {
@@ -162,29 +168,33 @@ export default function AuthScreen() {
         },
       ]}
     >
-      <Text style={styles.welcomeTitle}>Welcome to Penny</Text>
+      {/* App Logo */}
+      <View style={styles.logoContainer}>
+        <Image
+          source={{ uri: MASCOT_IMAGE_URL }}
+          style={styles.mascotLogo}
+        />
+        <Text style={styles.logoText}>Penny</Text>
+        <Text style={styles.logoTagline}>Your Portfolio Companion</Text>
+      </View>
+
+      {/* Subtitle */}
       <Text style={styles.welcomeSubtitle}>
-        Your personal finance companion powered by AI
+        Add assets in your portfolio
       </Text>
 
-      <View style={styles.socialButtons}>
-        <Pressable 
-          style={({ pressed }) => [
-            styles.socialButton,
-            styles.googleButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={handleGoogleAuth}
-          disabled={isLoading}
-        >
-          <Image 
-            source={{ uri: 'https://www.google.com/favicon.ico' }}
-            style={styles.socialIcon}
-          />
-          <Text style={styles.socialButtonText}>Continue with Google</Text>
-        </Pressable>
+      {/* Decorative asset chip */}
+      <View style={styles.assetChip}>
+        <View style={styles.assetChipIcon}>
+          <Text style={styles.btcIcon}>₿</Text>
+        </View>
+        <Text style={styles.assetChipText}>Bitcoin</Text>
+        <Text style={styles.assetChipPlus}>+</Text>
+      </View>
 
-        <Pressable 
+      {/* Social buttons */}
+      <View style={styles.socialButtons}>
+        <Pressable
           style={({ pressed }) => [
             styles.socialButton,
             styles.appleButton,
@@ -196,71 +206,86 @@ export default function AuthScreen() {
           <Text style={styles.appleIcon}></Text>
           <Text style={styles.appleButtonText}>Continue with Apple</Text>
         </Pressable>
-      </View>
 
-      <View style={styles.dividerContainer}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.divider} />
-      </View>
-
-      <Pressable 
-        style={({ pressed }) => [
-          styles.emailButton,
-          pressed && styles.buttonPressed,
-        ]}
-        onPress={() => animateTransition(() => setMode('signin'))}
-      >
-        <Mail size={20} color={Colors.text} />
-        <Text style={styles.emailButtonText}>Continue with Email</Text>
-      </Pressable>
-
-      <Pressable 
-        style={styles.createAccountLink}
-        onPress={() => animateTransition(() => setMode('signup'))}
-      >
-        <Text style={styles.createAccountText}>
-          Don&apos;t have an account? <Text style={styles.linkText}>Sign up</Text>
-        </Text>
-      </Pressable>
-
-      <View style={styles.demoContainer}>
-        <View style={styles.demoDivider} />
-        <Pressable 
+        <Pressable
           style={({ pressed }) => [
-            styles.demoButton,
-            pressed && styles.demoButtonPressed,
+            styles.socialButton,
+            styles.googleButton,
+            pressed && styles.buttonPressed,
           ]}
-          onPress={async () => {
-            setIsLoading(true);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            const success = await signInAsDemo();
-            if (success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              router.replace('/(tabs)');
-            }
-            setIsLoading(false);
-          }}
+          onPress={handleGoogleAuth}
           disabled={isLoading}
         >
-          <Text style={styles.demoButtonText}>Try Demo Mode</Text>
-          <Text style={styles.demoSubtext}>Explore the app without signing up</Text>
+          <Image
+            source={{ uri: 'https://www.google.com/favicon.ico' }}
+            style={styles.socialIcon}
+          />
+          <Text style={styles.googleButtonText}>Continue with Google</Text>
         </Pressable>
       </View>
+
+      {/* Divider */}
+      <View style={styles.dividerContainer}>
+        <View style={styles.divider} />
+      </View>
+
+      {/* Email options */}
+      <View style={styles.emailOptions}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.emailLink,
+            pressed && { opacity: 0.7 },
+          ]}
+          onPress={() => animateTransition(() => setMode('signin'))}
+        >
+          <Text style={styles.emailLinkText}>Sign in with Email</Text>
+        </Pressable>
+        <Text style={styles.emailDot}>·</Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.emailLink,
+            pressed && { opacity: 0.7 },
+          ]}
+          onPress={() => animateTransition(() => setMode('signup'))}
+        >
+          <Text style={styles.emailLinkText}>Create Account</Text>
+        </Pressable>
+      </View>
+
+      {/* Demo mode */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.demoButton,
+          pressed && styles.demoButtonPressed,
+        ]}
+        onPress={async () => {
+          setIsLoading(true);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          const success = await signInAsDemo();
+          if (success) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            router.replace('/(tabs)');
+          }
+          setIsLoading(false);
+        }}
+        disabled={isLoading}
+      >
+        <Text style={styles.demoButtonText}>Try Demo Mode</Text>
+      </Pressable>
     </Animated.View>
   );
 
   const renderEmailForm = () => (
-    <Animated.View 
+    <Animated.View
       style={[
-        styles.contentContainer,
+        styles.formContainer,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         },
       ]}
     >
-      <Pressable 
+      <Pressable
         style={styles.backButton}
         onPress={() => animateTransition(() => setMode('welcome'))}
       >
@@ -269,12 +294,12 @@ export default function AuthScreen() {
       </Pressable>
 
       <Text style={styles.formTitle}>
-        {mode === 'signin' ? 'Welcome back' : 'Create your account'}
+        {mode === 'signin' ? 'Welcome back' : 'Create account'}
       </Text>
       <Text style={styles.formSubtitle}>
-        {mode === 'signin' 
-          ? 'Sign in to continue your financial journey'
-          : 'Start your path to financial clarity'}
+        {mode === 'signin'
+          ? 'Sign in to continue tracking your portfolio'
+          : 'Start your wealth-building journey'}
       </Text>
 
       {error && (
@@ -291,7 +316,7 @@ export default function AuthScreen() {
           </View>
           <TextInput
             style={styles.input}
-            placeholder="Display name"
+            placeholder="Your name"
             placeholderTextColor={Colors.textMuted}
             value={displayName}
             onChangeText={setDisplayName}
@@ -329,7 +354,7 @@ export default function AuthScreen() {
           secureTextEntry={!showPassword}
           autoComplete="password"
         />
-        <Pressable 
+        <Pressable
           style={styles.eyeButton}
           onPress={() => setShowPassword(!showPassword)}
         >
@@ -341,7 +366,7 @@ export default function AuthScreen() {
         </Pressable>
       </View>
 
-      <Pressable 
+      <Pressable
         style={({ pressed }) => [
           styles.submitButton,
           pressed && styles.submitButtonPressed,
@@ -351,7 +376,7 @@ export default function AuthScreen() {
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#000" />
         ) : (
           <Text style={styles.submitButtonText}>
             {mode === 'signin' ? 'Sign In' : 'Create Account'}
@@ -359,13 +384,13 @@ export default function AuthScreen() {
         )}
       </Pressable>
 
-      <Pressable 
+      <Pressable
         style={styles.switchModeLink}
         onPress={() => animateTransition(() => setMode(mode === 'signin' ? 'signup' : 'signin'))}
       >
         <Text style={styles.switchModeText}>
-          {mode === 'signin' 
-            ? "Don't have an account? " 
+          {mode === 'signin'
+            ? "Don't have an account? "
             : "Already have an account? "}
           <Text style={styles.linkText}>
             {mode === 'signin' ? 'Sign up' : 'Sign in'}
@@ -376,19 +401,27 @@ export default function AuthScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <KeyboardAvoidingView 
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#2d3a1f', '#1a2f1a', '#0f200f']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {mode === 'welcome' ? renderWelcome() : renderEmailForm()}
-
-          <View style={{ height: insets.bottom + 24 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -398,7 +431,6 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.mintMuted,
   },
   keyboardView: {
     flex: 1,
@@ -409,24 +441,94 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    paddingTop: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: '700' as const,
+
+  // Logo
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logoIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 208, 156, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(0, 208, 156, 0.3)',
+  },
+  mascotLogo: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '700',
     color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  welcomeSubtitle: {
-    fontSize: 16,
+  logoTagline: {
+    fontSize: 14,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 22,
+    marginTop: 4,
   },
+
+  welcomeSubtitle: {
+    fontSize: 18,
+    color: Colors.textSecondary,
+    marginBottom: 24,
+  },
+
+  // Asset chip decoration
+  assetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    gap: 10,
+    marginBottom: 48,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  assetChipIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F7931A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btcIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  assetChipText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  assetChipPlus: {
+    fontSize: 20,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+
+  // Social buttons
   socialButtons: {
+    width: '100%',
     gap: 12,
+    marginBottom: 24,
   },
   socialButton: {
     flexDirection: 'row',
@@ -436,13 +538,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     gap: 12,
   },
-  googleButton: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
   appleButton: {
-    backgroundColor: Colors.text,
+    backgroundColor: '#fff',
+  },
+  googleButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   buttonPressed: {
     opacity: 0.9,
@@ -454,65 +556,76 @@ const styles = StyleSheet.create({
   },
   appleIcon: {
     fontSize: 20,
-    color: '#fff',
-  },
-  socialButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.text,
+    color: '#000',
   },
   appleButtonText: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '600',
+    color: '#000',
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#fff',
   },
+
+  // Divider
   dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
+    width: '100%',
+    marginBottom: 20,
   },
   divider: {
-    flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-  dividerText: {
-    marginHorizontal: 16,
-    color: Colors.textMuted,
-    fontSize: 14,
-  },
-  emailButton: {
+
+  // Email options
+  emailOptions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 14,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 12,
+    marginBottom: 32,
   },
-  emailButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.text,
+  emailLink: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
-  createAccountLink: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  createAccountText: {
+  emailLinkText: {
     fontSize: 15,
     color: Colors.textSecondary,
   },
-  linkText: {
-    color: Colors.accent,
-    fontWeight: '600' as const,
+  emailDot: {
+    fontSize: 15,
+    color: Colors.textMuted,
+    marginHorizontal: 8,
+  },
+
+  // Demo button
+  demoButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderStyle: 'dashed',
+  },
+  demoButtonPressed: {
+    opacity: 0.7,
+  },
+  demoButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+
+  // Form container
+  formContainer: {
+    flex: 1,
+    paddingTop: 20,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
     marginLeft: -8,
   },
   backText: {
@@ -521,16 +634,16 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   formTitle: {
-    fontSize: 26,
-    fontWeight: '700' as const,
+    fontSize: 28,
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 8,
   },
   formSubtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: Colors.textSecondary,
-    marginBottom: 24,
-    lineHeight: 21,
+    marginBottom: 32,
+    lineHeight: 22,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -550,10 +663,10 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     marginBottom: 12,
     paddingHorizontal: 16,
   },
@@ -570,21 +683,16 @@ const styles = StyleSheet.create({
     paddingRight: 44,
   },
   eyeButton: {
-    position: 'absolute' as const,
+    position: 'absolute',
     right: 16,
     padding: 4,
   },
   submitButton: {
-    backgroundColor: Colors.accent,
+    backgroundColor: '#fff',
     paddingVertical: 18,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   submitButtonPressed: {
     opacity: 0.9,
@@ -595,8 +703,8 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 17,
-    fontWeight: '600' as const,
-    color: '#fff',
+    fontWeight: '600',
+    color: '#000',
   },
   switchModeLink: {
     alignItems: 'center',
@@ -606,38 +714,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textSecondary,
   },
-  demoContainer: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  demoDivider: {
-    width: 60,
-    height: 1,
-    backgroundColor: Colors.border,
-    marginBottom: 16,
-  },
-  demoButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    backgroundColor: Colors.mintMuted,
-    borderWidth: 1,
-    borderColor: Colors.mint,
-    borderStyle: 'dashed' as const,
-    alignItems: 'center',
-  },
-  demoButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  demoButtonText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.accent,
-  },
-  demoSubtext: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
+  linkText: {
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });

@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { startSession, endSession } from "@/lib/analytics";
 import { registerAgentLoop, markInterventionResponded } from "@/lib/agentLoop";
+import { registerBackgroundRefresh } from "@/lib/backgroundRefresh";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -124,6 +125,9 @@ export default function RootLayout() {
 
     // Register the agentic background loop
     registerAgentLoop().catch(console.error);
+
+    // Register background price refresh task
+    registerBackgroundRefresh().catch(console.error);
 
     // Listen for notification responses (user tapped notification)
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {

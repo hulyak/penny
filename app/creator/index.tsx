@@ -10,6 +10,7 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowLeft,
   Youtube,
@@ -23,6 +24,7 @@ import {
   Users,
   CheckCircle,
   ExternalLink,
+  TrendingUp,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import {
@@ -93,82 +95,106 @@ export default function CreatorHubScreen() {
       </View>
 
       {/* Creator Profile Card */}
-      <View style={styles.profileCard}>
-        <View style={styles.profileHeader}>
-          <Image source={{ uri: profile.avatar }} style={styles.avatar} />
-          <View style={styles.profileInfo}>
-            <View style={styles.nameRow}>
-              <Text style={styles.profileName}>{profile.name}</Text>
-              {profile.verified && (
-                <CheckCircle size={16} color={Colors.accent} fill={Colors.accent} />
-              )}
-            </View>
-            <Text style={styles.profileHandle}>{profile.handle}</Text>
-            <View style={styles.followersRow}>
-              <Users size={14} color={Colors.textMuted} />
-              <Text style={styles.followersText}>
-                {formatFollowers(profile.followers)} followers
-              </Text>
+      <View style={styles.profileCardWrapper}>
+        <LinearGradient
+          colors={['#5B5FEF', '#8B5CF6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.profileGradient}
+        >
+          <View style={styles.profileDecor1} />
+          <View style={styles.profileDecor2} />
+
+          <View style={styles.profileHeader}>
+            <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+            <View style={styles.profileInfo}>
+              <View style={styles.nameRow}>
+                <Text style={styles.profileName}>{profile.name}</Text>
+                {profile.verified && (
+                  <View style={styles.verifiedBadge}>
+                    <CheckCircle size={14} color="#FFFFFF" fill="#FFFFFF" />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.profileHandle}>{profile.handle}</Text>
             </View>
           </View>
+
+          <View style={styles.followersRow}>
+            <Users size={14} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.followersText}>
+              {formatFollowers(profile.followers)} followers
+            </Text>
+          </View>
+        </LinearGradient>
+
+        <View style={styles.profileContent}>
+          <Text style={styles.profileBio}>{profile.bio}</Text>
+
+          {/* Social Links */}
+          <View style={styles.socialRow}>
+            {profile.socialLinks.youtube && (
+              <Pressable
+                style={styles.socialButton}
+                onPress={() => Linking.openURL(profile.socialLinks.youtube!)}
+              >
+                <Youtube size={18} color="#FF0000" />
+                <Text style={styles.socialText}>YouTube</Text>
+              </Pressable>
+            )}
+            {profile.socialLinks.twitter && (
+              <Pressable
+                style={styles.socialButton}
+                onPress={() => Linking.openURL(profile.socialLinks.twitter!)}
+              >
+                <Twitter size={18} color="#1DA1F2" />
+                <Text style={styles.socialText}>Twitter</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Follow Button */}
+          <Pressable
+            style={[styles.followButton, isFollowing && styles.followingButton]}
+            onPress={() => setIsFollowing(!isFollowing)}
+          >
+            {isFollowing ? (
+              <>
+                <Bell size={18} color={Colors.accent} />
+                <Text style={styles.followingText}>Following</Text>
+              </>
+            ) : (
+              <>
+                <Bell size={18} color={Colors.textLight} />
+                <Text style={styles.followText}>Follow for Updates</Text>
+              </>
+            )}
+          </Pressable>
         </View>
-
-        <Text style={styles.profileBio}>{profile.bio}</Text>
-
-        {/* Social Links */}
-        <View style={styles.socialRow}>
-          {profile.socialLinks.youtube && (
-            <Pressable
-              style={styles.socialButton}
-              onPress={() => Linking.openURL(profile.socialLinks.youtube!)}
-            >
-              <Youtube size={18} color="#FF0000" />
-              <Text style={styles.socialText}>YouTube</Text>
-            </Pressable>
-          )}
-          {profile.socialLinks.twitter && (
-            <Pressable
-              style={styles.socialButton}
-              onPress={() => Linking.openURL(profile.socialLinks.twitter!)}
-            >
-              <Twitter size={18} color="#1DA1F2" />
-              <Text style={styles.socialText}>Twitter</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* Follow Button */}
-        <Pressable
-          style={[styles.followButton, isFollowing && styles.followingButton]}
-          onPress={() => setIsFollowing(!isFollowing)}
-        >
-          {isFollowing ? (
-            <>
-              <Bell size={18} color={Colors.accent} />
-              <Text style={styles.followingText}>Following</Text>
-            </>
-          ) : (
-            <>
-              <BellOff size={18} color={Colors.textLight} />
-              <Text style={styles.followText}>Follow for Updates</Text>
-            </>
-          )}
-        </Pressable>
       </View>
 
       {/* Quick Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
+          <View style={[styles.statIconWrapper, { backgroundColor: Colors.accentMuted }]}>
+            <PieChart size={16} color={Colors.accent} />
+          </View>
           <Text style={styles.statValue}>{portfolio?.holdings.length || 0}</Text>
           <Text style={styles.statLabel}>Holdings</Text>
         </View>
         <View style={styles.statCard}>
+          <View style={[styles.statIconWrapper, { backgroundColor: Colors.successMuted }]}>
+            <TrendingUp size={16} color={Colors.success} />
+          </View>
           <Text style={[styles.statValue, { color: Colors.success }]}>
             +{portfolio?.ytdPerformance?.toFixed(1) || 0}%
           </Text>
           <Text style={styles.statLabel}>YTD Return</Text>
         </View>
         <View style={styles.statCard}>
+          <View style={[styles.statIconWrapper, { backgroundColor: Colors.purpleMuted }]}>
+            <MessageSquare size={16} color={Colors.purple} />
+          </View>
           <Text style={styles.statValue}>{answeredQuestionsCount}</Text>
           <Text style={styles.statLabel}>Q&As</Text>
         </View>
@@ -332,13 +358,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: 56,
     paddingBottom: 16,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
@@ -348,22 +374,53 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
-  profileCard: {
-    backgroundColor: Colors.surface,
+
+  // Profile Card
+  profileCardWrapper: {
     marginHorizontal: 16,
     borderRadius: 20,
-    padding: 20,
+    overflow: 'hidden',
     marginBottom: 16,
+  },
+  profileGradient: {
+    padding: 20,
+    paddingBottom: 24,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  profileDecor1: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  profileDecor2: {
+    position: 'absolute',
+    bottom: -30,
+    left: -30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  profileContent: {
+    backgroundColor: Colors.surface,
+    padding: 20,
   },
   profileHeader: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    marginRight: 16,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    marginRight: 14,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   profileInfo: {
     flex: 1,
@@ -372,27 +429,35 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   profileName: {
     fontSize: 20,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#FFFFFF',
+  },
+  verifiedBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   profileHandle: {
     fontSize: 14,
-    color: Colors.textMuted,
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
   },
   followersRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
+    gap: 6,
   },
   followersText: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
   },
   profileBio: {
     fontSize: 14,
@@ -402,7 +467,7 @@ const styles = StyleSheet.create({
   },
   socialRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginBottom: 16,
   },
   socialButton: {
@@ -410,9 +475,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: Colors.surfaceSecondary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   socialText: {
     fontSize: 13,
@@ -443,28 +508,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.accent,
   },
+
+  // Stats Row
   statsRow: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    gap: 12,
+    gap: 10,
     marginBottom: 24,
   },
   statCard: {
     flex: 1,
     backgroundColor: Colors.surface,
     borderRadius: 14,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
   },
+  statIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   statValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.textMuted,
-    marginTop: 4,
+    marginTop: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

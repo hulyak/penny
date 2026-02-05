@@ -19,7 +19,7 @@ app.use(
 );
 
 app.get("/", (c) => {
-  return c.json({ status: "ok", message: "ClearPath API is running" });
+  return c.json({ status: "ok", message: "Penny API is running" });
 });
 
 export default app;

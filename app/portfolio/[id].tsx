@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
@@ -18,18 +20,25 @@ import {
   Tag,
   Globe,
   FileText,
+  DollarSign,
+  RefreshCw,
+  X,
+  BarChart2,
 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
 import { Holding, ASSET_TYPE_CONFIG, ASSET_CLASS_COLORS } from '@/types';
-
-const STORAGE_KEY = 'penny_portfolio_holdings';
+import { hasLivePricing } from '@/lib/priceService';
+import { formatInterestFrequency } from '@/lib/interestTracking';
+import { StockChart, CryptoChart, getCoinGeckoId } from '@/components/StockChart';
+import portfolioService from '@/lib/portfolioService';
 
 export default function HoldingDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [holding, setHolding] = useState<Holding | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [newPrice, setNewPrice] = useState('');
 
   useEffect(() => {
     loadHolding();
@@ -37,12 +46,9 @@ export default function HoldingDetailScreen() {
 
   const loadHolding = async () => {
     try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const holdings: Holding[] = JSON.parse(stored);
-        const found = holdings.find((h) => h.id === id);
-        setHolding(found || null);
-      }
+      const holdings = await portfolioService.getHoldings();
+      const found = holdings.find((h) => h.id === id);
+      setHolding(found || null);
     } catch (error) {
       console.error('Failed to load holding:', error);
     } finally {
@@ -61,12 +67,7 @@ export default function HoldingDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const stored = await AsyncStorage.getItem(STORAGE_KEY);
-              if (stored) {
-                const holdings: Holding[] = JSON.parse(stored);
-                const updated = holdings.filter((h) => h.id !== id);
-                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-              }
+              await portfolioService.deleteHolding(id!);
               router.back();
             } catch (error) {
               console.error('Failed to delete holding:', error);
@@ -77,6 +78,35 @@ export default function HoldingDetailScreen() {
       ]
     );
   };
+
+  const handleUpdatePrice = async () => {
+    const price = parseFloat(newPrice);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Invalid Price', 'Please enter a valid price.');
+      return;
+    }
+
+    try {
+      if (holding) {
+        const updatedHolding: Holding = {
+          ...holding,
+          currentPrice: price,
+          currentValue: holding.quantity * price,
+          lastPriceUpdate: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await portfolioService.saveHolding(updatedHolding);
+        setHolding(updatedHolding);
+        setShowPriceModal(false);
+        setNewPrice('');
+      }
+    } catch (error) {
+      console.error('Failed to update price:', error);
+      Alert.alert('Error', 'Failed to update price.');
+    }
+  };
+
+  const isManualAsset = holding ? !hasLivePricing(holding.type) : false;
 
   if (isLoading) {
     return (
@@ -113,6 +143,17 @@ export default function HoldingDetailScreen() {
           <ArrowLeft size={24} color={Colors.text} />
         </Pressable>
         <View style={styles.headerActions}>
+          {isManualAsset && (
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => {
+                setNewPrice(holding?.currentPrice?.toString() || holding?.purchasePrice.toString() || '');
+                setShowPriceModal(true);
+              }}
+            >
+              <DollarSign size={20} color={Colors.success} />
+            </Pressable>
+          )}
           <Pressable
             style={styles.actionButton}
             onPress={() => router.push(`/portfolio/add-alert?holdingId=${id}` as any)}
@@ -162,6 +203,25 @@ export default function HoldingDetailScreen() {
         </View>
       </View>
 
+      {/* Price Chart */}
+      {holding.symbol && hasLivePricing(holding.type) && (
+        <View style={styles.section}>
+          <View style={styles.chartHeader}>
+            <BarChart2 size={18} color={Colors.accent} />
+            <Text style={styles.sectionTitle}>Price Chart</Text>
+          </View>
+          {holding.type === 'crypto' ? (
+            getCoinGeckoId(holding.symbol) ? (
+              <CryptoChart coinId={getCoinGeckoId(holding.symbol)!} height={280} />
+            ) : (
+              <StockChart symbol={holding.symbol} height={280} />
+            )
+          ) : (
+            <StockChart symbol={holding.symbol} height={280} />
+          )}
+        </View>
+      )}
+
       {/* Details */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Details</Text>
@@ -201,6 +261,18 @@ export default function HoldingDetailScreen() {
           {holding.interestRate && (
             <DetailRow label="Interest Rate" value={`${holding.interestRate}%`} />
           )}
+          {holding.interestFrequency && (
+            <DetailRow
+              label="Interest Frequency"
+              value={formatInterestFrequency(holding.interestFrequency)}
+            />
+          )}
+          {holding.nextInterestDate && (
+            <DetailRow
+              label="Next Interest Date"
+              value={new Date(holding.nextInterestDate).toLocaleDateString()}
+            />
+          )}
           {holding.maturityDate && (
             <DetailRow
               label="Maturity Date"
@@ -221,6 +293,25 @@ export default function HoldingDetailScreen() {
         </View>
       )}
 
+      {/* Update Price Button for Manual Assets */}
+      {isManualAsset && (
+        <View style={styles.section}>
+          <Pressable
+            style={styles.updatePriceButton}
+            onPress={() => {
+              setNewPrice(holding.currentPrice?.toString() || holding.purchasePrice.toString());
+              setShowPriceModal(true);
+            }}
+          >
+            <RefreshCw size={18} color={Colors.accent} />
+            <Text style={styles.updatePriceText}>Update Current Price</Text>
+          </Pressable>
+          <Text style={styles.manualPriceHint}>
+            This asset requires manual price updates
+          </Text>
+        </View>
+      )}
+
       {/* Metadata */}
       <View style={styles.metadata}>
         <Text style={styles.metadataText}>
@@ -232,6 +323,57 @@ export default function HoldingDetailScreen() {
           </Text>
         )}
       </View>
+
+      {/* Price Update Modal */}
+      <Modal
+        visible={showPriceModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPriceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Update Price</Text>
+              <Pressable
+                onPress={() => setShowPriceModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <X size={24} color={Colors.text} />
+              </Pressable>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Enter the current market value for {holding.name}
+            </Text>
+            <View style={styles.priceInputContainer}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.priceInput}
+                value={newPrice}
+                onChangeText={setNewPrice}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={Colors.textMuted}
+                autoFocus
+              />
+            </View>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setShowPriceModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={styles.saveButton}
+                onPress={handleUpdatePrice}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -390,11 +532,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 24,
   },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 12,
   },
   detailsCard: {
     backgroundColor: Colors.surface,
@@ -445,5 +592,109 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     textAlign: 'center',
+  },
+
+  updatePriceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  updatePriceText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  manualPriceHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 24,
+  },
+  priceInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 24,
+  },
+  currencySymbol: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.text,
+    marginRight: 8,
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textLight,
   },
 });

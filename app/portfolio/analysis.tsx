@@ -21,10 +21,11 @@ import {
   Briefcase,
   RefreshCw,
   Share2,
+  Lock,
+  Crown,
 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
-import { Holding, ASSET_CLASS_COLORS, AssetClass } from '@/types';
+import { Holding, ASSET_CLASS_COLORS, AssetClass, RebalancePlan, PeerComparison, MarketEvent } from '@/types';
 import {
   getAIAnalysis,
   getQuickAnalysis,
@@ -32,13 +33,21 @@ import {
   AIAnalysisResult,
   PortfolioMetrics,
 } from '@/lib/portfolioAnalysis';
+import { generateRebalanceActions, getAIRebalanceRecommendations } from '@/lib/rebalanceService';
+import { getPeerComparison } from '@/lib/communityBenchmarks';
+import { getUpcomingEvents, getNewsAnalysis } from '@/lib/marketEvents';
 import { PortfolioReportCard } from '@/components/PortfolioReportCard';
 import { PeerBenchmark, generateBenchmarkMetrics } from '@/components/PeerBenchmark';
-
-const HOLDINGS_STORAGE_KEY = 'penny_portfolio_holdings';
+import { RebalanceCard } from '@/components/RebalanceCard';
+import { CommunityBenchmarkCard } from '@/components/CommunityBenchmarkCard';
+import { MarketEventsCard } from '@/components/MarketEventsCard';
+import { usePurchases } from '@/context/PurchasesContext';
+import { PremiumBadge, PremiumCard } from '@/components/PremiumBadge';
+import portfolioService from '@/lib/portfolioService';
 
 export default function AnalysisScreen() {
   const router = useRouter();
+  const { isPremium, showPaywall } = usePurchases();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysisResult | null>(null);
@@ -47,6 +56,18 @@ export default function AnalysisScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [useAI, setUseAI] = useState(true);
   const [showReportCard, setShowReportCard] = useState(false);
+
+  // New feature states
+  const [rebalancePlan, setRebalancePlan] = useState<RebalancePlan | null>(null);
+  const [peerComparison, setPeerComparison] = useState<PeerComparison | null>(null);
+  const [marketEvents, setMarketEvents] = useState<MarketEvent[]>([]);
+  const [newsAnalysis, setNewsAnalysis] = useState<{
+    headlines: { title: string; summary: string; impact: 'positive' | 'neutral' | 'negative'; relevantSymbols: string[] }[];
+    marketSentiment: 'bullish' | 'neutral' | 'bearish';
+    keyTakeaway: string;
+  } | null>(null);
+  const [isLoadingRebalance, setIsLoadingRebalance] = useState(false);
+  const [isLoadingNews, setIsLoadingNews] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -92,9 +113,8 @@ export default function AnalysisScreen() {
 
   const loadData = async () => {
     try {
-      const stored = await AsyncStorage.getItem(HOLDINGS_STORAGE_KEY);
-      if (stored) {
-        const loadedHoldings: Holding[] = JSON.parse(stored);
+      const loadedHoldings = await portfolioService.getHoldings();
+      if (loadedHoldings.length > 0) {
         setHoldings(loadedHoldings);
         const calculatedMetrics = calculateMetrics(loadedHoldings);
         setMetrics(calculatedMetrics);
@@ -102,6 +122,21 @@ export default function AnalysisScreen() {
         // Get quick analysis first
         const quickAnalysis = getQuickAnalysis(loadedHoldings);
         setAnalysis(quickAnalysis);
+
+        // Load rebalancing plan
+        const plan = generateRebalanceActions(loadedHoldings, 'moderate');
+        setRebalancePlan(plan);
+
+        // Load peer comparison
+        const comparison = getPeerComparison(loadedHoldings, 30); // Default age 30
+        setPeerComparison(comparison);
+
+        // Load market events
+        const events = getUpcomingEvents(loadedHoldings, 30);
+        setMarketEvents(events);
+
+        // Load news analysis in background
+        loadNewsAnalysis(loadedHoldings);
       }
     } catch (error) {
       console.error('Failed to load holdings:', error);
@@ -110,8 +145,45 @@ export default function AnalysisScreen() {
     }
   };
 
+  const loadNewsAnalysis = async (holdingsToAnalyze: Holding[]) => {
+    setIsLoadingNews(true);
+    try {
+      const news = await getNewsAnalysis(holdingsToAnalyze);
+      setNewsAnalysis(news);
+    } catch (error) {
+      console.error('Failed to load news:', error);
+    } finally {
+      setIsLoadingNews(false);
+    }
+  };
+
+  const refreshRebalancePlan = async () => {
+    if (holdings.length === 0) return;
+
+    setIsLoadingRebalance(true);
+    try {
+      if (isPremium) {
+        const aiPlan = await getAIRebalanceRecommendations(holdings, 'moderate');
+        setRebalancePlan(aiPlan);
+      } else {
+        const plan = generateRebalanceActions(holdings, 'moderate');
+        setRebalancePlan(plan);
+      }
+    } catch (error) {
+      console.error('Failed to refresh rebalance plan:', error);
+    } finally {
+      setIsLoadingRebalance(false);
+    }
+  };
+
   const runAIAnalysis = async () => {
     if (holdings.length === 0) return;
+
+    // Check premium status for AI analysis
+    if (!isPremium) {
+      showPaywall();
+      return;
+    }
 
     setIsAnalyzing(true);
     try {
@@ -220,12 +292,13 @@ export default function AnalysisScreen() {
         </Pressable>
       </View>
 
-      {/* Diversification Score */}
+      {/* Diversification Score - Available to all users */}
       {analysis && (
         <View style={styles.scoreCard}>
           <View style={styles.scoreHeader}>
             <Shield size={24} color={getScoreColor(analysis.diversificationScore)} />
             <Text style={styles.scoreTitle}>Diversification Score</Text>
+            {!isPremium && <PremiumBadge size="small" onPress={showPaywall} />}
           </View>
           <View style={styles.scoreRow}>
             <View
@@ -309,25 +382,36 @@ export default function AnalysisScreen() {
         </View>
       )}
 
-      {/* Concentration Risks */}
+      {/* Concentration Risks - Premium Feature */}
       {analysis && analysis.concentrationRisks.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <AlertTriangle size={20} color={Colors.warning} />
             <Text style={styles.sectionTitle}>Concentration Risks</Text>
+            {!isPremium && <Lock size={16} color={Colors.textMuted} />}
           </View>
-          {analysis.concentrationRisks.map((risk, index) => (
-            <View key={index} style={styles.riskCard}>
-              <View style={styles.riskIcon}>
-                <AlertTriangle size={16} color={Colors.warning} />
+          {isPremium ? (
+            analysis.concentrationRisks.map((risk, index) => (
+              <View key={index} style={styles.riskCard}>
+                <View style={styles.riskIcon}>
+                  <AlertTriangle size={16} color={Colors.warning} />
+                </View>
+                <View style={styles.riskContent}>
+                  <Text style={styles.riskName}>{risk.name}</Text>
+                  <Text style={styles.riskWarning}>{risk.warning}</Text>
+                </View>
+                <Text style={styles.riskPercent}>{risk.percent.toFixed(0)}%</Text>
               </View>
-              <View style={styles.riskContent}>
-                <Text style={styles.riskName}>{risk.name}</Text>
-                <Text style={styles.riskWarning}>{risk.warning}</Text>
-              </View>
-              <Text style={styles.riskPercent}>{risk.percent.toFixed(0)}%</Text>
-            </View>
-          ))}
+            ))
+          ) : (
+            <Pressable style={styles.lockedSection} onPress={showPaywall}>
+              <Lock size={20} color={Colors.textMuted} />
+              <Text style={styles.lockedText}>
+                {analysis.concentrationRisks.length} risk{analysis.concentrationRisks.length > 1 ? 's' : ''} identified
+              </Text>
+              <Text style={styles.lockedCta}>Upgrade to view</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -349,45 +433,100 @@ export default function AnalysisScreen() {
         </View>
       )}
 
-      {/* Concerns */}
+      {/* Concerns - Premium Feature */}
       {analysis && analysis.concerns.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <AlertTriangle size={20} color={Colors.coral} />
             <Text style={styles.sectionTitle}>Areas for Improvement</Text>
+            {!isPremium && <Lock size={16} color={Colors.textMuted} />}
           </View>
-          <View style={styles.listCard}>
-            {analysis.concerns.map((concern, index) => (
-              <View key={index} style={styles.listItem}>
-                <AlertTriangle size={16} color={Colors.coral} />
-                <Text style={styles.listText}>{concern}</Text>
-              </View>
-            ))}
-          </View>
+          {isPremium ? (
+            <View style={styles.listCard}>
+              {analysis.concerns.map((concern, index) => (
+                <View key={index} style={styles.listItem}>
+                  <AlertTriangle size={16} color={Colors.coral} />
+                  <Text style={styles.listText}>{concern}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Pressable style={styles.lockedSection} onPress={showPaywall}>
+              <Lock size={20} color={Colors.textMuted} />
+              <Text style={styles.lockedText}>
+                {analysis.concerns.length} improvement{analysis.concerns.length > 1 ? 's' : ''} suggested
+              </Text>
+              <Text style={styles.lockedCta}>Upgrade to view</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
-      {/* Recommendations */}
+      {/* Recommendations - Premium Feature */}
       {analysis && analysis.recommendations.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Lightbulb size={20} color={Colors.accent} />
             <Text style={styles.sectionTitle}>Recommendations</Text>
+            {!isPremium && <Lock size={16} color={Colors.textMuted} />}
           </View>
-          <View style={styles.listCard}>
-            {analysis.recommendations.map((rec, index) => (
-              <View key={index} style={styles.recommendationItem}>
-                <View style={styles.recommendationNumber}>
-                  <Text style={styles.recommendationNumberText}>{index + 1}</Text>
+          {isPremium ? (
+            <View style={styles.listCard}>
+              {analysis.recommendations.map((rec, index) => (
+                <View key={index} style={styles.recommendationItem}>
+                  <View style={styles.recommendationNumber}>
+                    <Text style={styles.recommendationNumberText}>{index + 1}</Text>
+                  </View>
+                  <Text style={styles.recommendationText}>{rec}</Text>
                 </View>
-                <Text style={styles.recommendationText}>{rec}</Text>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          ) : (
+            <Pressable style={styles.lockedSection} onPress={showPaywall}>
+              <Lock size={20} color={Colors.textMuted} />
+              <Text style={styles.lockedText}>
+                {analysis.recommendations.length} recommendation{analysis.recommendations.length > 1 ? 's' : ''} available
+              </Text>
+              <Text style={styles.lockedCta}>Upgrade to view</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
-      {/* Peer Benchmark */}
+      {/* Rebalancing Actions - NEW */}
+      {holdings.length >= 2 && (
+        <View style={styles.section}>
+          <RebalanceCard
+            plan={rebalancePlan}
+            isLoading={isLoadingRebalance}
+            onRefresh={refreshRebalancePlan}
+            riskTolerance="moderate"
+          />
+        </View>
+      )}
+
+      {/* Community Benchmarks - NEW */}
+      {holdings.length >= 1 && (
+        <View style={styles.section}>
+          <CommunityBenchmarkCard
+            comparison={peerComparison}
+            isLoading={isLoading}
+          />
+        </View>
+      )}
+
+      {/* Market Events & News - NEW */}
+      {holdings.length >= 1 && (
+        <View style={styles.section}>
+          <MarketEventsCard
+            events={marketEvents}
+            newsAnalysis={newsAnalysis || undefined}
+            onViewAll={() => router.push('/portfolio/alerts' as any)}
+          />
+        </View>
+      )}
+
+      {/* Legacy Peer Benchmark */}
       {viralityData && (
         <View style={styles.section}>
           <PeerBenchmark metrics={viralityData.benchmarkMetrics} />
@@ -426,9 +565,23 @@ export default function AnalysisScreen() {
       {/* AI Analysis Button */}
       {!isAnalyzing && (
         <Pressable style={styles.aiButton} onPress={runAIAnalysis}>
+          {!isPremium && <Crown size={18} color={Colors.warning} style={{ marginRight: 4 }} />}
           <TrendingUp size={20} color={Colors.textLight} />
-          <Text style={styles.aiButtonText}>Get AI-Powered Insights</Text>
+          <Text style={styles.aiButtonText}>
+            {isPremium ? 'Get AI-Powered Insights' : 'Unlock AI Analysis'}
+          </Text>
         </Pressable>
+      )}
+
+      {/* Premium Upsell Card for Free Users */}
+      {!isPremium && (
+        <View style={styles.section}>
+          <PremiumCard
+            title="Unlock Full Analysis"
+            description="Get detailed risk analysis, personalized recommendations, peer benchmarks, and AI-powered insights to optimize your portfolio."
+            onUpgrade={showPaywall}
+          />
+        </View>
       )}
 
       <View style={styles.footer}>
@@ -757,5 +910,26 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+
+  lockedSection: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  lockedText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 8,
+  },
+  lockedCta: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.accent,
+    marginTop: 4,
   },
 });

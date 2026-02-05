@@ -1,80 +1,104 @@
 const Colors = {
-  // Dark Theme - Modern Financial App
-  primary: '#0D9488', // Teal/Cyan primary
-  primaryLight: '#14B8A6', // Brighter teal
-  
-  secondary: '#0F766E', // Darker teal
-  secondaryLight: '#5EEAD4', // Light cyan
-  secondaryDark: '#0D9488',
-  
-  // Accents - Teal/Cyan focused
-  accent: '#14B8A6', // Bright teal accent
-  accentLight: '#5EEAD4',
-  accentMuted: '#134E4A',
-  
-  // Functional
-  success: '#10B981',
-  successLight: '#34D399',
-  successMuted: '#064E3B',
-  
-  warning: '#F59E0B',
-  warningLight: '#FBBF24',
-  warningMuted: '#78350F',
-  
-  danger: '#EF4444',
-  dangerLight: '#F87171',
-  dangerMuted: '#7F1D1D',
-  
-  // Dark Theme Neutrals
-  neutral: '#E5E7EB', // Light text on dark
-  neutralLight: '#9CA3AF', // Muted text
-  neutralMuted: '#1F2937', // Dark card backgrounds
-  
-  background: '#000000', // Pure black background
-  surface: '#1F2937', // Dark gray for cards
-  surfaceSecondary: '#111827', // Slightly lighter than background
-  
+  // Modern Finance App - Premium Dark Theme
+  // Inspired by Robinhood, Wealthfront, and Bloomberg Terminal
+
+  primary: '#00D09C', // Mint green - finance apps love this
+  primaryLight: '#00E6AC',
+  primaryDark: '#00B386',
+
+  secondary: '#5B5FEF', // Purple accent for premium feel
+  secondaryLight: '#7B7FF2',
+  secondaryDark: '#4547C9',
+
+  // Accent colors
+  accent: '#00D09C', // Same as primary - mint green
+  accentLight: '#33DBAF',
+  accentMuted: 'rgba(0, 208, 156, 0.15)',
+
+  // Functional colors with finance-friendly shades
+  success: '#00D09C', // Green for gains
+  successLight: '#33DBAF',
+  successMuted: 'rgba(0, 208, 156, 0.15)',
+
+  warning: '#FFB020', // Amber for warnings
+  warningLight: '#FFC04D',
+  warningMuted: 'rgba(255, 176, 32, 0.15)',
+
+  danger: '#FF6B6B', // Soft red for losses/danger
+  dangerLight: '#FF8A8A',
+  dangerMuted: 'rgba(255, 107, 107, 0.15)',
+
+  // Dark Theme Neutrals - Rich, deep backgrounds
+  neutral: '#E2E8F0',
+  neutralLight: '#A0AEC0',
+  neutralMuted: '#1C2333',
+
+  background: '#0A0E17', // Deep navy-black
+  backgroundSecondary: '#0F1419',
+  surface: '#151B26', // Card backgrounds
+  surfaceSecondary: '#1C2333', // Elevated surfaces
+  surfaceHighlight: '#232D3F', // Hover/active states
+
+  // Text colors with good contrast
   text: '#FFFFFF',
-  textSecondary: '#D1D5DB',
-  textMuted: '#9CA3AF',
+  textSecondary: '#A0AEC0',
+  textMuted: '#718096',
   textLight: '#FFFFFF',
-  
-  border: '#374151',
-  borderLight: '#1F2937',
-  divider: '#374151',
-  
-  // Design Elements
-  lavender: '#8B5CF6',
-  lavenderMuted: '#4C1D95',
-  mint: '#10B981',
-  mintMuted: '#064E3B',
-  coral: '#F43F5E',
-  coralMuted: '#881337',
-  
-  // Charts & Data
+  textInverse: '#0A0E17',
+
+  // Borders and dividers
+  border: '#2D3748',
+  borderLight: '#1C2333',
+  divider: '#2D3748',
+
+  // Premium accent colors
+  gold: '#F7B955',
+  goldMuted: 'rgba(247, 185, 85, 0.15)',
+
+  purple: '#9F7AEA',
+  purpleMuted: 'rgba(159, 122, 234, 0.15)',
+
+  blue: '#4299E1',
+  blueMuted: 'rgba(66, 153, 225, 0.15)',
+
+  cyan: '#0BC5EA',
+  cyanMuted: 'rgba(11, 197, 234, 0.15)',
+
+  // Legacy compatibility
+  lavender: '#9F7AEA',
+  lavenderMuted: 'rgba(159, 122, 234, 0.15)',
+  mint: '#00D09C',
+  mintMuted: 'rgba(0, 208, 156, 0.15)',
+  coral: '#FF6B6B',
+  coralMuted: 'rgba(255, 107, 107, 0.15)',
+
+  // Charts & Data Visualization
   chart: {
-    primary: '#14B8A6',
-    secondary: '#3B82F6',
-    tertiary: '#F59E0B',
-    quaternary: '#EC4899',
-    gradientStart: '#0D9488',
-    gradientEnd: '#5EEAD4',
+    primary: '#00D09C',
+    secondary: '#5B5FEF',
+    tertiary: '#F7B955',
+    quaternary: '#FF6B6B',
+    fifth: '#4299E1',
+    sixth: '#9F7AEA',
+    gradientStart: '#00D09C',
+    gradientEnd: '#00B386',
   },
 
-  // Agent Specific
+  // Legacy agent colors
   agents: {
-    financialReality: '#14B8A6',
-    marketContext: '#3B82F6',
-    scenarioLearning: '#8B5CF6',
-    adaptation: '#F59E0B',
+    financialReality: '#00D09C',
+    marketContext: '#4299E1',
+    scenarioLearning: '#9F7AEA',
+    adaptation: '#F7B955',
   },
-  
+
+  // Health indicators
   health: {
-    critical: '#EF4444',
-    needsAttention: '#F59E0B',
-    stable: '#3B82F6',
-    strong: '#10B981',
-    excellent: '#059669',
+    excellent: '#00D09C',
+    strong: '#00D09C',
+    stable: '#4299E1',
+    needsAttention: '#FFB020',
+    critical: '#FF6B6B',
   },
 } as const;
 

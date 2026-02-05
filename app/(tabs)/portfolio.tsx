@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -9,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Plus,
   TrendingUp,
@@ -21,10 +23,12 @@ import {
   Wifi,
   Bell,
   BarChart3,
-  User,
   Star,
+  CreditCard,
+  DollarSign,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
+import { usePurchases } from '@/context/PurchasesContext';
 import Colors from '@/constants/colors';
 import {
   Holding,
@@ -33,24 +37,44 @@ import {
   ASSET_CLASS_COLORS,
   AssetClass,
 } from '@/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { batchGetPrices, hasLivePricing } from '@/lib/priceService';
+import { PremiumBadge } from '@/components/PremiumBadge';
+import { PerformanceChart } from '@/components/PerformanceChart';
+import portfolioService from '@/lib/portfolioService';
+import portfolioHistory from '@/lib/portfolioHistory';
+import { SparklineChart, generateMockChartData } from '@/components/onboarding';
 
-const STORAGE_KEY = 'penny_portfolio_holdings';
+// Helper function to format relative time
+function getRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
 
 export default function PortfolioScreen() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const { isPremium, showPaywall } = usePurchases();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
   const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+  const [dayChange, setDayChange] = useState<{ valueChange: number; percentChange: number } | null>(null);
 
-  // Load holdings from storage
-  useEffect(() => {
-    loadHoldings();
-  }, []);
+  // Load holdings from storage - reload every time screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadHoldings();
+    }, [])
+  );
 
   // Refresh prices when returning to screen
   useEffect(() => {
@@ -61,9 +85,25 @@ export default function PortfolioScreen() {
 
   const loadHoldings = async () => {
     try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setHoldings(JSON.parse(stored));
+      const holdings = await portfolioService.getHoldings();
+      setHoldings(holdings);
+
+      // Calculate current total value and load day change
+      if (holdings.length > 0) {
+        // Generate initial history for new users so chart displays immediately
+        await portfolioHistory.generateInitialHistory(holdings);
+
+        const totalValue = holdings.reduce((sum, h) => {
+          const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
+          return sum + value;
+        }, 0);
+        const dayChangeData = await portfolioHistory.calculateDayChange(totalValue);
+        if (dayChangeData) {
+          setDayChange({
+            valueChange: dayChangeData.valueChange,
+            percentChange: dayChangeData.percentChange,
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to load holdings:', error);
@@ -88,10 +128,19 @@ export default function PortfolioScreen() {
 
       const prices = await batchGetPrices(holdingsToUpdate);
 
+      // Build price updates
+      const priceUpdates: { id: string; currentPrice: number; currentValue: number; lastPriceUpdate: string }[] = [];
+
       // Update holdings with new prices
       const updatedHoldings = holdings.map((h) => {
         const priceData = prices[h.id];
         if (priceData) {
+          priceUpdates.push({
+            id: h.id,
+            currentPrice: priceData.price,
+            currentValue: h.quantity * priceData.price,
+            lastPriceUpdate: priceData.timestamp,
+          });
           return {
             ...h,
             currentPrice: priceData.price,
@@ -105,8 +154,24 @@ export default function PortfolioScreen() {
       setHoldings(updatedHoldings);
       setLastPriceUpdate(new Date());
 
-      // Save updated holdings
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHoldings));
+      // Save updated holdings via portfolio service
+      await portfolioService.updateHoldingPrices(priceUpdates);
+
+      // Save portfolio snapshot for performance tracking
+      await portfolioHistory.saveSnapshot(updatedHoldings);
+
+      // Calculate and set day change
+      const totalValue = updatedHoldings.reduce((sum, h) => {
+        const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
+        return sum + value;
+      }, 0);
+      const dayChangeData = await portfolioHistory.calculateDayChange(totalValue);
+      if (dayChangeData) {
+        setDayChange({
+          valueChange: dayChangeData.valueChange,
+          percentChange: dayChangeData.percentChange,
+        });
+      }
     } catch (error) {
       console.error('Failed to update prices:', error);
     } finally {
@@ -210,53 +275,111 @@ export default function PortfolioScreen() {
       </View>
 
       {/* Portfolio Value Card */}
-      <View style={styles.valueCard}>
-        <View style={styles.valueHeader}>
-          <Text style={styles.valueLabel}>Total Portfolio Value</Text>
-          {isPriceLoading ? (
-            <ActivityIndicator size="small" color={Colors.textLight} />
-          ) : liveHoldingsCount > 0 ? (
-            <Pressable onPress={updatePrices} style={styles.refreshButton}>
-              <RefreshCw size={16} color={Colors.textLight} />
-            </Pressable>
-          ) : null}
-        </View>
-        <Text style={styles.valueAmount}>
-          ${summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </Text>
-        <View style={styles.changeRow}>
-          {isGain ? (
-            <TrendingUp size={16} color={Colors.success} />
-          ) : (
-            <TrendingDown size={16} color={Colors.danger} />
-          )}
-          <Text style={[styles.changeText, { color: isGain ? Colors.success : Colors.danger }]}>
-            {isGain ? '+' : ''}${summary.totalGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            {' '}({isGain ? '+' : ''}{summary.totalGainPercent.toFixed(2)}%)
+      <View style={styles.valueCardWrapper}>
+        <LinearGradient
+          colors={[Colors.primary, Colors.primaryDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.valueCard}
+        >
+          {/* Decorative elements */}
+          <View style={styles.decorCircle1} />
+          <View style={styles.decorCircle2} />
+
+          <View style={styles.valueHeader}>
+            <Text style={styles.valueLabel}>Total Portfolio Value</Text>
+            {isPriceLoading ? (
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
+            ) : liveHoldingsCount > 0 ? (
+              <Pressable onPress={updatePrices} style={styles.refreshButton}>
+                <RefreshCw size={16} color="rgba(255,255,255,0.7)" />
+              </Pressable>
+            ) : null}
+          </View>
+          <Text style={styles.valueAmount}>
+            ${summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </Text>
-          <Text style={styles.changeLabel}>All time</Text>
-        </View>
-        {lastPriceUpdate && (
-          <View style={styles.lastUpdate}>
-            <Wifi size={12} color={Colors.textLight} style={{ opacity: 0.6 }} />
-            <Text style={styles.lastUpdateText}>
-              Updated {lastPriceUpdate.toLocaleTimeString()}
+          <View style={styles.changeRow}>
+            <View style={[styles.changeBadge, { backgroundColor: isGain ? 'rgba(0,208,156,0.2)' : 'rgba(255,107,107,0.2)' }]}>
+              {isGain ? (
+                <TrendingUp size={14} color="#4ADE80" />
+              ) : (
+                <TrendingDown size={14} color="#FF8A8A" />
+              )}
+              <Text style={[styles.changePercent, { color: isGain ? '#4ADE80' : '#FF8A8A' }]}>
+                {isGain ? '+' : ''}{summary.totalGainPercent.toFixed(2)}%
+              </Text>
+            </View>
+            <Text style={styles.changeText}>
+              {isGain ? '+' : '-'}${Math.abs(summary.totalGain).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} all time
             </Text>
           </View>
-        )}
+          {/* Day Change Display */}
+          {dayChange && (
+            <View style={styles.dayChangeRow}>
+              <View style={[
+                styles.dayChangeBadge,
+                { backgroundColor: dayChange.valueChange >= 0 ? 'rgba(0,208,156,0.15)' : 'rgba(255,107,107,0.15)' }
+              ]}>
+                {dayChange.valueChange >= 0 ? (
+                  <TrendingUp size={12} color="#4ADE80" />
+                ) : (
+                  <TrendingDown size={12} color="#FF8A8A" />
+                )}
+                <Text style={[
+                  styles.dayChangeText,
+                  { color: dayChange.valueChange >= 0 ? '#4ADE80' : '#FF8A8A' }
+                ]}>
+                  {dayChange.valueChange >= 0 ? '+' : ''}${Math.abs(dayChange.valueChange).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({dayChange.percentChange >= 0 ? '+' : ''}{dayChange.percentChange.toFixed(2)}%) today
+                </Text>
+              </View>
+            </View>
+          )}
+          {lastPriceUpdate && (
+            <View style={styles.lastUpdate}>
+              <Wifi size={12} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.lastUpdateText}>
+                Updated {getRelativeTime(lastPriceUpdate)}
+              </Text>
+            </View>
+          )}
+          {isPriceLoading && (
+            <View style={styles.updatingIndicator}>
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
+              <Text style={styles.updatingText}>Updating prices...</Text>
+            </View>
+          )}
+        </LinearGradient>
       </View>
 
       {/* Quick Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Briefcase size={20} color={Colors.accent} />
+          <View style={[styles.statIconWrapper, { backgroundColor: Colors.accentMuted }]}>
+            <Briefcase size={18} color={Colors.accent} />
+          </View>
           <Text style={styles.statValue}>{summary.holdingsCount}</Text>
           <Text style={styles.statLabel}>Holdings</Text>
         </View>
         <View style={styles.statCard}>
-          <PieChart size={20} color={Colors.lavender} />
+          <View style={[styles.statIconWrapper, { backgroundColor: Colors.purpleMuted }]}>
+            <PieChart size={18} color={Colors.purple} />
+          </View>
           <Text style={styles.statValue}>{allocation.length}</Text>
           <Text style={styles.statLabel}>Asset Classes</Text>
+        </View>
+        <View style={styles.statCard}>
+          <View style={[styles.statIconWrapper, { backgroundColor: isGain ? Colors.successMuted : Colors.dangerMuted }]}>
+            {isGain ? (
+              <TrendingUp size={18} color={Colors.success} />
+            ) : (
+              <TrendingDown size={18} color={Colors.danger} />
+            )}
+          </View>
+          <Text style={[styles.statValue, { color: isGain ? Colors.success : Colors.danger }]}>
+            {isGain ? '+' : ''}{summary.totalGainPercent.toFixed(1)}%
+          </Text>
+          <Text style={styles.statLabel}>Return</Text>
         </View>
       </View>
 
@@ -272,24 +395,31 @@ export default function PortfolioScreen() {
 
       {/* Creator Hub Card - Josh's Model Portfolio */}
       <Pressable
-        style={styles.creatorCard}
+        style={styles.creatorCardWrapper}
         onPress={() => router.push('/creator' as any)}
       >
-        <View style={styles.creatorIconWrapper}>
-          <Star size={20} color={Colors.warning} fill={Colors.warning} />
-        </View>
-        <View style={styles.creatorContent}>
-          <View style={styles.creatorTitleRow}>
-            <Text style={styles.creatorTitle}>Josh's Model Portfolio</Text>
-            <View style={styles.creatorBadge}>
-              <Text style={styles.creatorBadgeText}>NEW</Text>
-            </View>
+        <LinearGradient
+          colors={['#5B5FEF', '#8B5CF6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.creatorCard}
+        >
+          <View style={styles.creatorIconWrapper}>
+            <Star size={20} color="#FFD700" fill="#FFD700" />
           </View>
-          <Text style={styles.creatorSubtitle}>
-            View allocations, market insights & Q&A from @VisualFaktory
-          </Text>
-        </View>
-        <ChevronRight size={20} color={Colors.textMuted} />
+          <View style={styles.creatorContent}>
+            <View style={styles.creatorTitleRow}>
+              <Text style={styles.creatorTitle}>Josh's Model Portfolio</Text>
+              <View style={styles.creatorBadge}>
+                <Text style={styles.creatorBadgeText}>NEW</Text>
+              </View>
+            </View>
+            <Text style={styles.creatorSubtitle}>
+              View allocations, market insights & Q&A from @VisualFaktory
+            </Text>
+          </View>
+          <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
+        </LinearGradient>
       </Pressable>
 
       {/* Insights Card */}
@@ -302,14 +432,46 @@ export default function PortfolioScreen() {
             <BarChart3 size={24} color={Colors.primary} />
           </View>
           <View style={styles.insightsContent}>
-            <Text style={styles.insightsTitle}>Portfolio Insights</Text>
+            <View style={styles.insightsTitleRow}>
+              <Text style={styles.insightsTitle}>Portfolio Insights</Text>
+              {!isPremium && <PremiumBadge size="small" onPress={showPaywall} />}
+            </View>
             <Text style={styles.insightsSubtitle}>
-              Get AI-powered analysis of your diversification and risk
+              {isPremium
+                ? 'Get AI-powered analysis of your diversification and risk'
+                : 'Upgrade to unlock full AI analysis and recommendations'}
             </Text>
           </View>
           <ChevronRight size={20} color={Colors.textMuted} />
         </Pressable>
       )}
+
+      {/* Performance Chart */}
+      {holdings.length > 0 && <PerformanceChart />}
+
+      {/* Quick Actions - Loans & Dividends */}
+      <View style={styles.quickActionsRow}>
+        <Pressable
+          style={styles.quickActionCard}
+          onPress={() => router.push('/portfolio/loans' as any)}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningMuted }]}>
+            <CreditCard size={20} color={Colors.warning} />
+          </View>
+          <Text style={styles.quickActionTitle}>Loans</Text>
+          <Text style={styles.quickActionSubtitle}>Track amortization</Text>
+        </Pressable>
+        <Pressable
+          style={styles.quickActionCard}
+          onPress={() => router.push('/portfolio/dividends' as any)}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: Colors.successMuted }]}>
+            <DollarSign size={20} color={Colors.success} />
+          </View>
+          <Text style={styles.quickActionTitle}>Dividends</Text>
+          <Text style={styles.quickActionSubtitle}>Track income</Text>
+        </Pressable>
+      </View>
 
       {/* Allocation Section */}
       {allocation.length > 0 && (
@@ -394,6 +556,7 @@ function HoldingCard({ holding, onPress }: { holding: Holding; onPress: () => vo
   const gainPercent = investedValue > 0 ? (gain / investedValue) * 100 : 0;
   const isGain = gain >= 0;
   const hasLive = hasLivePricing(holding.type);
+  const chartData = generateMockChartData(holding.currentPrice || holding.purchasePrice, gainPercent);
 
   const config = ASSET_TYPE_CONFIG[holding.type];
 
@@ -414,6 +577,16 @@ function HoldingCard({ holding, onPress }: { holding: Holding; onPress: () => vo
         <Text style={styles.holdingMeta}>
           {holding.quantity} {holding.type === 'mutual_fund' ? 'units' : 'shares'} · {config.label}
         </Text>
+      </View>
+      {/* Mini Sparkline Chart */}
+      <View style={styles.holdingChart}>
+        <SparklineChart
+          data={chartData}
+          width={50}
+          height={24}
+          color={isGain ? '#00D09C' : '#FF6B6B'}
+          showGradient={true}
+        />
       </View>
       <View style={styles.holdingValue}>
         <Text style={styles.holdingAmount}>
@@ -436,7 +609,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
-    paddingTop: 60,
+    paddingTop: 56,
   },
   header: {
     flexDirection: 'row',
@@ -448,6 +621,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: Colors.text,
+    letterSpacing: -0.5,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -455,27 +629,55 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   alertButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  valueCard: {
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    padding: 24,
+  // Value Card
+  valueCardWrapper: {
+    borderRadius: 24,
+    overflow: 'hidden',
     marginBottom: 16,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  valueCard: {
+    padding: 24,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  decorCircle1: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  decorCircle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: -30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   valueHeader: {
     flexDirection: 'row',
@@ -484,33 +686,57 @@ const styles = StyleSheet.create({
   },
   valueLabel: {
     fontSize: 14,
-    color: Colors.textLight,
-    opacity: 0.8,
-    marginBottom: 4,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
   },
   refreshButton: {
     padding: 8,
-    opacity: 0.8,
   },
   valueAmount: {
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: '700',
-    color: Colors.textLight,
-    marginBottom: 8,
+    color: '#FFFFFF',
+    marginTop: 8,
+    marginBottom: 12,
+    letterSpacing: -1,
   },
   changeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
+  },
+  changeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  changePercent: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   changeText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.6)',
   },
-  changeLabel: {
+  dayChangeRow: {
+    marginTop: 10,
+  },
+  dayChangeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  dayChangeText: {
     fontSize: 12,
-    color: Colors.textLight,
-    opacity: 0.7,
+    fontWeight: '600',
   },
   lastUpdate: {
     flexDirection: 'row',
@@ -520,37 +746,57 @@ const styles = StyleSheet.create({
   },
   lastUpdateText: {
     fontSize: 11,
-    color: Colors.textLight,
-    opacity: 0.6,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  updatingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  updatingText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
   },
 
+  // Stats Row
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginBottom: 16,
   },
   statCard: {
     flex: 1,
     backgroundColor: Colors.surface,
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+  },
+  statIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
-    marginTop: 8,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textSecondary,
     marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
   liveBadge: {
@@ -570,26 +816,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  // Creator Card
+  creatorCardWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
   creatorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: Colors.warning + '40',
   },
   creatorIconWrapper: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: Colors.warningMuted,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -604,12 +846,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   creatorTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: Colors.text,
+    color: '#FFFFFF',
   },
   creatorBadge: {
-    backgroundColor: Colors.accent,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -617,12 +859,13 @@ const styles = StyleSheet.create({
   creatorBadgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: Colors.textLight,
+    color: '#FFFFFF',
   },
   creatorSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
   },
+  // Insights Card
   insightsCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -630,19 +873,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.primaryLight + '30',
+    borderColor: Colors.accentMuted,
   },
   insightsIcon: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: Colors.primaryLight + '20',
+    backgroundColor: Colors.accentMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -650,17 +888,55 @@ const styles = StyleSheet.create({
   insightsContent: {
     flex: 1,
   },
-  insightsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
+  insightsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 2,
   },
+  insightsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
   insightsSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSecondary,
   },
 
+  // Quick Actions Row
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+  },
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickActionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  quickActionSubtitle: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+
+  // Section
   section: {
     marginBottom: 24,
   },
@@ -681,20 +957,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // Allocation Card
   allocationCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
   },
   allocationBar: {
     flexDirection: 'row',
-    height: 12,
-    borderRadius: 6,
+    height: 14,
+    borderRadius: 7,
     overflow: 'hidden',
     marginBottom: 16,
   },
@@ -702,7 +974,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   allocationLegend: {
-    gap: 8,
+    gap: 10,
   },
   legendItem: {
     flexDirection: 'row',
@@ -712,7 +984,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    marginRight: 8,
+    marginRight: 10,
   },
   legendLabel: {
     flex: 1,
@@ -725,28 +997,30 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
+  // Empty Card
   emptyCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 32,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: Colors.border,
-    borderStyle: 'dashed',
   },
   emptyCardTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.text,
-    marginTop: 12,
+    marginTop: 16,
   },
   emptyCardSubtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
+    lineHeight: 20,
   },
 
+  // Holding Card
   holdingCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -754,11 +1028,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
   },
   holdingIcon: {
     width: 44,
@@ -769,12 +1038,19 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   holdingIconText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.text,
   },
   holdingInfo: {
     flex: 1,
+    marginRight: 8,
+  },
+  holdingChart: {
+    width: 50,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   holdingNameRow: {
     flexDirection: 'row',
@@ -805,6 +1081,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  // Empty Container
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

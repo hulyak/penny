@@ -10,6 +10,7 @@ import {
   Image,
   Modal,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   DollarSign,
   Home,
@@ -26,6 +27,7 @@ import {
   BarChart2,
   ChevronRight,
   X,
+  Shield,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -133,32 +135,44 @@ export default function ProfileScreen() {
     >
       {/* User Profile Card */}
       {user && (
-        <View style={styles.userCard}>
-          <View style={styles.userAvatarContainer}>
-            {user.photoUrl ? (
-              <Image source={{ uri: user.photoUrl }} style={styles.userAvatar} />
-            ) : (
-              <View style={styles.userAvatarPlaceholder}>
-                <User size={28} color={Colors.accent} />
-              </View>
-            )}
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{user.displayName}</Text>
-            <View style={styles.userEmailRow}>
-              <Mail size={14} color={Colors.textMuted} />
-              <Text style={styles.userEmail}>{user.email}</Text>
+        <View style={styles.userCardWrapper}>
+          <LinearGradient
+            colors={[Colors.primary, Colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.userCardGradient}
+          >
+            <View style={styles.userDecor1} />
+            <View style={styles.userDecor2} />
+            <View style={styles.userAvatarContainer}>
+              {user.photoUrl ? (
+                <Image source={{ uri: user.photoUrl }} style={styles.userAvatar} />
+              ) : (
+                <View style={styles.userAvatarPlaceholder}>
+                  <User size={28} color={Colors.primary} />
+                </View>
+              )}
             </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{user.displayName}</Text>
+              <View style={styles.userEmailRow}>
+                <Mail size={14} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.userEmail}>{user.email}</Text>
+              </View>
+            </View>
+          </LinearGradient>
+          <View style={styles.userCardBottom}>
             <View style={styles.providerBadge}>
               <Text style={styles.providerText}>
-                {user.provider === 'google' ? 'Google Account' : 
+                {user.provider === 'google' ? 'Google Account' :
                  user.provider === 'apple' ? 'Apple Account' : 'Email Account'}
               </Text>
             </View>
+            <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+              <LogOut size={18} color={Colors.danger} />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </Pressable>
           </View>
-          <Pressable style={styles.signOutButton} onPress={handleSignOut}>
-            <LogOut size={20} color={Colors.danger} />
-          </Pressable>
         </View>
       )}
 
@@ -255,7 +269,9 @@ export default function ProfileScreen() {
 
       {/* Tip Card */}
       <View style={styles.tipCard}>
-        <Image source={{ uri: MASCOT_URL }} style={styles.tipMascot} />
+        <View style={styles.tipIconWrapper}>
+          <Shield size={20} color={Colors.accent} />
+        </View>
         <View style={styles.tipContent}>
           <Text style={styles.tipTitle}>Your Data is Private</Text>
           <Text style={styles.tipText}>
@@ -374,14 +390,19 @@ const styles = StyleSheet.create({
   tipCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.accentMuted,
+    backgroundColor: Colors.surface,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.accentMuted,
   },
-  tipMascot: {
+  tipIconWrapper: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 12,
+    backgroundColor: Colors.accentMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   tipContent: {
@@ -390,27 +411,53 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.accent,
+    color: Colors.text,
     marginBottom: 2,
   },
   tipText: {
     fontSize: 13,
-    color: Colors.text,
+    color: Colors.textSecondary,
     lineHeight: 18,
   },
 
-  userCard: {
+  // User Card
+  userCardWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  userCardGradient: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  userDecor1: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  userDecor2: {
+    position: 'absolute',
+    bottom: -20,
+    left: -20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  userCardBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: 14,
+    paddingHorizontal: 16,
   },
   userAvatarContainer: {
     marginRight: 14,
@@ -419,12 +466,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   userAvatarPlaceholder: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.accentMuted,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -432,40 +481,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   userEmailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
   },
   userEmail: {
     fontSize: 13,
-    color: Colors.textMuted,
+    color: 'rgba(255,255,255,0.7)',
   },
   providerBadge: {
-    alignSelf: 'flex-start',
     backgroundColor: Colors.surfaceSecondary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   providerText: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   signOutButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.dangerMuted,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: Colors.dangerMuted,
+  },
+  signOutText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.danger,
   },
   dashboardButton: {
     flexDirection: 'row',

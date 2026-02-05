@@ -211,6 +211,8 @@ export type AssetType =
   | 'mutual_fund'
   | 'bond'
   | 'gold'
+  | 'silver'
+  | 'platinum'
   | 'real_estate'
   | 'fixed_deposit'
   | 'crypto'
@@ -218,6 +220,8 @@ export type AssetType =
   | 'other';
 
 export type AssetClass = 'equity' | 'debt' | 'commodity' | 'real_asset' | 'cash';
+
+export type InterestFrequency = 'monthly' | 'quarterly' | 'semi-annual' | 'annual' | 'at-maturity';
 
 export interface Holding {
   id: string;
@@ -236,6 +240,8 @@ export interface Holding {
 
   maturityDate?: string;
   interestRate?: number;
+  interestFrequency?: InterestFrequency;
+  nextInterestDate?: string;
 
   sector?: string;
   country?: string;
@@ -262,13 +268,79 @@ export interface Transaction {
 export interface PriceAlert {
   id: string;
   holdingId?: string;
-  type: 'price_above' | 'price_below' | 'maturity' | 'reminder';
+  type: 'price_above' | 'price_below' | 'maturity' | 'reminder' | 'earnings' | 'fed_decision' | 'news';
   targetValue?: number;
   targetDate?: string;
   message: string;
   isActive: boolean;
   lastTriggered?: string;
   createdAt: string;
+  // News-based alert fields
+  newsSource?: string;
+  eventType?: 'earnings' | 'fed' | 'economic' | 'company';
+  symbol?: string;
+}
+
+// Rebalancing Action Types
+export interface RebalanceAction {
+  id: string;
+  type: 'buy' | 'sell' | 'hold';
+  holdingId?: string;
+  holdingName: string;
+  symbol?: string;
+  currentAllocation: number;
+  targetAllocation: number;
+  currentValue: number;
+  targetValue: number;
+  actionAmount: number;
+  actionShares?: number;
+  reason: string;
+  priority: 'high' | 'medium' | 'low';
+  assetClass: AssetClass;
+}
+
+export interface RebalancePlan {
+  id: string;
+  createdAt: string;
+  totalPortfolioValue: number;
+  actions: RebalanceAction[];
+  estimatedTrades: number;
+  estimatedCost: number;
+  summary: string;
+  targetAllocation: Record<AssetClass, number>;
+  currentAllocation: Record<AssetClass, number>;
+}
+
+// Community Benchmark Types
+export interface CommunityBenchmark {
+  category: string;
+  userValue: number;
+  communityAverage: number;
+  communityMedian: number;
+  percentile: number;
+  trend: 'above' | 'at' | 'below';
+}
+
+export interface PeerComparison {
+  ageGroup: string;
+  incomeRange: string;
+  totalParticipants: number;
+  benchmarks: CommunityBenchmark[];
+  insights: string[];
+  lastUpdated: string;
+}
+
+// Market Event Types
+export interface MarketEvent {
+  id: string;
+  type: 'earnings' | 'fed_decision' | 'economic_data' | 'dividend' | 'split';
+  title: string;
+  description: string;
+  date: string;
+  time?: string;
+  symbol?: string;
+  impact: 'high' | 'medium' | 'low';
+  relevantHoldings?: string[];
 }
 
 export interface PortfolioSettings {
@@ -334,6 +406,8 @@ export const ASSET_TYPE_CONFIG: Record<AssetType, { label: string; icon: string;
   mutual_fund: { label: 'Mutual Fund', icon: 'pie-chart', assetClass: 'equity' },
   bond: { label: 'Bond', icon: 'file-text', assetClass: 'debt' },
   gold: { label: 'Gold', icon: 'award', assetClass: 'commodity' },
+  silver: { label: 'Silver', icon: 'circle', assetClass: 'commodity' },
+  platinum: { label: 'Platinum', icon: 'hexagon', assetClass: 'commodity' },
   real_estate: { label: 'Real Estate', icon: 'home', assetClass: 'real_asset' },
   fixed_deposit: { label: 'Fixed Deposit', icon: 'lock', assetClass: 'debt' },
   crypto: { label: 'Cryptocurrency', icon: 'cpu', assetClass: 'equity' },

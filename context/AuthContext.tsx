@@ -16,6 +16,7 @@ import {
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured, firestoreHelpers } from '@/lib/firebase';
 import { User } from '@/types';
+import portfolioService from '@/lib/portfolioService';
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
@@ -61,13 +62,18 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       clearTimeout(timeoutId);
       console.log('[AuthContext] Auth state changed:', fbUser ? 'user exists' : 'no user');
 
       setFirebaseUser(fbUser);
       if (fbUser) {
         setUser(mapFirebaseUser(fbUser));
+        // Sync portfolio data with Firebase after login
+        console.log('[AuthContext] Triggering portfolio sync...');
+        portfolioService.syncWithFirebase().catch((err) => {
+          console.warn('[AuthContext] Portfolio sync failed:', err);
+        });
       } else {
         setUser(null);
       }
@@ -207,49 +213,63 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
 
       // For native iOS/Android, use expo-auth-session
-      const { openAuthSessionAsync } = await import('expo-web-browser');
+      const AuthSession = await import('expo-auth-session');
+      const { openAuthSessionAsync, maybeCompleteAuthSession } = await import('expo-web-browser');
 
-      const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+      // Complete any pending auth session
+      maybeCompleteAuthSession();
 
-      if (!iosClientId) {
+      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+      if (!webClientId) {
         setError('Google Sign-In not configured');
         return false;
       }
 
-      // For iOS, use reversed client ID as redirect scheme
-      const reversedClientId = iosClientId.split('.').reverse().join('.');
-      const redirectUri = `${reversedClientId}:/oauth2callback`;
+      // Create redirect URI - in Expo Go this uses the Expo proxy
+      const redirectUri = AuthSession.makeRedirectUri({
+        // For Expo Go, this creates an exp:// URL
+        // For standalone builds, use your scheme
+      });
 
-      // Build Google OAuth URL
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${iosClientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=id_token&` +
-        `scope=${encodeURIComponent('openid profile email')}&` +
-        `nonce=${Math.random().toString(36).substring(7)}`;
+      console.log('[AuthContext] Google redirect URI:', redirectUri);
 
-      const result = await openAuthSessionAsync(authUrl, redirectUri);
+      // Use Google's discovery document
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      };
 
-      if (result.type === 'success' && result.url) {
-        // Extract id_token from URL fragment
-        const url = result.url;
-        const params = new URLSearchParams(url.split('#')[1]);
-        const idToken = params.get('id_token');
+      // Create auth request
+      const request = new AuthSession.AuthRequest({
+        clientId: webClientId,
+        redirectUri,
+        scopes: ['openid', 'profile', 'email'],
+        responseType: AuthSession.ResponseType.IdToken,
+        extraParams: {
+          nonce: Math.random().toString(36).substring(7),
+        },
+      });
 
-        if (idToken) {
-          // Sign in to Firebase with Google credential
-          const credential = GoogleAuthProvider.credential(idToken);
-          await signInWithCredential(auth, credential);
-          console.log('[AuthContext] Google sign in successful');
-          return true;
-        }
+      // Prompt user for authorization
+      const result = await request.promptAsync(discovery);
+
+      console.log('[AuthContext] Google auth result:', result.type);
+
+      if (result.type === 'success' && result.params?.id_token) {
+        // Sign in to Firebase with Google credential
+        const credential = GoogleAuthProvider.credential(result.params.id_token);
+        await signInWithCredential(auth, credential);
+        console.log('[AuthContext] Google sign in successful');
+        return true;
       }
 
-      if (result.type === 'cancel') {
+      if (result.type === 'cancel' || result.type === 'dismiss') {
         console.log('[AuthContext] Google sign in cancelled');
         return false;
       }
 
+      console.log('[AuthContext] Google sign in failed - result:', result);
       setError('Failed to get Google credentials');
       return false;
     } catch (err: any) {
@@ -335,6 +355,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       if (!isDemoMode && isFirebaseConfigured && auth) {
         await firebaseSignOut(auth);
       }
+      // Clear local portfolio data on logout
+      await portfolioService.clearLocalData();
       setUser(null);
       setFirebaseUser(null);
       setError(null);

@@ -112,8 +112,11 @@ export async function toggleAlert(alertId: string): Promise<void> {
   }
 }
 
+// Maturity reminder intervals in days
+const MATURITY_REMINDER_INTERVALS = [30, 7, 1, 0]; // 30 days, 7 days, 1 day, day-of
+
 /**
- * Schedule a reminder notification for a specific date
+ * Schedule multiple reminder notifications for maturity dates
  */
 async function scheduleReminderNotification(alert: PriceAlert): Promise<void> {
   if (!alert.targetDate || !alert.isActive) return;
@@ -124,39 +127,102 @@ async function scheduleReminderNotification(alert: PriceAlert): Promise<void> {
   // Don't schedule if date has passed
   if (targetDate <= now) return;
 
-  // Schedule notification for the target date
-  await Notifications.scheduleNotificationAsync({
-    identifier: alert.id,
-    content: {
-      title: alert.type === 'maturity' ? '📅 Maturity Reminder' : '🔔 Reminder',
-      body: alert.message,
-      data: { alertId: alert.id, type: alert.type },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: targetDate,
-    },
-  });
+  // Cancel any existing notifications for this alert first
+  await cancelMaturityReminders(alert.id);
 
-  // Also schedule a reminder 1 day before for maturity alerts
   if (alert.type === 'maturity') {
-    const dayBefore = new Date(targetDate);
-    dayBefore.setDate(dayBefore.getDate() - 1);
+    // Schedule multiple reminders for maturity alerts
+    for (const daysBefore of MATURITY_REMINDER_INTERVALS) {
+      const reminderDate = new Date(targetDate);
+      reminderDate.setDate(reminderDate.getDate() - daysBefore);
 
-    if (dayBefore > now) {
-      await Notifications.scheduleNotificationAsync({
-        identifier: `${alert.id}_reminder`,
-        content: {
-          title: '📅 Maturity Tomorrow',
-          body: `${alert.message} - matures tomorrow!`,
-          data: { alertId: alert.id, type: 'maturity_reminder' },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: dayBefore,
-        },
-      });
+      if (reminderDate > now) {
+        const identifier = daysBefore === 0 ? alert.id : `${alert.id}_${daysBefore}d`;
+        const title = getReminderTitle(daysBefore);
+        const body = getReminderBody(alert.message, daysBefore);
+
+        await Notifications.scheduleNotificationAsync({
+          identifier,
+          content: {
+            title,
+            body,
+            data: { alertId: alert.id, type: 'maturity_reminder', daysBefore },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: reminderDate,
+          },
+        });
+      }
     }
+  } else {
+    // Regular reminder - just schedule for the target date
+    await Notifications.scheduleNotificationAsync({
+      identifier: alert.id,
+      content: {
+        title: '🔔 Reminder',
+        body: alert.message,
+        data: { alertId: alert.id, type: alert.type },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: targetDate,
+      },
+    });
+  }
+}
+
+/**
+ * Cancel all maturity reminders for an alert
+ */
+async function cancelMaturityReminders(alertId: string): Promise<void> {
+  const identifiersToCancel = [
+    alertId,
+    ...MATURITY_REMINDER_INTERVALS.filter(d => d > 0).map(d => `${alertId}_${d}d`),
+  ];
+
+  for (const identifier of identifiersToCancel) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(identifier);
+    } catch {
+      // Ignore errors for non-existent notifications
+    }
+  }
+}
+
+/**
+ * Get reminder title based on days before maturity
+ */
+function getReminderTitle(daysBefore: number): string {
+  switch (daysBefore) {
+    case 0:
+      return '📅 Maturity Today!';
+    case 1:
+      return '📅 Maturity Tomorrow';
+    case 7:
+      return '📅 Maturity in 1 Week';
+    case 30:
+      return '📅 Maturity in 30 Days';
+    default:
+      return `📅 Maturity in ${daysBefore} Days`;
+  }
+}
+
+/**
+ * Get reminder body based on days before maturity
+ */
+function getReminderBody(message: string, daysBefore: number): string {
+  switch (daysBefore) {
+    case 0:
+      return `${message} - matures today! Time to review your options.`;
+    case 1:
+      return `${message} - matures tomorrow! Start planning your next steps.`;
+    case 7:
+      return `${message} - matures in one week. Consider your reinvestment options.`;
+    case 30:
+      return `${message} - matures in 30 days. Good time to research alternatives.`;
+    default:
+      return `${message} - matures in ${daysBefore} days.`;
   }
 }
 
