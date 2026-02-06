@@ -33,6 +33,7 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import logger from '@/lib/logger';
 import {
   getMetricsSummary,
   getRecentEvaluations,
@@ -76,7 +77,7 @@ export default function OpikDashboardScreen() {
       }
       setExperimentSummaries(summaries);
     } catch (error) {
-      console.error('Failed to load Opik data:', error);
+      logger.error('OpikDashboard', 'Failed to load data', { error });
     } finally {
       setIsLoading(false);
     }
@@ -115,40 +116,43 @@ export default function OpikDashboardScreen() {
         <View style={styles.overallScoreCard}>
           <View style={styles.overallScoreHeader}>
             <Brain size={24} color={Colors.primary} />
-            <Text style={styles.overallScoreTitle}>AI Quality Score</Text>
+            <Text style={styles.overallScoreTitle}>How Good is Penny's AI?</Text>
           </View>
           <Text style={[styles.overallScoreValue, { color: getScoreColor(metrics.overallAverageScore) }]}>
             {formatScore(metrics.overallAverageScore)}
           </Text>
           <Text style={styles.overallScoreSubtext}>
-            Based on {metrics.totalEvaluations} evaluations
+            Based on {metrics.totalEvaluations} AI responses checked
+          </Text>
+          <Text style={styles.overallScoreExplainer}>
+            We automatically grade every AI response for accuracy and helpfulness
           </Text>
         </View>
 
         {/* Criteria Breakdown */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quality Criteria</Text>
+          <Text style={styles.sectionTitle}>What We Check</Text>
           <View style={styles.criteriaGrid}>
             <CriteriaCard
-              name="Safety"
+              name="Safe"
               score={metrics.averageScores.safety}
               icon={<Shield size={18} color={getScoreColor(metrics.averageScores.safety)} />}
-              description="Avoids investment advice"
+              description="No risky advice"
             />
             <CriteriaCard
-              name="Accuracy"
+              name="Accurate"
               score={metrics.averageScores.accuracy}
               icon={<Target size={18} color={getScoreColor(metrics.averageScores.accuracy)} />}
-              description="Factually correct"
+              description="Facts are correct"
             />
             <CriteriaCard
-              name="Helpfulness"
+              name="Helpful"
               score={metrics.averageScores.helpfulness}
               icon={<Sparkles size={18} color={getScoreColor(metrics.averageScores.helpfulness)} />}
-              description="Achieves user goals"
+              description="Actually useful"
             />
             <CriteriaCard
-              name="Clarity"
+              name="Clear"
               score={metrics.averageScores.clarity}
               icon={<Brain size={18} color={getScoreColor(metrics.averageScores.clarity)} />}
               description="Easy to understand"
@@ -158,7 +162,7 @@ export default function OpikDashboardScreen() {
 
         {/* Feature Performance */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Performance by Feature</Text>
+          <Text style={styles.sectionTitle}>Score by Feature</Text>
           {Object.entries(metrics.scoresByFeature).length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No evaluations yet</Text>
@@ -173,7 +177,7 @@ export default function OpikDashboardScreen() {
                   <Text style={styles.featureName}>{formatFeatureName(feature)}</Text>
                   <View style={styles.featureMeta}>
                     {getTrendIcon(data.trend)}
-                    <Text style={styles.featureCount}>{data.count} evals</Text>
+                    <Text style={styles.featureCount}>{data.count} checked</Text>
                   </View>
                 </View>
                 <View style={styles.featureScore}>
@@ -186,23 +190,23 @@ export default function OpikDashboardScreen() {
           )}
         </View>
 
-        {/* Opik Status */}
+        {/* Status */}
         <View style={styles.statusCard}>
           <View style={styles.statusRow}>
             {isOpikConfigured() ? (
               <>
                 <CheckCircle size={16} color={Colors.success} />
-                <Text style={styles.statusText}>Opik Cloud connected</Text>
+                <Text style={styles.statusText}>Cloud analytics enabled</Text>
               </>
             ) : (
               <>
-                <AlertTriangle size={16} color={Colors.warning} />
-                <Text style={styles.statusText}>Running in local mode</Text>
+                <CheckCircle size={16} color={Colors.success} />
+                <Text style={styles.statusText}>Analytics running locally</Text>
               </>
             )}
           </View>
           <Text style={styles.statusSubtext}>
-            Last updated: {new Date(metrics.lastUpdated).toLocaleString()}
+            Last checked: {new Date(metrics.lastUpdated).toLocaleString()}
           </Text>
         </View>
       </View>
@@ -211,13 +215,13 @@ export default function OpikDashboardScreen() {
 
   const renderEvaluations = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.sectionTitle}>Recent Evaluations</Text>
+      <Text style={styles.sectionTitle}>Recent AI Checks</Text>
       {recentEvaluations.length === 0 ? (
         <View style={styles.emptyState}>
           <BarChart3 size={48} color={Colors.textMuted} />
-          <Text style={styles.emptyStateText}>No evaluations yet</Text>
+          <Text style={styles.emptyStateText}>No checks yet</Text>
           <Text style={styles.emptyStateSubtext}>
-            AI responses will be automatically evaluated using LLM-as-judge
+            Every AI response gets automatically graded for quality
           </Text>
         </View>
       ) : (
@@ -230,7 +234,7 @@ export default function OpikDashboardScreen() {
 
   const renderExperiments = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.sectionTitle}>Active Experiments</Text>
+      <Text style={styles.sectionTitle}>Active Tests</Text>
       {ALL_EXPERIMENTS.filter(exp => exp.isActive).map((experiment) => {
         const summary = experimentSummaries[experiment.id];
         return (
@@ -245,8 +249,8 @@ export default function OpikDashboardScreen() {
       <View style={styles.experimentInfoCard}>
         <FlaskConical size={20} color={Colors.textMuted} />
         <Text style={styles.experimentInfoText}>
-          Experiments compare different AI coaching styles to find the most effective approach.
-          Results are evaluated automatically using LLM-as-judge.
+          We're testing different coaching styles to find what works best for you.
+          Each approach is automatically scored for quality.
         </Text>
       </View>
     </View>
@@ -256,7 +260,7 @@ export default function OpikDashboardScreen() {
     return (
       <View style={[styles.container, styles.loadingContainer, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading evaluation data...</Text>
+        <Text style={styles.loadingText}>Loading AI stats...</Text>
       </View>
     );
   }
@@ -268,7 +272,7 @@ export default function OpikDashboardScreen() {
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <ChevronLeft size={24} color={Colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>AI Quality Dashboard</Text>
+        <Text style={styles.headerTitle}>AI Performance</Text>
         <Pressable style={styles.refreshButton} onPress={onRefresh}>
           <RefreshCw size={20} color={Colors.text} />
         </Pressable>
@@ -281,7 +285,7 @@ export default function OpikDashboardScreen() {
           onPress={() => setActiveTab('overview')}
         >
           <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>
-            Overview
+            Summary
           </Text>
         </Pressable>
         <Pressable
@@ -289,7 +293,7 @@ export default function OpikDashboardScreen() {
           onPress={() => setActiveTab('evaluations')}
         >
           <Text style={[styles.tabText, activeTab === 'evaluations' && styles.tabTextActive]}>
-            Evaluations
+            History
           </Text>
         </Pressable>
         <Pressable
@@ -297,7 +301,7 @@ export default function OpikDashboardScreen() {
           onPress={() => setActiveTab('experiments')}
         >
           <Text style={[styles.tabText, activeTab === 'experiments' && styles.tabTextActive]}>
-            Experiments
+            A/B Tests
           </Text>
         </Pressable>
       </View>
@@ -373,20 +377,20 @@ function EvaluationCard({ evaluation }: { evaluation: EvaluationResult }) {
       {expanded && (
         <View style={styles.evaluationDetails}>
           <View style={styles.evaluationPrompt}>
-            <Text style={styles.evaluationLabel}>Prompt:</Text>
+            <Text style={styles.evaluationLabel}>You asked:</Text>
             <Text style={styles.evaluationText} numberOfLines={3}>{evaluation.prompt}</Text>
           </View>
           <View style={styles.evaluationResponse}>
-            <Text style={styles.evaluationLabel}>Response:</Text>
+            <Text style={styles.evaluationLabel}>AI answered:</Text>
             <Text style={styles.evaluationText} numberOfLines={3}>{evaluation.response}</Text>
           </View>
           <View style={styles.evaluationFeedback}>
-            <Text style={styles.evaluationLabel}>Feedback:</Text>
+            <Text style={styles.evaluationLabel}>Quality notes:</Text>
             <Text style={styles.evaluationFeedbackText}>{evaluation.feedback}</Text>
           </View>
           <View style={styles.evaluationScores}>
-            <ScorePill label="Accuracy" score={evaluation.criteria.accuracy} />
-            <ScorePill label="Safety" score={evaluation.criteria.safety} />
+            <ScorePill label="Accurate" score={evaluation.criteria.accuracy} />
+            <ScorePill label="Safe" score={evaluation.criteria.safety} />
             <ScorePill label="Helpful" score={evaluation.criteria.helpfulness} />
             <ScorePill label="Clear" score={evaluation.criteria.clarity} />
           </View>
@@ -447,7 +451,7 @@ function ExperimentCard({ experiment, summary }: { experiment: Experiment; summa
                     {isWinner && ' 🏆'}
                   </Text>
                   <Text style={styles.variantCount}>
-                    {results?.count || 0} samples
+                    {results?.count || 0} responses tested
                   </Text>
                 </View>
                 <View style={styles.variantScore}>
@@ -587,6 +591,14 @@ const styles = StyleSheet.create({
   overallScoreSubtext: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  overallScoreExplainer: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 16,
+    fontStyle: 'italic',
   },
 
   // Criteria Grid

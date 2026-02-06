@@ -215,7 +215,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       // For native iOS/Android, use expo-auth-session
       const AuthSession = await import('expo-auth-session');
-      const { openAuthSessionAsync, maybeCompleteAuthSession } = await import('expo-web-browser');
+      const { maybeCompleteAuthSession } = await import('expo-web-browser');
 
       // Complete any pending auth session
       maybeCompleteAuthSession();
@@ -223,17 +223,18 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
       if (!webClientId) {
-        setError('Google Sign-In not configured');
+        logger.error('AuthContext', 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID not set');
+        setError('Google Sign-In not configured. Use Demo mode.');
         return false;
       }
 
-      // Create redirect URI - in Expo Go this uses the Expo proxy
+      // Create redirect URI
       const redirectUri = AuthSession.makeRedirectUri({
-        // For Expo Go, this creates an exp:// URL
-        // For standalone builds, use your scheme
+        scheme: 'penny',
       });
 
-      logger.debug('AuthContext', `Google redirect URI: ${redirectUri}`);
+      logger.info('AuthContext', `Google redirect URI: ${redirectUri}`);
+      logger.info('AuthContext', `Using client ID: ${webClientId.substring(0, 20)}...`);
 
       // Use Google's discovery document
       const discovery = {
@@ -255,7 +256,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       // Prompt user for authorization
       const result = await request.promptAsync(discovery);
 
-      logger.debug('AuthContext', `Google auth result: ${result.type}`);
+      logger.info('AuthContext', `Google auth result type: ${result.type}`);
 
       if (result.type === 'success' && result.params?.id_token) {
         // Sign in to Firebase with Google credential
@@ -266,16 +267,22 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
-        logger.debug('AuthContext', 'Google sign in cancelled');
+        logger.info('AuthContext', 'Google sign in cancelled by user');
+        return false;
+      }
+
+      if (result.type === 'error') {
+        logger.error('AuthContext', 'Google auth error', result.error);
+        setError(`Google Sign-In failed: ${result.error?.message || 'Unknown error'}. Try Demo mode.`);
         return false;
       }
 
       logger.warn('AuthContext', 'Google sign in failed', result);
-      setError('Failed to get Google credentials');
+      setError('Google Sign-In failed. Try Demo mode.');
       return false;
     } catch (err: any) {
       logger.error('AuthContext', 'Google sign in error', err);
-      setError('Failed to sign in with Google');
+      setError(`Google Sign-In error: ${err.message || 'Unknown error'}. Try Demo mode.`);
       return false;
     }
   }, []);
@@ -297,10 +304,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return true;
       }
 
+      if (Platform.OS === 'android') {
+        setError('Apple Sign-In is only available on iOS. Use Demo mode.');
+        return false;
+      }
+
       // Check if Apple Auth is available (iOS only)
       const isAvailable = await AppleAuthentication.isAvailableAsync();
+      logger.info('AuthContext', `Apple Auth available: ${isAvailable}`);
+
       if (!isAvailable) {
-        setError('Apple Sign In is not available on this device');
+        setError('Apple Sign-In requires a custom build (not Expo Go). Use Demo mode.');
         return false;
       }
 
@@ -334,18 +348,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           }
         }
 
+        logger.info('AuthContext', 'Apple sign in successful');
         return true;
       }
 
-      setError('Failed to get Apple credentials');
+      setError('Failed to get Apple credentials. Try Demo mode.');
       return false;
     } catch (err: any) {
-      if (err.code === 'ERR_REQUEST_CANCELED') {
-        logger.debug('AuthContext', 'Apple sign in cancelled');
+      if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') {
+        logger.info('AuthContext', 'Apple sign in cancelled by user');
         return false;
       }
       logger.error('AuthContext', 'Apple sign in error', err);
-      setError('Failed to sign in with Apple');
+      setError(`Apple Sign-In error: ${err.message || 'Unknown error'}. Try Demo mode.`);
       return false;
     }
   }, []);

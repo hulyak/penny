@@ -31,6 +31,7 @@ import {
   Target,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import logger from '@/lib/logger';
 import { getAnalyticsSummary, getEvaluationMetrics, AnalyticsSummary } from '@/lib/analytics';
 import { isOpikConfigured } from '@/lib/opik';
 import { getAgentAnalytics, triggerAgentCheck, type Intervention, type AgentState } from '@/lib/agentLoop';
@@ -55,7 +56,7 @@ interface DashboardData {
 export function ObservabilityDashboard() {
   const [data, setData] = useState<DashboardData>({ analytics: null, evaluations: null, agent: null });
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'agent' | 'evaluations' | 'feedback'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'monitor' | 'quality' | 'feedback'>('overview');
 
   const loadData = async () => {
     try {
@@ -66,7 +67,7 @@ export function ObservabilityDashboard() {
       ]);
       setData({ analytics, evaluations, agent });
     } catch (error) {
-      console.error('[Dashboard] Error loading data:', error);
+      logger.error('Dashboard', 'Error loading data', { error });
     }
   };
 
@@ -97,23 +98,28 @@ export function ObservabilityDashboard() {
           <BarChart2 size={24} color={Colors.accent} />
         </View>
         <View>
-          <Text style={styles.headerTitle}>Observability Dashboard</Text>
+          <Text style={styles.headerTitle}>App Activity</Text>
           <Text style={styles.headerSubtitle}>
-            {isOpikConfigured() ? 'Connected to Opik' : 'Local Analytics'}
+            {isOpikConfigured() ? 'Cloud sync enabled' : 'Tracking locally'}
           </Text>
         </View>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabs}>
-        {(['overview', 'agent', 'evaluations', 'feedback'] as const).map((tab) => (
+        {[
+          { key: 'overview', label: 'Overview' },
+          { key: 'monitor', label: 'Monitor' },
+          { key: 'quality', label: 'Quality' },
+          { key: 'feedback', label: 'Feedback' },
+        ].map((tab) => (
           <Pressable
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
+            key={tab.key}
+            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+            onPress={() => setActiveTab(tab.key as any)}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+              {tab.label}
             </Text>
           </Pressable>
         ))}
@@ -198,16 +204,16 @@ export function ObservabilityDashboard() {
         </>
       )}
 
-      {activeTab === 'agent' && (
+      {activeTab === 'monitor' && (
         <>
-          {/* Agent Status */}
+          {/* Monitor Status */}
           <View style={styles.card}>
             <View style={styles.agentHeader}>
               <View style={styles.agentIcon}>
                 <Bot size={24} color={Colors.accent} />
               </View>
               <View style={styles.agentInfo}>
-                <Text style={styles.cardTitle}>Agentic Loop Status</Text>
+                <Text style={styles.cardTitle}>Portfolio Monitor</Text>
                 <Text style={styles.agentStatus}>
                   Last check: {data.agent?.state.lastCheck
                     ? new Date(data.agent.state.lastCheck).toLocaleString()
@@ -223,15 +229,15 @@ export function ObservabilityDashboard() {
               }}
             >
               <Zap size={16} color={Colors.textLight} />
-              <Text style={styles.triggerButtonText}>Trigger Agent Check</Text>
+              <Text style={styles.triggerButtonText}>Run Check Now</Text>
             </Pressable>
           </View>
 
-          {/* Agent Metrics */}
+          {/* Monitor Metrics */}
           <View style={styles.metricsGrid}>
             <MetricCard
               icon={<Bell size={20} color={Colors.coral} />}
-              label="Interventions"
+              label="Alerts Sent"
               value={data.agent?.state.weeklyInterventionCount || 0}
               subtitle="this week"
             />
@@ -239,21 +245,21 @@ export function ObservabilityDashboard() {
               icon={<Target size={20} color={Colors.success} />}
               label="Response Rate"
               value={`${((data.agent?.responseRate || 0) * 100).toFixed(0)}%`}
-              subtitle="user engagement"
+              subtitle="how often you engage"
             />
           </View>
 
-          {/* Learning Status */}
+          {/* Personalization */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Agent Learning</Text>
+            <Text style={styles.cardTitle}>Personalization</Text>
             <View style={styles.learningItem}>
-              <Text style={styles.learningLabel}>Preferred Intervention Hour</Text>
+              <Text style={styles.learningLabel}>Best time to notify you</Text>
               <Text style={styles.learningValue}>
                 {data.agent?.state.preferredInterventionHour || 9}:00
               </Text>
             </View>
             <View style={styles.learningItem}>
-              <Text style={styles.learningLabel}>Effective Intervention Types</Text>
+              <Text style={styles.learningLabel}>Alert types that work for you</Text>
               <View style={styles.typeTags}>
                 {(data.agent?.effectiveTypes || ['drift_alert', 'contribution_reminder']).map((type) => (
                   <View key={type} style={styles.typeTag}>
@@ -264,11 +270,11 @@ export function ObservabilityDashboard() {
             </View>
           </View>
 
-          {/* Recent Interventions */}
+          {/* Recent Alerts */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Recent Interventions</Text>
+            <Text style={styles.cardTitle}>Recent Alerts</Text>
             {(data.agent?.recentInterventions || []).length === 0 ? (
-              <Text style={styles.emptyText}>No interventions yet. The agent will nudge you when needed.</Text>
+              <Text style={styles.emptyText}>No alerts sent yet. We'll notify you when something important happens.</Text>
             ) : (
               (data.agent?.recentInterventions || []).slice(-5).reverse().map((intervention) => (
                 <View key={intervention.id} style={styles.interventionRow}>
@@ -303,13 +309,13 @@ export function ObservabilityDashboard() {
         </>
       )}
 
-      {activeTab === 'evaluations' && (
+      {activeTab === 'quality' && (
         <>
           {/* Average Scores */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Quality Scores</Text>
+            <Text style={styles.cardTitle}>AI Quality Scores</Text>
             {Object.entries(evaluations?.averageScores || {}).length === 0 ? (
-              <Text style={styles.emptyText}>No evaluation data yet</Text>
+              <Text style={styles.emptyText}>No quality checks yet</Text>
             ) : (
               Object.entries(evaluations?.averageScores || {}).map(([metric, score]) => (
                 <View key={metric} style={styles.scoreRow}>
@@ -340,11 +346,11 @@ export function ObservabilityDashboard() {
             )}
           </View>
 
-          {/* Recent Evaluations */}
+          {/* Recent Checks */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Recent Evaluations</Text>
+            <Text style={styles.cardTitle}>Recent AI Checks</Text>
             {(evaluations?.recentEvaluations || []).length === 0 ? (
-              <Text style={styles.emptyText}>No recent evaluations</Text>
+              <Text style={styles.emptyText}>No checks yet</Text>
             ) : (
               (evaluations?.recentEvaluations || []).slice(0, 10).map((evaluation, index) => (
                 <View key={index} style={styles.evaluationRow}>
@@ -371,14 +377,14 @@ export function ObservabilityDashboard() {
             )}
           </View>
 
-          {/* Evaluation Metrics Legend */}
+          {/* What We Check */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Metric Descriptions</Text>
+            <Text style={styles.cardTitle}>What We Check</Text>
             <View style={styles.legendGrid}>
-              <LegendItem icon={<Brain size={16} color={Colors.accent} />} label="Helpfulness" description="How useful the response is" />
-              <LegendItem icon={<CheckCircle size={16} color={Colors.success} />} label="Safety" description="No risky financial advice" />
-              <LegendItem icon={<TrendingUp size={16} color={Colors.lavender} />} label="Actionability" description="Clear next steps provided" />
-              <LegendItem icon={<Activity size={16} color={Colors.coral} />} label="Accuracy" description="Financially correct information" />
+              <LegendItem icon={<Brain size={16} color={Colors.accent} />} label="Helpful" description="Is the response actually useful?" />
+              <LegendItem icon={<CheckCircle size={16} color={Colors.success} />} label="Safe" description="No risky financial advice" />
+              <LegendItem icon={<TrendingUp size={16} color={Colors.lavender} />} label="Actionable" description="Clear next steps you can take" />
+              <LegendItem icon={<Activity size={16} color={Colors.coral} />} label="Accurate" description="Facts are correct" />
             </View>
           </View>
         </>

@@ -523,26 +523,65 @@ function tryFixTruncatedJson(json: string): string {
   // Remove markdown code blocks if present
   fixed = fixed.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '');
 
-  // Remove trailing incomplete string (ends with unclosed quote and content)
-  if (fixed.match(/:\s*"[^"]*$/)) {
-    fixed = fixed.replace(/:\s*"[^"]*$/, ': ""');
+  // First pass: detect if we're in an unclosed string by counting quotes
+  let quoteCount = 0;
+  let escapeNext = false;
+  for (const char of fixed) {
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    if (char === '"') {
+      quoteCount++;
+    }
   }
+
+  // If odd number of quotes, we have an unclosed string
+  if (quoteCount % 2 === 1) {
+    // Find the last quote and truncate to close cleanly
+    const lastQuoteIndex = fixed.lastIndexOf('"');
+    if (lastQuoteIndex > 0) {
+      // Find what comes before this quote to determine context
+      const beforeQuote = fixed.substring(0, lastQuoteIndex).trim();
+
+      // If it's a key-value pair, close the string value
+      if (beforeQuote.endsWith(':')) {
+        fixed = fixed.substring(0, lastQuoteIndex + 1) + '..."';
+      } else if (beforeQuote.match(/,\s*$/)) {
+        // Array item - close it
+        fixed = fixed.substring(0, lastQuoteIndex + 1) + '..."';
+      } else {
+        // Just close the string
+        fixed += '"';
+      }
+    } else {
+      fixed += '"';
+    }
+  }
+
+  // Remove trailing incomplete patterns (with multiline support)
+  // Remove trailing incomplete string (ends with unclosed quote and content)
+  fixed = fixed.replace(/:\s*"[^"]*$/s, ': "..."');
 
   // Remove trailing incomplete array item
-  if (fixed.match(/,\s*"[^"]*$/)) {
-    fixed = fixed.replace(/,\s*"[^"]*$/, '');
-  }
+  fixed = fixed.replace(/,\s*"[^"]*$/s, '');
 
   // Remove trailing incomplete object/array
-  if (fixed.match(/,\s*$/)) {
-    fixed = fixed.replace(/,\s*$/, '');
-  }
+  fixed = fixed.replace(/,\s*$/s, '');
 
-  // Count brackets and braces
+  // Remove incomplete key (key without value)
+  fixed = fixed.replace(/,\s*"[^"]+"\s*$/s, '');
+  fixed = fixed.replace(/{\s*"[^"]+"\s*$/s, '{');
+
+  // Count brackets and braces after fixes
   let openBraces = 0;
   let openBrackets = 0;
   let inString = false;
-  let escapeNext = false;
+  escapeNext = false;
 
   for (const char of fixed) {
     if (escapeNext) {
@@ -565,7 +604,7 @@ function tryFixTruncatedJson(json: string): string {
     if (char === ']') openBrackets--;
   }
 
-  // Close any unclosed strings
+  // Close any unclosed strings (safety check)
   if (inString) {
     fixed += '"';
   }
@@ -584,6 +623,24 @@ function tryFixTruncatedJson(json: string): string {
     JSON.parse(fixed);
     return fixed;
   } catch {
+    // Try more aggressive truncation - find the last complete object/array item
+    try {
+      // Find last complete item in array (ends with })
+      const lastCompleteItem = fixed.lastIndexOf('},');
+      if (lastCompleteItem > 0) {
+        let truncated = fixed.substring(0, lastCompleteItem + 1);
+        // Close remaining brackets
+        openBrackets = (truncated.match(/\[/g) || []).length - (truncated.match(/\]/g) || []).length;
+        openBraces = (truncated.match(/\{/g) || []).length - (truncated.match(/\}/g) || []).length;
+        if (openBrackets > 0) truncated += ']'.repeat(openBrackets);
+        if (openBraces > 0) truncated += '}'.repeat(openBraces);
+        JSON.parse(truncated);
+        return truncated;
+      }
+    } catch {
+      // Still failed
+    }
+
     // Fix didn't work, return original to get better error message
     return json;
   }

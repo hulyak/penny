@@ -7,6 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { opik, UserFeedback } from './opik';
+import logger from './logger';
 
 const ANALYTICS_KEY = 'penny_analytics';
 const SESSIONS_KEY = 'penny_sessions';
@@ -99,7 +100,7 @@ export async function startSession(): Promise<string> {
     feedbackGiven: 0,
   };
 
-  console.log('[Analytics] Started session:', sessionId);
+  logger.debug('Analytics', 'Started session', { sessionId });
   return sessionId;
 }
 
@@ -128,9 +129,9 @@ export async function endSession(): Promise<void> {
     }
 
     await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-    console.log('[Analytics] Ended session:', session.id);
+    logger.debug('Analytics', 'Ended session', { sessionId: session.id });
   } catch (error) {
-    console.error('[Analytics] Error saving session:', error);
+    logger.error('Analytics', 'Error saving session', { error });
   }
 
   currentSession = null;
@@ -183,10 +184,10 @@ export async function trackInteraction(
 
     await AsyncStorage.setItem(INTERACTIONS_KEY, JSON.stringify(interactions));
   } catch (error) {
-    console.error('[Analytics] Error tracking interaction:', error);
+    logger.error('Analytics', 'Error tracking interaction', { error });
   }
 
-  console.log('[Analytics] Tracked:', type, metadata);
+  logger.debug('Analytics', 'Tracked', { type, metadata });
 }
 
 /**
@@ -349,7 +350,7 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
       featureUsage,
     };
   } catch (error) {
-    console.error('[Analytics] Error getting summary:', error);
+    logger.error('Analytics', 'Error getting summary', { error });
     return {
       totalInteractions: 0,
       interactionsByType: {} as Record<InteractionType, number>,
@@ -409,7 +410,7 @@ export async function clearAnalytics(): Promise<void> {
     SESSIONS_KEY,
     INTERACTIONS_KEY,
   ]);
-  console.log('[Analytics] Cleared all analytics data');
+  logger.info('Analytics', 'Cleared all analytics data');
 }
 
 export default {

@@ -3,6 +3,7 @@ import { generateStructuredWithGemini, GEMINI_SYSTEM_PROMPT } from './gemini';
 import { Holding, MarketEvent, PriceAlert } from '@/types';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import logger from './logger';
 
 const EVENTS_STORAGE_KEY = 'penny_market_events';
 const EVENTS_CACHE_KEY = 'penny_events_cache';
@@ -132,29 +133,20 @@ export async function getNewsAnalysis(holdings: Holding[]): Promise<{
     keyTakeaway: z.string(),
   });
 
-  const prompt = `Generate market news for portfolio: ${symbols.join(', ')}.
+  const prompt = `Generate 2 brief market news headlines for: ${symbols.slice(0, 5).join(', ')}.
 
-Return a JSON object with EXACTLY this structure:
-{
-  "headlines": [
-    {"title": "...", "summary": "...", "impact": "positive|neutral|negative", "relevantSymbols": ["SYM1"]}
-  ],
-  "marketSentiment": "bullish|neutral|bearish",
-  "keyTakeaway": "One sentence summary"
-}
+Return ONLY valid JSON:
+{"headlines":[{"title":"SHORT TITLE","summary":"Brief summary under 50 chars","impact":"positive","relevantSymbols":["SYM"]}],"marketSentiment":"neutral","keyTakeaway":"One brief sentence"}
 
-Rules:
-- headlines MUST be a JSON array with 2-3 items max
-- Each headline: title (under 60 chars), summary (under 100 chars)
-- Keep total response under 500 characters`;
+CRITICAL: Keep each summary under 50 characters. Only 2 headlines. No truncation.`;
 
   try {
     const result = await generateStructuredWithGemini({
       prompt,
-      systemInstruction: 'Generate concise financial news in valid JSON format. Keep responses short.',
+      systemInstruction: 'Return ONLY valid compact JSON. No markdown. Keep all text fields very short.',
       schema,
-      maxTokens: 1024,
-      temperature: 0.5,
+      maxTokens: 800,
+      temperature: 0.3,
     });
 
     // Cache the result
@@ -162,7 +154,7 @@ Rules:
 
     return result;
   } catch (error) {
-    console.error('[MarketEvents] News analysis failed:', error);
+    logger.error('MarketEvents', 'News analysis failed', error);
     return {
       headlines: [
         {
@@ -258,8 +250,26 @@ async function getCachedNews(): Promise<any | null> {
     const { data, timestamp } = JSON.parse(cached);
     if (Date.now() - timestamp > CACHE_DURATION) return null;
 
+    // Validate cached data structure
+    if (!data || !data.headlines || !Array.isArray(data.headlines)) {
+      logger.warn('MarketEvents', 'Invalid cached news structure, clearing cache');
+      await AsyncStorage.removeItem(EVENTS_CACHE_KEY);
+      return null;
+    }
+
+    // Validate each headline has required fields
+    for (const headline of data.headlines) {
+      if (!headline.title || !headline.summary || !headline.impact) {
+        logger.warn('MarketEvents', 'Incomplete headline in cache, clearing');
+        await AsyncStorage.removeItem(EVENTS_CACHE_KEY);
+        return null;
+      }
+    }
+
     return data;
-  } catch {
+  } catch (error) {
+    logger.warn('MarketEvents', 'Cache read failed, clearing', { error });
+    await AsyncStorage.removeItem(EVENTS_CACHE_KEY);
     return null;
   }
 }
@@ -271,7 +281,7 @@ async function cacheNews(data: any): Promise<void> {
       timestamp: Date.now(),
     }));
   } catch (error) {
-    console.error('[MarketEvents] Failed to cache news:', error);
+    logger.warn('MarketEvents', 'Failed to cache news', { error });
   }
 }
 
