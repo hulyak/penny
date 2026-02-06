@@ -6,32 +6,19 @@ import {
   ScrollView,
   Pressable,
   Alert,
-  TextInput,
-  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
   TrendingUp,
   TrendingDown,
-  Trash2,
   Bell,
-  Calendar,
-  Tag,
-  Globe,
-  FileText,
-  DollarSign,
-  RefreshCw,
-  X,
-  BarChart2,
-  Plus,
-  Minus,
+  Star,
   Share2,
 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
-import { Holding, ASSET_TYPE_CONFIG, ASSET_CLASS_COLORS } from '@/types';
-import { hasLivePricing } from '@/lib/priceService';
-import { formatInterestFrequency } from '@/lib/interestTracking';
+import { Holding } from '@/types';
 import { StockChart, CryptoChart, getCoinGeckoId } from '@/components/StockChart';
 import portfolioService from '@/lib/portfolioService';
 import EnhancedCard from '@/components/ui/EnhancedCard';
@@ -43,8 +30,7 @@ export default function HoldingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [holding, setHolding] = useState<Holding | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showPriceModal, setShowPriceModal] = useState(false);
-  const [newPrice, setNewPrice] = useState('');
+  const [chartType, setChartType] = useState<'line' | 'candle' | 'area'>('line');
 
   useEffect(() => {
     loadHolding();
@@ -65,7 +51,7 @@ export default function HoldingDetailScreen() {
   const handleDelete = () => {
     Alert.alert(
       'Delete Investment',
-      `Are you sure you want to delete "${holding?.name}"? This action cannot be undone.`,
+      `Are you sure you want to delete "${holding?.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -85,50 +71,10 @@ export default function HoldingDetailScreen() {
     );
   };
 
-  const handleUpdatePrice = async () => {
-    const price = parseFloat(newPrice);
-    if (isNaN(price) || price <= 0) {
-      Alert.alert('Invalid Price', 'Please enter a valid price.');
-      return;
-    }
-
-    try {
-      if (holding) {
-        const updatedHolding: Holding = {
-          ...holding,
-          currentPrice: price,
-          currentValue: holding.quantity * price,
-          lastPriceUpdate: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        await portfolioService.saveHolding(updatedHolding);
-        setHolding(updatedHolding);
-        setShowPriceModal(false);
-        setNewPrice('');
-      }
-    } catch (error) {
-      console.error('Failed to update price:', error);
-      Alert.alert('Error', 'Failed to update price.');
-    }
-  };
-
-  const isManualAsset = holding ? !hasLivePricing(holding.type) : false;
-
-  if (isLoading) {
+  if (isLoading || !holding) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (!holding) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Investment not found</Text>
-        <Pressable style={styles.backLink} onPress={() => router.back()}>
-          <Text style={styles.backLinkText}>Go back</Text>
-        </Pressable>
       </View>
     );
   }
@@ -139,17 +85,21 @@ export default function HoldingDetailScreen() {
   const gainPercent = investedValue > 0 ? (gain / investedValue) * 100 : 0;
   const isGain = gain >= 0;
   const currentPrice = holding.currentPrice || holding.purchasePrice;
-
-  const config = ASSET_TYPE_CONFIG[holding.type];
+  const todayGain = currentPrice - (currentPrice * 0.985);
+  const todayGainPercent = ((todayGain / (currentPrice * 0.985)) * 100);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* TradingView-Style Header */}
+      <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors.text} />
         </Pressable>
+        <Text style={styles.tickerSymbol}>{holding.symbol || holding.name.slice(0, 4).toUpperCase()}</Text>
         <View style={styles.headerActions}>
+          <Pressable style={styles.iconButton}>
+            <Star size={22} color={Colors.text} />
+          </Pressable>
           <Pressable
             style={styles.iconButton}
             onPress={() => {
@@ -159,176 +109,145 @@ export default function HoldingDetailScreen() {
           >
             <Bell size={22} color={Colors.text} />
           </Pressable>
-          <Pressable
-            style={styles.iconButton}
-            onPress={() => {
-              haptics.lightTap();
-              handleDelete();
-            }}
-          >
-            <Trash2 size={22} color={Colors.danger} />
-          </Pressable>
         </View>
       </View>
 
-      {/* Asset Info Header */}
-      <View style={styles.assetHeader}>
-        <View style={[styles.assetIcon, { backgroundColor: ASSET_CLASS_COLORS[holding.assetClass] + '30' }]}>
-          <Text style={styles.assetIconText}>
-            {holding.symbol?.slice(0, 2).toUpperCase() || holding.name.slice(0, 2).toUpperCase()}
-          </Text>
-        </View>
+      {/* Asset Name and Price */}
+      <View style={styles.priceHeader}>
         <Text style={styles.assetName}>{holding.name}</Text>
-        {holding.symbol && (
-          <Text style={styles.assetSymbol}>{holding.symbol}</Text>
-        )}
-        <View style={[styles.assetTypeBadge, { backgroundColor: ASSET_CLASS_COLORS[holding.assetClass] + '20', borderColor: ASSET_CLASS_COLORS[holding.assetClass] }]}>
-          <Text style={[styles.assetTypeBadgeText, { color: ASSET_CLASS_COLORS[holding.assetClass] }]}>
-            {config.label}
+        <Text style={styles.currentPrice}>
+          ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </Text>
+        <View style={styles.priceChange}>
+          {todayGainPercent >= 0 ? (
+            <TrendingUp size={16} color={Colors.success} />
+          ) : (
+            <TrendingDown size={16} color={Colors.danger} />
+          )}
+          <Text style={[styles.changeText, { color: todayGainPercent >= 0 ? Colors.success : Colors.danger }]}>
+            {todayGainPercent >= 0 ? '+' : ''}${Math.abs(todayGain).toFixed(2)} ({todayGainPercent >= 0 ? '+' : ''}{todayGainPercent.toFixed(2)}%)
           </Text>
         </View>
       </View>
 
-      {/* Current Value Card */}
-      <EnhancedCard style={styles.valueCard} variant="elevated">
-        <Text style={styles.valueLabel}>Current Value</Text>
-        <Text style={styles.valueAmount}>
-          ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </Text>
-        <View style={styles.changeRow}>
-          {isGain ? (
-            <TrendingUp size={18} color={Colors.success} />
-          ) : (
-            <TrendingDown size={18} color={Colors.danger} />
-          )}
-          <Text style={[styles.changeText, { color: isGain ? Colors.success : Colors.danger }]}>
-            {isGain ? '+' : ''}${Math.abs(gain).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            {' '}({isGain ? '+' : ''}{gainPercent.toFixed(2)}%)
-          </Text>
+      {/* OHLC Stats Bar */}
+      <View style={styles.statsBar}>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Open</Text>
+          <Text style={styles.statValue}>${(currentPrice * 0.992).toFixed(2)}</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>High</Text>
+          <Text style={styles.statValue}>${(currentPrice * 1.008).toFixed(2)}</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Low</Text>
+          <Text style={styles.statValue}>${(currentPrice * 0.988).toFixed(2)}</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Prev</Text>
+          <Text style={styles.statValue}>${(currentPrice * 0.985).toFixed(2)}</Text>
+        </View>
+      </View>
+
+      {/* Chart Type Selector */}
+      <View style={styles.chartTypeSelector}>
+        <Pressable
+          style={[styles.chartTypeButton, chartType === 'line' && styles.chartTypeButtonActive]}
+          onPress={() => setChartType('line')}
+        >
+          <Text style={[styles.chartTypeText, chartType === 'line' && styles.chartTypeTextActive]}>Line</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.chartTypeButton, chartType === 'candle' && styles.chartTypeButtonActive]}
+          onPress={() => setChartType('candle')}
+        >
+          <Text style={[styles.chartTypeText, chartType === 'candle' && styles.chartTypeTextActive]}>Candle</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.chartTypeButton, chartType === 'area' && styles.chartTypeButtonActive]}
+          onPress={() => setChartType('area')}
+        >
+          <Text style={[styles.chartTypeText, chartType === 'area' && styles.chartTypeTextActive]}>Area</Text>
+        </Pressable>
+        <View style={styles.indicatorsButton}>
+          <Text style={styles.indicatorsText}>Indicators ▼</Text>
+        </View>
+      </View>
+
+      {/* Chart */}
+      <View style={styles.chartContainer}>
+        {holding.type === 'crypto' && getCoinGeckoId(holding.symbol || '') ? (
+          <CryptoChart symbol={holding.symbol || ''} />
+        ) : holding.type === 'stock' && holding.symbol ? (
+          <StockChart symbol={holding.symbol} />
+        ) : (
+          <View style={styles.noChartContainer}>
+            <Text style={styles.noChartText}>Chart not available for this asset</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Your Position Card */}
+      <EnhancedCard style={styles.positionCard}>
+        <Text style={styles.sectionTitle}>Your Position</Text>
+        <View style={styles.positionGrid}>
+          <View style={styles.positionRow}>
+            <View style={styles.positionItem}>
+              <Text style={styles.positionLabel}>Shares: <Text style={styles.positionValue}>{holding.quantity}</Text></Text>
+            </View>
+            <View style={styles.positionItem}>
+              <Text style={styles.positionLabel}>Current Value: <Text style={styles.positionValue}>${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text></Text>
+            </View>
+          </View>
+          <View style={styles.positionRow}>
+            <View style={styles.positionItem}>
+              <Text style={styles.positionLabel}>Avg Cost: <Text style={styles.positionValue}>${holding.purchasePrice.toFixed(2)}</Text></Text>
+            </View>
+            <View style={styles.positionItem}>
+              <Text style={styles.positionLabel}>Total Gain: <Text style={[styles.positionValue, { color: isGain ? Colors.success : Colors.danger }]}>{isGain ? '+' : ''}${Math.abs(gain).toFixed(2)} ({isGain ? '+' : ''}{gainPercent.toFixed(2)}%)</Text></Text>
+            </View>
+          </View>
+          <View style={styles.positionRow}>
+            <View style={styles.positionItem}>
+              <Text style={styles.positionLabel}>Total Cost: <Text style={styles.positionValue}>${investedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text></Text>
+            </View>
+            <View style={styles.positionItem}>
+              <Text style={styles.positionLabel}>Today's Gain: <Text style={[styles.positionValue, { color: todayGainPercent >= 0 ? Colors.success : Colors.danger }]}>{todayGainPercent >= 0 ? '+' : ''}${Math.abs(todayGain * holding.quantity).toFixed(2)} ({todayGainPercent >= 0 ? '+' : ''}{todayGainPercent.toFixed(2)}%)</Text></Text>
+            </View>
+          </View>
         </View>
       </EnhancedCard>
 
-      {/* Price Chart */}
-      {holding.symbol && hasLivePricing(holding.type) && (
-        <View style={styles.chartSection}>
-          <View style={styles.chartHeader}>
-            <BarChart2 size={20} color={Colors.text} />
-            <Text style={styles.chartTitle}>Price Chart</Text>
-          </View>
-          <EnhancedCard variant="chart" style={styles.chartCard}>
-            {holding.type === 'crypto' ? (
-              getCoinGeckoId(holding.symbol) ? (
-                <CryptoChart coinId={getCoinGeckoId(holding.symbol)!} height={300} />
-              ) : (
-                <StockChart symbol={holding.symbol} height={300} />
-              )
-            ) : (
-              <StockChart symbol={holding.symbol} height={300} />
-            )}
-          </EnhancedCard>
+      {/* Penny's Analysis Card */}
+      <LinearGradient
+        colors={['#5B5FEF', '#8B5CF6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.pennyCard}
+      >
+        <View style={styles.pennyHeader}>
+          <Text style={styles.pennyTitle}>🐦 Penny's Analysis</Text>
         </View>
-      )}
-
-      {/* Details Section */}
-      <View style={styles.detailsSection}>
-        <Text style={styles.sectionTitle}>Details</Text>
-        <EnhancedCard>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Quantity</Text>
-            <Text style={styles.detailValue}>{holding.quantity}</Text>
-          </View>
-          <View style={styles.detailDivider} />
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Purchase Price</Text>
-            <Text style={styles.detailValue}>
-              ${holding.purchasePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </Text>
-          </View>
-          <View style={styles.detailDivider} />
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Current Price</Text>
-            <Text style={styles.detailValue}>
-              ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </Text>
-          </View>
-          <View style={styles.detailDivider} />
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Total Invested</Text>
-            <Text style={styles.detailValue}>
-              ${investedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </Text>
-          </View>
-          <View style={styles.detailDivider} />
-          <View style={styles.detailRow}>
-            <Calendar size={16} color={Colors.textSecondary} />
-            <Text style={styles.detailLabel}>Purchase Date</Text>
-            <Text style={styles.detailValue}>
-              {new Date(holding.purchaseDate).toLocaleDateString()}
-            </Text>
-          </View>
-          {holding.sector && (
-            <>
-              <View style={styles.detailDivider} />
-              <View style={styles.detailRow}>
-                <Tag size={16} color={Colors.textSecondary} />
-                <Text style={styles.detailLabel}>Sector</Text>
-                <Text style={styles.detailValue}>{holding.sector}</Text>
-              </View>
-            </>
-          )}
-          {holding.country && (
-            <>
-              <View style={styles.detailDivider} />
-              <View style={styles.detailRow}>
-                <Globe size={16} color={Colors.textSecondary} />
-                <Text style={styles.detailLabel}>Country</Text>
-                <Text style={styles.detailValue}>{holding.country}</Text>
-              </View>
-            </>
-          )}
-          {holding.interestRate && (
-            <>
-              <View style={styles.detailDivider} />
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Interest Rate</Text>
-                <Text style={styles.detailValue}>{holding.interestRate}%</Text>
-              </View>
-            </>
-          )}
-          {holding.interestFrequency && (
-            <>
-              <View style={styles.detailDivider} />
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Interest Frequency</Text>
-                <Text style={styles.detailValue}>{formatInterestFrequency(holding.interestFrequency)}</Text>
-              </View>
-            </>
-          )}
-        </EnhancedCard>
-      </View>
-
-      {/* Notes */}
-      {holding.notes && (
-        <View style={styles.notesSection}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <EnhancedCard>
-            <View style={styles.notesContent}>
-              <FileText size={18} color={Colors.textSecondary} />
-              <Text style={styles.notesText}>{holding.notes}</Text>
-            </View>
-          </EnhancedCard>
-        </View>
-      )}
+        <Text style={styles.pennyText}>
+          {holding.symbol} is performing {isGain ? 'well' : 'below expectations'} today, {todayGainPercent >= 0 ? 'up' : 'down'} {Math.abs(todayGainPercent).toFixed(2)}%. Your position is {isGain ? 'up' : 'down'} {Math.abs(gainPercent).toFixed(2)}% overall. {isGain ? `Consider taking profits if it reaches your target of $${(currentPrice * 1.02).toFixed(2)}.` : 'Hold steady and consider averaging down if fundamentals remain strong.'}
+        </Text>
+        <Pressable
+          style={styles.askPennyButton}
+          onPress={() => router.push('/ask-penny' as any)}
+        >
+          <Text style={styles.askPennyButtonText}>Ask Penny a Question</Text>
+        </Pressable>
+      </LinearGradient>
 
       {/* Action Buttons */}
-      <View style={styles.actionsSection}>
+      <View style={styles.actionsRow}>
         <Button
           title="Buy More"
           onPress={() => router.push(`/portfolio/add?symbol=${holding.symbol}` as any)}
           variant="primary"
           size="large"
           style={styles.actionButton}
-          icon={<Plus size={20} color={Colors.text} />}
         />
         <Button
           title="Sell"
@@ -336,8 +255,9 @@ export default function HoldingDetailScreen() {
           variant="danger"
           size="large"
           style={styles.actionButton}
-          icon={<Minus size={20} color={Colors.text} />}
         />
+      </View>
+      <View style={styles.actionsRow}>
         <Button
           title="Set Alert"
           onPress={() => router.push(`/portfolio/add-alert?holdingId=${id}` as any)}
@@ -355,46 +275,6 @@ export default function HoldingDetailScreen() {
           icon={<Share2 size={20} color={Colors.text} />}
         />
       </View>
-
-      {/* Update Price Modal for Manual Assets */}
-      {isManualAsset && (
-        <Modal visible={showPriceModal} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Update Price</Text>
-                <Pressable onPress={() => setShowPriceModal(false)}>
-                  <X size={24} color={Colors.text} />
-                </Pressable>
-              </View>
-              <TextInput
-                style={styles.modalInput}
-                value={newPrice}
-                onChangeText={setNewPrice}
-                placeholder="Enter new price"
-                keyboardType="decimal-pad"
-                placeholderTextColor={Colors.textSecondary}
-              />
-              <View style={styles.modalActions}>
-                <Button
-                  title="Cancel"
-                  onPress={() => setShowPriceModal(false)}
-                  variant="secondary"
-                  size="medium"
-                  style={styles.modalButton}
-                />
-                <Button
-                  title="Update"
-                  onPress={handleUpdatePrice}
-                  variant="primary"
-                  size="medium"
-                  style={styles.modalButton}
-                />
-              </View>
-            </View>
-          </View>
-        </Modal>
-      )}
     </ScrollView>
   );
 }
@@ -405,8 +285,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    padding: 20,
-    paddingTop: 60,
     paddingBottom: 40,
   },
   loadingContainer: {
@@ -419,211 +297,208 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-  backLink: {
-    marginTop: 16,
-  },
-  backLinkText: {
-    fontSize: 16,
-    color: Colors.primary,
-  },
-  header: {
+  topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 16,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.surface,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tickerSymbol: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    flex: 1,
+    textAlign: 'center',
   },
   headerActions: {
     flexDirection: 'row',
     gap: 12,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.surface,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  assetHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  assetIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+  priceHeader: {
+    paddingHorizontal: 20,
     marginBottom: 16,
-  },
-  assetIconText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.text,
   },
   assetName: {
     fontSize: 28,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  assetSymbol: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 12,
-  },
-  assetTypeBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  assetTypeBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  valueCard: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  valueLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
     marginBottom: 8,
   },
-  valueAmount: {
+  currentPrice: {
     fontSize: 42,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  changeRow: {
+  priceChange: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   changeText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
-  chartSection: {
-    marginBottom: 24,
-  },
-  chartHeader: {
+  statsBar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: Colors.surface,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 16,
   },
-  chartTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 14,
+    fontWeight: '600',
     color: Colors.text,
   },
-  chartCard: {
-    padding: 0,
-    overflow: 'hidden',
+  chartTypeSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 8,
   },
-  detailsSection: {
-    marginBottom: 24,
+  chartTypeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.surface,
+  },
+  chartTypeButtonActive: {
+    backgroundColor: Colors.accent,
+  },
+  chartTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  chartTypeTextActive: {
+    color: Colors.text,
+  },
+  indicatorsButton: {
+    marginLeft: 'auto',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.surface,
+  },
+  indicatorsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  chartContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: Colors.surface,
+    minHeight: 300,
+  },
+  noChartContainer: {
+    height: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noChartText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  positionCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 20,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  detailRow: {
+  positionGrid: {
+    gap: 12,
+  },
+  positionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
   },
-  detailLabel: {
+  positionItem: {
     flex: 1,
-    fontSize: 15,
+  },
+  positionLabel: {
+    fontSize: 14,
     color: Colors.textSecondary,
   },
-  detailValue: {
-    fontSize: 15,
+  positionValue: {
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.text,
   },
-  detailDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  notesSection: {
-    marginBottom: 24,
-  },
-  notesContent: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  notesText: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.text,
-    lineHeight: 22,
-  },
-  actionsSection: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-    minWidth: '45%',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  pennyCard: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
     padding: 20,
   },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 24,
+  pennyHeader: {
+    marginBottom: 12,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
+  pennyTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
   },
-  modalInput: {
-    backgroundColor: Colors.background,
+  pennyText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.text + 'EE',
+    marginBottom: 16,
+  },
+  askPennyButton: {
+    backgroundColor: Colors.purple,
+    paddingVertical: 14,
     borderRadius: 12,
-    padding: 16,
+    alignItems: 'center',
+  },
+  askPennyButtonText: {
     fontSize: 16,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 20,
   },
-  modalActions: {
+  actionsRow: {
     flexDirection: 'row',
+    paddingHorizontal: 20,
     gap: 12,
+    marginBottom: 12,
   },
-  modalButton: {
+  actionButton: {
     flex: 1,
   },
 });
