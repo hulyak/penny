@@ -139,7 +139,16 @@ export default function CreatorHubScreen() {
                 onPress={() => Linking.openURL(profile.socialLinks.youtube!)}
               >
                 <Youtube size={18} color="#FF0000" />
-                <Text style={styles.socialText}>YouTube</Text>
+                <Text style={styles.socialText}>VisualPolitik</Text>
+              </Pressable>
+            )}
+            {profile.socialLinks.youtube2 && (
+              <Pressable
+                style={styles.socialButton}
+                onPress={() => Linking.openURL(profile.socialLinks.youtube2!)}
+              >
+                <Youtube size={18} color="#FF0000" />
+                <Text style={styles.socialText}>VisualEconomik</Text>
               </Pressable>
             )}
             {profile.socialLinks.twitter && (

@@ -5,6 +5,7 @@ import { Holding } from '@/types';
 import { batchGetPrices, hasLivePricing } from './priceService';
 import { checkPriceAlerts, checkDateAlerts } from './alertService';
 import portfolioService from './portfolioService';
+import logger from './logger';
 
 const BACKGROUND_FETCH_TASK = 'PORTFOLIO_PRICE_REFRESH';
 const LAST_BACKGROUND_REFRESH_KEY = 'penny_last_background_refresh';
@@ -13,13 +14,13 @@ const LAST_BACKGROUND_REFRESH_KEY = 'penny_last_background_refresh';
  * Define the background task that fetches prices and checks alerts
  */
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
-  console.log('[BackgroundRefresh] Starting background price refresh...');
+  logger.debug('BackgroundRefresh', 'Starting background price refresh...');
 
   try {
     // Load holdings using portfolio service
     const holdings = await portfolioService.getLocalHoldings();
     if (holdings.length === 0) {
-      console.log('[BackgroundRefresh] No holdings found');
+      logger.debug('BackgroundRefresh', 'No holdings found');
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
@@ -29,7 +30,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
       .map((h) => ({ id: h.id, type: h.type, symbol: h.symbol }));
 
     if (holdingsToUpdate.length === 0) {
-      console.log('[BackgroundRefresh] No holdings with live pricing');
+      logger.debug('BackgroundRefresh', 'No holdings with live pricing');
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
@@ -67,16 +68,16 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
 
     // Check price alerts
     const triggeredPriceAlerts = await checkPriceAlerts(updatedHoldings);
-    console.log(`[BackgroundRefresh] Triggered ${triggeredPriceAlerts.length} price alerts`);
+    logger.debug('BackgroundRefresh', `Triggered ${triggeredPriceAlerts.length} price alerts`);
 
     // Check date-based alerts (maturity reminders)
     const triggeredDateAlerts = await checkDateAlerts();
-    console.log(`[BackgroundRefresh] Triggered ${triggeredDateAlerts.length} date alerts`);
+    logger.debug('BackgroundRefresh', `Triggered ${triggeredDateAlerts.length} date alerts`);
 
-    console.log('[BackgroundRefresh] Background refresh completed successfully');
+    logger.debug('BackgroundRefresh', 'Background refresh completed successfully');
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
-    console.error('[BackgroundRefresh] Error during background refresh:', error);
+    logger.error('BackgroundRefresh', 'Error during background refresh', error);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
@@ -90,19 +91,19 @@ export async function registerBackgroundRefresh(): Promise<boolean> {
     const status = await BackgroundFetch.getStatusAsync();
 
     if (status === BackgroundFetch.BackgroundFetchStatus.Restricted) {
-      console.warn('[BackgroundRefresh] Background fetch is restricted');
+      logger.warn('BackgroundRefresh', 'Background fetch is restricted');
       return false;
     }
 
     if (status === BackgroundFetch.BackgroundFetchStatus.Denied) {
-      console.warn('[BackgroundRefresh] Background fetch is denied');
+      logger.warn('BackgroundRefresh', 'Background fetch is denied');
       return false;
     }
 
     // Check if task is already registered
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
     if (isRegistered) {
-      console.log('[BackgroundRefresh] Task already registered');
+      logger.debug('BackgroundRefresh', 'Task already registered');
       return true;
     }
 
@@ -113,17 +114,17 @@ export async function registerBackgroundRefresh(): Promise<boolean> {
       startOnBoot: true,
     });
 
-    console.log('[BackgroundRefresh] Background fetch task registered');
+    logger.debug('BackgroundRefresh', 'Background fetch task registered');
     return true;
   } catch (error: any) {
     // Gracefully handle the case where native module isn't configured yet
     // This happens when running in Expo Go or before a native rebuild
     if (error?.message?.includes('Background Fetch has not been configured') ||
         error?.message?.includes('UIBackgroundModes')) {
-      console.warn('[BackgroundRefresh] Background fetch not available - requires native rebuild. Prices will refresh when app is open.');
+      logger.warn('BackgroundRefresh', 'Background fetch not available - requires native rebuild. Prices will refresh when app is open.');
       return false;
     }
-    console.error('[BackgroundRefresh] Failed to register background fetch:', error);
+    logger.error('BackgroundRefresh', 'Failed to register background fetch', error);
     return false;
   }
 }
@@ -136,10 +137,10 @@ export async function unregisterBackgroundRefresh(): Promise<void> {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
     if (isRegistered) {
       await BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
-      console.log('[BackgroundRefresh] Background fetch task unregistered');
+      logger.debug('BackgroundRefresh', 'Background fetch task unregistered');
     }
   } catch (error) {
-    console.error('[BackgroundRefresh] Failed to unregister background fetch:', error);
+    logger.error('BackgroundRefresh', 'Failed to unregister background fetch', error);
   }
 }
 
@@ -151,7 +152,7 @@ export async function getLastBackgroundRefresh(): Promise<Date | null> {
     const timestamp = await AsyncStorage.getItem(LAST_BACKGROUND_REFRESH_KEY);
     return timestamp ? new Date(timestamp) : null;
   } catch (error) {
-    console.error('[BackgroundRefresh] Failed to get last refresh timestamp:', error);
+    logger.error('BackgroundRefresh', 'Failed to get last refresh timestamp', error);
     return null;
   }
 }
@@ -163,7 +164,7 @@ export async function isBackgroundRefreshRegistered(): Promise<boolean> {
   try {
     return await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   } catch (error) {
-    console.error('[BackgroundRefresh] Failed to check task registration:', error);
+    logger.error('BackgroundRefresh', 'Failed to check task registration', error);
     return false;
   }
 }
@@ -175,7 +176,7 @@ export async function getBackgroundRefreshStatus(): Promise<BackgroundFetch.Back
   try {
     return await BackgroundFetch.getStatusAsync();
   } catch (error) {
-    console.error('[BackgroundRefresh] Failed to get status:', error);
+    logger.error('BackgroundRefresh', 'Failed to get status', error);
     return null;
   }
 }
@@ -184,12 +185,12 @@ export async function getBackgroundRefreshStatus(): Promise<BackgroundFetch.Back
  * Trigger a manual background refresh (useful for testing)
  */
 export async function triggerManualRefresh(): Promise<void> {
-  console.log('[BackgroundRefresh] Triggering manual refresh...');
+  logger.debug('BackgroundRefresh', 'Triggering manual refresh...');
   try {
     // Load holdings using portfolio service
     const holdings = await portfolioService.getLocalHoldings();
     if (holdings.length === 0) {
-      console.log('[BackgroundRefresh] No holdings found');
+      logger.debug('BackgroundRefresh', 'No holdings found');
       return;
     }
 
@@ -199,7 +200,7 @@ export async function triggerManualRefresh(): Promise<void> {
       .map((h) => ({ id: h.id, type: h.type, symbol: h.symbol }));
 
     if (holdingsToUpdate.length === 0) {
-      console.log('[BackgroundRefresh] No holdings with live pricing');
+      logger.debug('BackgroundRefresh', 'No holdings with live pricing');
       return;
     }
 
@@ -231,8 +232,8 @@ export async function triggerManualRefresh(): Promise<void> {
     await checkPriceAlerts(updatedHoldings);
     await checkDateAlerts();
 
-    console.log('[BackgroundRefresh] Manual refresh completed');
+    logger.debug('BackgroundRefresh', 'Manual refresh completed');
   } catch (error) {
-    console.error('[BackgroundRefresh] Manual refresh failed:', error);
+    logger.error('BackgroundRefresh', 'Manual refresh failed', error);
   }
 }

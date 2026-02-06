@@ -36,6 +36,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
 import { generateStructuredWithGemini } from '@/lib/gemini';
+import { usePurchases } from '@/context/PurchasesContext';
+import { PremiumCard } from '@/components/PremiumBadge';
 import { z } from 'zod';
 
 // Schema for extracted receipt data
@@ -91,6 +93,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ReceiptScanScreen() {
   const router = useRouter();
+  const { isPremium, showPaywall } = usePurchases();
   const [permission, requestPermission] = useCameraPermissions();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -226,6 +229,35 @@ Be thorough and accurate with numbers.`,
             <ImageIcon size={18} color={Colors.primary} />
             <Text style={styles.galleryButtonText}>Choose from Gallery</Text>
           </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // Premium gate
+  if (!isPremium) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft size={24} color={Colors.text} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Scan Receipt</Text>
+          <View style={{ width: 80 }} />
+        </View>
+        <View style={styles.premiumGateContainer}>
+          <View style={styles.premiumGateIcon}>
+            <Receipt size={48} color={Colors.gold} />
+          </View>
+          <Text style={styles.premiumGateTitle}>AI Receipt Scanner</Text>
+          <Text style={styles.premiumGateSubtitle}>
+            Automatically extract and categorize expenses from receipts using Gemini Vision
+          </Text>
+          <PremiumCard
+            title="Unlock Receipt Scanning"
+            description="Snap a photo of any receipt and let AI extract all the details automatically."
+            onUpgrade={showPaywall}
+          />
         </View>
       </View>
     );
@@ -870,5 +902,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.textLight,
+  },
+
+  // Premium gate styles
+  premiumGateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  premiumGateIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.goldMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  premiumGateTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  premiumGateSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
 });

@@ -16,6 +16,7 @@ export interface Creator {
   verified: boolean;
   socialLinks: {
     youtube?: string;
+    youtube2?: string;
     twitter?: string;
     instagram?: string;
   };
@@ -99,8 +100,8 @@ export const JOSH_PROFILE: Creator = {
   followers: 2400000,
   verified: true,
   socialLinks: {
-    youtube: 'https://youtube.com/@visualfaktory',
-    twitter: 'https://twitter.com/visualfaktory',
+    youtube: 'https://youtube.com/@VisualPolitikEN',
+    youtube2: 'https://youtube.com/@visualeconomiken',
   },
 };
 

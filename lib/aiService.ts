@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { generateWithGemini, generateStructuredWithGemini, GEMINI_SYSTEM_PROMPT, type ThinkingLevel } from './gemini';
+import logger from './logger';
 
 const AI_TIMEOUT = 20000;
 
@@ -36,7 +37,7 @@ Task: ${task}
 Respond concisely and helpfully.`;
 
   try {
-    console.log('[AIService] Generating text with Gemini 3...');
+    logger.debug('AIService', 'Generating text with Gemini 3...');
     const result = await withTimeout(
       generateWithGemini({
         prompt,
@@ -44,10 +45,10 @@ Respond concisely and helpfully.`;
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Text generated successfully via Gemini 3');
+    logger.debug('AIService', 'Text generated successfully via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Gemini 3 text generation error:', error);
+    logger.error('AIService', 'Gemini 3 text generation error', error);
     throw error;
   }
 }
@@ -98,7 +99,7 @@ Provide a JSON object with these exact fields:
 - "whatWouldChange": An array of 2-3 strings, each being a specific thing that would improve their situation (must be an array like ["item 1", "item 2", "item 3"])`;
 
   try {
-    console.log('[AIService] Generating financial summary with Gemini 3 (high reasoning)...');
+    logger.debug('AIService', 'Generating financial summary with Gemini 3 (high reasoning)...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
@@ -108,10 +109,10 @@ Provide a JSON object with these exact fields:
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Financial summary generated via Gemini 3');
+    logger.debug('AIService', 'Financial summary generated via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Gemini 3 financial summary error, using fallback:', error);
+    logger.warn('AIService', 'Gemini 3 financial summary error, using fallback', error);
     return {
       summary: `Your finances show a ${params.snapshot.healthLabel.toLowerCase()} foundation with ${params.snapshot.monthsOfRunway.toFixed(1)} months of runway.`,
       reasoning: `Based on your ${params.snapshot.savingsRate.toFixed(0)}% savings rate and $${params.snapshot.disposableIncome} monthly disposable income.`,
@@ -155,7 +156,7 @@ Provide:
 Focus on sustainability, not speed.`;
 
   try {
-    console.log('[AIService] Generating scenario insights with Gemini 3...');
+    logger.debug('AIService', 'Generating scenario insights with Gemini 3...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
@@ -164,10 +165,10 @@ Focus on sustainability, not speed.`;
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Scenario insights generated via Gemini 3');
+    logger.debug('AIService', 'Scenario insights generated via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Gemini 3 scenario insights error, using fallback:', error);
+    logger.warn('AIService', 'Gemini 3 scenario insights error, using fallback', error);
     return {
       recommendation: 'The Balanced approach typically works well for building an emergency fund while maintaining quality of life.',
       reasoning: `With ${params.currentRunway.toFixed(1)} months of runway, a moderate approach balances urgency with sustainability.`,
@@ -204,7 +205,7 @@ Provide:
 Be warm and specific. Small wins matter.`;
 
   try {
-    console.log('[AIService] Generating weekly coaching with Gemini 3...');
+    logger.debug('AIService', 'Generating weekly coaching with Gemini 3...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
@@ -213,10 +214,10 @@ Be warm and specific. Small wins matter.`;
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Weekly coaching generated via Gemini 3');
+    logger.debug('AIService', 'Weekly coaching generated via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Gemini 3 weekly coaching error, using fallback:', error);
+    logger.warn('AIService', 'Gemini 3 weekly coaching error, using fallback', error);
     return {
       weeklyMessage: 'Focus on consistent small steps this week.',
       focusArea: 'Building your emergency buffer',
@@ -268,7 +269,7 @@ Provide:
 Explain objectively. No judgment - just help them see the tradeoffs.`;
 
   try {
-    console.log('[AIService] Generating purchase analysis with Gemini 3...');
+    logger.debug('AIService', 'Generating purchase analysis with Gemini 3...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
@@ -277,10 +278,10 @@ Explain objectively. No judgment - just help them see the tradeoffs.`;
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Purchase analysis generated via Gemini 3');
+    logger.debug('AIService', 'Purchase analysis generated via Gemini 3');
     return { ...result, newRunway };
   } catch (error) {
-    console.log('[AIService] Gemini 3 purchase analysis error, using fallback:', error);
+    logger.warn('AIService', 'Gemini 3 purchase analysis error, using fallback', error);
     return {
       impact: `This $${params.cost} purchase would reduce your runway from ${params.monthsOfRunway.toFixed(1)} to ${newRunway.toFixed(1)} months.`,
       tradeoffs: [
@@ -343,7 +344,7 @@ Provide:
 Explain why these foundations matter BEFORE considering investments. This is education, not advice.`;
 
   try {
-    console.log('[AIService] Generating investment readiness with Gemini 3 (high reasoning)...');
+    logger.debug('AIService', 'Generating investment readiness with Gemini 3 (high reasoning)...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
@@ -353,10 +354,10 @@ Explain why these foundations matter BEFORE considering investments. This is edu
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Investment readiness generated via Gemini 3');
+    logger.debug('AIService', 'Investment readiness generated via Gemini 3');
     return { isReady, readinessScore, ...result };
   } catch (error) {
-    console.log('[AIService] Gemini 3 investment readiness error, using fallback:', error);
+    logger.warn('AIService', 'Gemini 3 investment readiness error, using fallback', error);
     return {
       isReady,
       readinessScore,
@@ -415,7 +416,7 @@ Provide:
 - alternative: A cheaper or better alternative if applicable`;
 
   try {
-    console.log('[AIService] Analyzing product image with Gemini 3 Vision...');
+    logger.debug('AIService', 'Analyzing product image with Gemini 3 Vision...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
@@ -426,10 +427,10 @@ Provide:
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Image analysis generated via Gemini 3');
+    logger.debug('AIService', 'Image analysis generated via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Gemini 3 image analysis error, using fallback:', error);
+    logger.warn('AIService', 'Gemini 3 image analysis error, using fallback', error);
     return {
       productName: 'Identified Item',
       estimatedCost: 50,
@@ -468,7 +469,7 @@ Provide:
 This is purely educational context, not investment advice.`;
 
   try {
-    console.log('[AIService] Generating market context with Gemini 3...');
+    logger.debug('AIService', 'Generating market context with Gemini 3...');
     const result = await withTimeout(
       generateStructuredWithGemini({
         prompt,
@@ -477,10 +478,10 @@ This is purely educational context, not investment advice.`;
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Market context generated via Gemini 3');
+    logger.debug('AIService', 'Market context generated via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Gemini 3 market context error, using fallback:', error);
+    logger.warn('AIService', 'Gemini 3 market context error, using fallback', error);
     return {
       summary: 'Current conditions are steady. Focus on building your financial foundation.',
       educationalNote: 'Your personal financial readiness matters more than trying to time markets.',
@@ -521,7 +522,7 @@ User asks: ${params.userMessage}
 Respond as their supportive financial coach. Be warm, specific to their numbers, and educational. Keep response under 150 words.`;
 
   try {
-    console.log('[AIService] Generating coach response with Gemini 3...');
+    logger.debug('AIService', 'Generating coach response with Gemini 3...');
     const result = await withTimeout(
       generateWithGemini({
         prompt,
@@ -531,10 +532,10 @@ Respond as their supportive financial coach. Be warm, specific to their numbers,
       }),
       AI_TIMEOUT
     );
-    console.log('[AIService] Coach response generated via Gemini 3');
+    logger.debug('AIService', 'Coach response generated via Gemini 3');
     return result;
   } catch (error) {
-    console.log('[AIService] Gemini 3 coach response error:', error);
+    logger.warn('AIService', 'Gemini 3 coach response error', error);
     return "I'm here to help with your financial journey. What would you like to know about building your financial foundation?";
   }
 }

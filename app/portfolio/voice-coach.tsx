@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
-import * as Speech from 'expo-speech';
+import { playTextToSpeech } from '@/lib/elevenLabs';
+import * as Speech from 'expo-speech'; // Fallback
 import {
   ArrowLeft,
   Mic,
@@ -25,6 +26,8 @@ import {
 import Colors from '@/constants/colors';
 import { generateWithGemini, streamWithGemini, GEMINI_SYSTEM_PROMPT } from '@/lib/gemini';
 import { GeminiBadge } from '@/components/GeminiBadge';
+import { usePurchases } from '@/context/PurchasesContext';
+import { PremiumCard } from '@/components/PremiumBadge';
 import portfolioService from '@/lib/portfolioService';
 import { Holding } from '@/types';
 
@@ -38,6 +41,7 @@ interface Message {
 
 export default function VoiceCoachScreen() {
   const router = useRouter();
+  const { isPremium, showPaywall } = usePurchases();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -104,13 +108,17 @@ export default function VoiceCoachScreen() {
     };
     setMessages([welcomeMessage]);
 
-    // Speak the welcome message
+    // Speak the welcome message using ElevenLabs
     if (!isMuted) {
-      Speech.speak(welcomeMessage.content, {
-        onStart: () => setIsSpeaking(true),
-        onDone: () => setIsSpeaking(false),
-        onStopped: () => setIsSpeaking(false),
-      });
+      setIsSpeaking(true);
+      playTextToSpeech(welcomeMessage.content)
+        .then(() => setIsSpeaking(false))
+        .catch(() => {
+          // Fallback to expo-speech if ElevenLabs fails
+          Speech.speak(welcomeMessage.content, {
+            onDone: () => setIsSpeaking(false),
+          });
+        });
     }
   };
 
@@ -257,13 +265,17 @@ Provide a helpful, conversational response. Keep it concise (2-3 sentences max) 
               : m
           ));
 
-          // Speak the response
+          // Speak the response using ElevenLabs
           if (!isMuted) {
-            Speech.speak(finalText, {
-              onStart: () => setIsSpeaking(true),
-              onDone: () => setIsSpeaking(false),
-              onStopped: () => setIsSpeaking(false),
-            });
+            setIsSpeaking(true);
+            playTextToSpeech(finalText)
+              .then(() => setIsSpeaking(false))
+              .catch(() => {
+                // Fallback to expo-speech
+                Speech.speak(finalText, {
+                  onDone: () => setIsSpeaking(false),
+                });
+              });
           }
         },
       });
@@ -291,6 +303,38 @@ Provide a helpful, conversational response. Keep it concise (2-3 sentences max) 
     if (isProcessing) return;
     handleUserMessage(question);
   };
+
+  // Premium gate - show upgrade prompt for non-premium users
+  if (!isPremium) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft size={24} color={Colors.text} />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Voice Coach</Text>
+            <GeminiBadge variant="inline" />
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.premiumGateContainer}>
+          <View style={styles.premiumGateIcon}>
+            <Mic size={48} color={Colors.primary} />
+          </View>
+          <Text style={styles.premiumGateTitle}>AI Voice Coaching</Text>
+          <Text style={styles.premiumGateSubtitle}>
+            Get real-time portfolio advice through voice conversations powered by Gemini 3
+          </Text>
+          <PremiumCard
+            title="Unlock Voice Coach"
+            description="Talk to your AI financial coach, ask questions about your portfolio, and get personalized guidance."
+            onUpgrade={showPaywall}
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -663,5 +707,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
     marginTop: 12,
+  },
+
+  // Premium gate styles
+  premiumGateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  premiumGateIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.primaryMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  premiumGateTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  premiumGateSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
 });

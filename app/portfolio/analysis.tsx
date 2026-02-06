@@ -177,21 +177,27 @@ export default function AnalysisScreen() {
   };
 
   const runAIAnalysis = async () => {
-    if (holdings.length === 0) return;
+    if (holdings.length === 0) {
+      console.log('[Analysis] No holdings to analyze');
+      return;
+    }
 
     // Check premium status for AI analysis
     if (!isPremium) {
+      console.log('[Analysis] Not premium, showing paywall');
       showPaywall();
       return;
     }
 
+    console.log('[Analysis] Starting AI analysis...');
     setIsAnalyzing(true);
     try {
       const aiAnalysis = await getAIAnalysis(holdings);
+      console.log('[Analysis] AI analysis complete');
       setAnalysis(aiAnalysis);
       setUseAI(true);
     } catch (error) {
-      console.error('AI analysis failed:', error);
+      console.error('[Analysis] AI analysis failed:', error);
     } finally {
       setIsAnalyzing(false);
     }

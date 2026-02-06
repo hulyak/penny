@@ -27,9 +27,12 @@ import {
   getInterventionHistory,
   getAgentAnalytics,
   triggerAgentCheck,
+  sendDemoNotification,
   Intervention,
   AgentState,
+  AgentCheckResult,
 } from '@/lib/agentLoop';
+import { Alert } from 'react-native';
 import { GeminiBadge } from './GeminiBadge';
 
 interface AgentActivityLogProps {
@@ -47,6 +50,7 @@ export function AgentActivityLog({
   const [agentState, setAgentState] = useState<AgentState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
+  const [isSendingDemo, setIsSendingDemo] = useState(false);
 
   useEffect(() => {
     loadAgentData();
@@ -68,12 +72,34 @@ export function AgentActivityLog({
   const runAgentNow = async () => {
     setIsRunning(true);
     try {
-      await triggerAgentCheck();
+      const result = await triggerAgentCheck();
       await loadAgentData();
+
+      // Show feedback to user
+      Alert.alert(
+        result.interventionSent ? '✓ Alert Sent' : '✓ Check Complete',
+        result.checks.join('\n'),
+        [{ text: 'OK' }]
+      );
     } catch (error) {
-      console.error('Failed to run agent:', error);
+      console.error('Failed to run check:', error);
+      Alert.alert('Error', 'Failed to run portfolio check');
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const sendDemo = async () => {
+    setIsSendingDemo(true);
+    try {
+      await sendDemoNotification();
+      await loadAgentData();
+      Alert.alert('Demo Alert Sent!', 'Check your notifications 🔔');
+    } catch (error) {
+      console.error('Failed to send demo:', error);
+      Alert.alert('Error', 'Failed to send demo notification');
+    } finally {
+      setIsSendingDemo(false);
     }
   };
 
@@ -134,7 +160,7 @@ export function AgentActivityLog({
       <View style={[styles.container, compact && styles.containerCompact]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading agent activity...</Text>
+          <Text style={styles.loadingText}>Loading activity...</Text>
         </View>
       </View>
     );
@@ -149,7 +175,7 @@ export function AgentActivityLog({
             <Bot size={20} color={Colors.primary} />
           </View>
           <View>
-            <Text style={styles.headerTitle}>Autonomous Agent</Text>
+            <Text style={styles.headerTitle}>Portfolio Monitor</Text>
             <View style={styles.headerMeta}>
               <GeminiBadge variant="inline" />
               <View style={styles.statusBadge}>
@@ -159,20 +185,22 @@ export function AgentActivityLog({
             </View>
           </View>
         </View>
-        <Pressable
-          style={[styles.runButton, isRunning && styles.runButtonDisabled]}
-          onPress={runAgentNow}
-          disabled={isRunning}
-        >
-          {isRunning ? (
-            <ActivityIndicator size="small" color={Colors.primary} />
-          ) : (
-            <>
-              <Zap size={14} color={Colors.primary} />
-              <Text style={styles.runButtonText}>Run Now</Text>
-            </>
-          )}
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable
+            style={[styles.demoButton, isSendingDemo && styles.runButtonDisabled]}
+            onPress={sendDemo}
+            disabled={isSendingDemo}
+          >
+            {isSendingDemo ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Bell size={14} color="#fff" />
+                <Text style={styles.demoButtonText}>Demo</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
       </View>
 
       {/* Agent Stats */}
@@ -206,7 +234,10 @@ export function AgentActivityLog({
           <View style={styles.emptyState}>
             <Brain size={32} color={Colors.textMuted} />
             <Text style={styles.emptyText}>
-              No activity yet. The agent is monitoring your portfolio.
+              No alerts yet. We're watching your portfolio for important changes.
+            </Text>
+            <Text style={styles.emptyHint}>
+              Tip: Set target allocations in Portfolio Analysis to enable drift alerts.
             </Text>
           </View>
         ) : (
@@ -262,9 +293,9 @@ export function AgentActivityLog({
         <View style={styles.learningCard}>
           <Brain size={16} color={Colors.lavender} />
           <View style={styles.learningContent}>
-            <Text style={styles.learningTitle}>Adaptive Learning</Text>
+            <Text style={styles.learningTitle}>Personalized Alerts</Text>
             <Text style={styles.learningText}>
-              The agent learns from your responses to optimize when and how it reaches out.
+              Learns which alerts matter most to you based on your responses.
             </Text>
           </View>
         </View>
@@ -287,8 +318,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 20,
   },
   containerCompact: {
     padding: 14,
@@ -357,6 +387,10 @@ const styles = StyleSheet.create({
     color: Colors.success,
     fontWeight: '500',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   runButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -372,6 +406,20 @@ const styles = StyleSheet.create({
   runButtonText: {
     fontSize: 13,
     color: Colors.primary,
+    fontWeight: '600',
+  },
+  demoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  demoButtonText: {
+    fontSize: 13,
+    color: '#fff',
     fontWeight: '600',
   },
 
@@ -481,6 +529,13 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginTop: 12,
+  },
+  emptyHint: {
+    fontSize: 12,
+    color: Colors.primary,
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 
   viewAllButton: {

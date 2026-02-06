@@ -132,24 +132,29 @@ export async function getNewsAnalysis(holdings: Holding[]): Promise<{
     keyTakeaway: z.string(),
   });
 
-  const prompt = `You are a financial news analyst. Generate realistic market news analysis for a portfolio containing these stocks: ${symbols.join(', ')}.
+  const prompt = `Generate market news for portfolio: ${symbols.join(', ')}.
 
-Create 3-4 relevant news headlines that could affect these holdings. Consider:
-- Recent earnings reports
-- Industry trends
-- Macroeconomic factors
-- Company-specific news
+Return a JSON object with EXACTLY this structure:
+{
+  "headlines": [
+    {"title": "...", "summary": "...", "impact": "positive|neutral|negative", "relevantSymbols": ["SYM1"]}
+  ],
+  "marketSentiment": "bullish|neutral|bearish",
+  "keyTakeaway": "One sentence summary"
+}
 
-Return JSON with:
-- headlines: Array of news items (title, summary, impact, relevantSymbols)
-- marketSentiment: Overall market sentiment (bullish/neutral/bearish)
-- keyTakeaway: One-sentence summary for the investor`;
+Rules:
+- headlines MUST be a JSON array with 2-3 items max
+- Each headline: title (under 60 chars), summary (under 100 chars)
+- Keep total response under 500 characters`;
 
   try {
     const result = await generateStructuredWithGemini({
       prompt,
-      systemInstruction: `${GEMINI_SYSTEM_PROMPT}\n\nGenerate realistic but educational financial news. Focus on how news affects portfolio decisions.`,
+      systemInstruction: 'Generate concise financial news in valid JSON format. Keep responses short.',
       schema,
+      maxTokens: 1024,
+      temperature: 0.5,
     });
 
     // Cache the result

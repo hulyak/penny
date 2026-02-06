@@ -192,10 +192,9 @@ export default function AuthScreen() {
       {/* Decorative asset chip */}
       <View style={styles.assetChip}>
         <View style={styles.assetChipIcon}>
-          <Text style={styles.btcIcon}>₿</Text>
+          <Text style={styles.btcIcon}>📊</Text>
         </View>
-        <Text style={styles.assetChipText}>Bitcoin</Text>
-        <Text style={styles.assetChipPlus}>+</Text>
+        <Text style={styles.assetChipText}>Track All Assets</Text>
       </View>
 
       {/* Social buttons */}

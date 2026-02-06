@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Holding, PriceAlert } from '@/types';
 import { firestoreHelpers, isFirebaseConfigured } from './firebase';
 import { auth } from './firebase';
+import logger from './logger';
 
 const HOLDINGS_STORAGE_KEY = 'penny_portfolio_holdings';
 const ALERTS_STORAGE_KEY = 'penny_portfolio_alerts';
@@ -55,14 +56,14 @@ export const portfolioService = {
 
           return merged;
         } catch (error) {
-          console.warn('[PortfolioService] Firebase sync failed, using local data:', error);
+          logger.warn('PortfolioService', 'Firebase sync failed, using local data', error);
           return localHoldings;
         }
       }
 
       return localHoldings;
     } catch (error) {
-      console.error('[PortfolioService] Error getting holdings:', error);
+      logger.error('PortfolioService', 'Error getting holdings', error);
       return [];
     }
   },
@@ -89,16 +90,16 @@ export const portfolioService = {
       if (userId && isFirebaseConfigured) {
         try {
           await firestoreHelpers.saveHolding(userId, holding);
-          console.log('[PortfolioService] Holding synced to Firebase:', holding.id);
+          logger.debug('PortfolioService', `Holding synced to Firebase: ${holding.id}`);
         } catch (error) {
-          console.warn('[PortfolioService] Firebase save failed, marked for later sync:', error);
+          logger.warn('PortfolioService', 'Firebase save failed, marked for later sync', error);
           await this.updateSyncStatus({ pendingChanges: true });
         }
       }
 
       return true;
     } catch (error) {
-      console.error('[PortfolioService] Error saving holding:', error);
+      logger.error('PortfolioService', 'Error saving holding', error);
       return false;
     }
   },
@@ -118,15 +119,15 @@ export const portfolioService = {
       if (userId && isFirebaseConfigured) {
         try {
           await firestoreHelpers.deleteHolding(userId, holdingId);
-          console.log('[PortfolioService] Holding deleted from Firebase:', holdingId);
+          logger.debug('PortfolioService', `Holding deleted from Firebase: ${holdingId}`);
         } catch (error) {
-          console.warn('[PortfolioService] Firebase delete failed:', error);
+          logger.warn('PortfolioService', 'Firebase delete failed', error);
         }
       }
 
       return true;
     } catch (error) {
-      console.error('[PortfolioService] Error deleting holding:', error);
+      logger.error('PortfolioService', 'Error deleting holding', error);
       return false;
     }
   },
@@ -157,7 +158,7 @@ export const portfolioService = {
 
       return true;
     } catch (error) {
-      console.error('[PortfolioService] Error updating prices:', error);
+      logger.error('PortfolioService', 'Error updating prices', error);
       return false;
     }
   },
@@ -179,14 +180,14 @@ export const portfolioService = {
           await this.saveLocalAlerts(merged);
           return merged;
         } catch (error) {
-          console.warn('[PortfolioService] Firebase alerts sync failed:', error);
+          logger.warn('PortfolioService', 'Firebase alerts sync failed', error);
           return localAlerts;
         }
       }
 
       return localAlerts;
     } catch (error) {
-      console.error('[PortfolioService] Error getting alerts:', error);
+      logger.error('PortfolioService', 'Error getting alerts', error);
       return [];
     }
   },
@@ -212,13 +213,13 @@ export const portfolioService = {
         try {
           await firestoreHelpers.saveAlert(userId, alert);
         } catch (error) {
-          console.warn('[PortfolioService] Firebase alert save failed:', error);
+          logger.warn('PortfolioService', 'Firebase alert save failed', error);
         }
       }
 
       return true;
     } catch (error) {
-      console.error('[PortfolioService] Error saving alert:', error);
+      logger.error('PortfolioService', 'Error saving alert', error);
       return false;
     }
   },
@@ -237,13 +238,13 @@ export const portfolioService = {
         try {
           await firestoreHelpers.deleteAlert(userId, alertId);
         } catch (error) {
-          console.warn('[PortfolioService] Firebase alert delete failed:', error);
+          logger.warn('PortfolioService', 'Firebase alert delete failed', error);
         }
       }
 
       return true;
     } catch (error) {
-      console.error('[PortfolioService] Error deleting alert:', error);
+      logger.error('PortfolioService', 'Error deleting alert', error);
       return false;
     }
   },
@@ -256,12 +257,12 @@ export const portfolioService = {
   async syncWithFirebase(): Promise<boolean> {
     const userId = getCurrentUserId();
     if (!userId || !isFirebaseConfigured) {
-      console.log('[PortfolioService] Sync skipped - user not logged in or Firebase not configured');
+      logger.debug('PortfolioService', 'Sync skipped - user not logged in or Firebase not configured');
       return false;
     }
 
     try {
-      console.log('[PortfolioService] Starting full sync with Firebase...');
+      logger.debug('PortfolioService', 'Starting full sync with Firebase...');
 
       // Sync holdings
       const localHoldings = await this.getLocalHoldings();
@@ -294,10 +295,10 @@ export const portfolioService = {
 
       await this.updateSyncStatus({ lastSyncedAt: new Date().toISOString(), pendingChanges: false });
 
-      console.log('[PortfolioService] Full sync completed');
+      logger.debug('PortfolioService', 'Full sync completed');
       return true;
     } catch (error) {
-      console.error('[PortfolioService] Sync failed:', error);
+      logger.error('PortfolioService', 'Sync failed', error);
       return false;
     }
   },
@@ -312,7 +313,7 @@ export const portfolioService = {
         return JSON.parse(stored);
       }
     } catch (error) {
-      console.error('[PortfolioService] Error getting sync status:', error);
+      logger.error('PortfolioService', 'Error getting sync status', error);
     }
     return { lastSyncedAt: null, pendingChanges: false };
   },
@@ -324,7 +325,7 @@ export const portfolioService = {
       const stored = await AsyncStorage.getItem(HOLDINGS_STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('[PortfolioService] Error reading local holdings:', error);
+      logger.error('PortfolioService', 'Error reading local holdings', error);
       return [];
     }
   },
@@ -338,7 +339,7 @@ export const portfolioService = {
       const stored = await AsyncStorage.getItem(ALERTS_STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('[PortfolioService] Error reading local alerts:', error);
+      logger.error('PortfolioService', 'Error reading local alerts', error);
       return [];
     }
   },
@@ -413,7 +414,7 @@ export const portfolioService = {
       ALERTS_STORAGE_KEY,
       SYNC_STATUS_KEY,
     ]);
-    console.log('[PortfolioService] Local data cleared');
+    logger.debug('PortfolioService', 'Local data cleared');
   },
 };
 

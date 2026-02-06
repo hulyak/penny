@@ -23,7 +23,6 @@ import {
   Wifi,
   Bell,
   BarChart3,
-  Star,
   CreditCard,
   DollarSign,
   Upload,
@@ -36,6 +35,10 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { usePurchases } from '@/context/PurchasesContext';
 import Colors from '@/constants/colors';
+import { Spacing, FontSize, BorderRadius, IconSize, ComponentHeight, Layout } from '@/constants/design';
+import { AnimatedListItem, AnimatedScaleIn } from '@/components/AnimatedListItem';
+import { PortfolioSkeleton } from '@/components/SkeletonLoader';
+import haptics from '@/lib/haptics';
 import {
   Holding,
   PortfolioSummary,
@@ -252,6 +255,19 @@ export default function PortfolioScreen() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Portfolio</Text>
+          </View>
+          <PortfolioSkeleton />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.container}
@@ -312,13 +328,13 @@ export default function PortfolioScreen() {
             ${summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </Text>
           <View style={styles.changeRow}>
-            <View style={[styles.changeBadge, { backgroundColor: isGain ? 'rgba(0,208,156,0.2)' : 'rgba(255,107,107,0.2)' }]}>
+            <View style={[styles.changeBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
               {isGain ? (
-                <TrendingUp size={14} color="#4ADE80" />
+                <TrendingUp size={14} color="#FFFFFF" />
               ) : (
-                <TrendingDown size={14} color="#FF8A8A" />
+                <TrendingDown size={14} color="#FFFFFF" />
               )}
-              <Text style={[styles.changePercent, { color: isGain ? '#4ADE80' : '#FF8A8A' }]}>
+              <Text style={[styles.changePercent, { color: '#FFFFFF' }]}>
                 {isGain ? '+' : ''}{summary.totalGainPercent.toFixed(2)}%
               </Text>
             </View>
@@ -331,16 +347,16 @@ export default function PortfolioScreen() {
             <View style={styles.dayChangeRow}>
               <View style={[
                 styles.dayChangeBadge,
-                { backgroundColor: dayChange.valueChange >= 0 ? 'rgba(0,208,156,0.15)' : 'rgba(255,107,107,0.15)' }
+                { backgroundColor: 'rgba(255,255,255,0.15)' }
               ]}>
                 {dayChange.valueChange >= 0 ? (
-                  <TrendingUp size={12} color="#4ADE80" />
+                  <TrendingUp size={12} color="#FFFFFF" />
                 ) : (
-                  <TrendingDown size={12} color="#FF8A8A" />
+                  <TrendingDown size={12} color="#FFFFFF" />
                 )}
                 <Text style={[
                   styles.dayChangeText,
-                  { color: dayChange.valueChange >= 0 ? '#4ADE80' : '#FF8A8A' }
+                  { color: '#FFFFFF' }
                 ]}>
                   {dayChange.valueChange >= 0 ? '+' : ''}${Math.abs(dayChange.valueChange).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({dayChange.percentChange >= 0 ? '+' : ''}{dayChange.percentChange.toFixed(2)}%) today
                 </Text>
@@ -404,35 +420,6 @@ export default function PortfolioScreen() {
           </Text>
         </View>
       )}
-
-      {/* Creator Hub Card - Josh's Model Portfolio */}
-      <Pressable
-        style={styles.creatorCardWrapper}
-        onPress={() => router.push('/creator' as any)}
-      >
-        <LinearGradient
-          colors={['#5B5FEF', '#8B5CF6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.creatorCard}
-        >
-          <View style={styles.creatorIconWrapper}>
-            <Star size={20} color="#FFD700" fill="#FFD700" />
-          </View>
-          <View style={styles.creatorContent}>
-            <View style={styles.creatorTitleRow}>
-              <Text style={styles.creatorTitle}>Josh's Model Portfolio</Text>
-              <View style={styles.creatorBadge}>
-                <Text style={styles.creatorBadgeText}>NEW</Text>
-              </View>
-            </View>
-            <Text style={styles.creatorSubtitle}>
-              View allocations, market insights & Q&A from @VisualFaktory
-            </Text>
-          </View>
-          <ChevronRight size={20} color="rgba(255,255,255,0.6)" />
-        </LinearGradient>
-      </Pressable>
 
       {/* Insights Card */}
       {holdings.length >= 2 && (
@@ -691,18 +678,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
-    paddingTop: 56,
+    padding: Layout.screenPaddingHorizontal,
+    paddingBottom: Spacing.xxxl,
+    paddingTop: Layout.screenPaddingTop,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: FontSize.display,
     fontWeight: '700',
     color: Colors.text,
     letterSpacing: -0.5,
@@ -710,12 +697,12 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   alertButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: BorderRadius.round,
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
@@ -728,7 +715,7 @@ const styles = StyleSheet.create({
   addButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: BorderRadius.round,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -736,24 +723,24 @@ const styles = StyleSheet.create({
 
   // Value Card
   valueCardWrapper: {
-    borderRadius: 24,
+    borderRadius: BorderRadius.xxl,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowRadius: Spacing.lg,
     elevation: 10,
   },
   valueCard: {
-    padding: 24,
+    padding: Spacing.xxl,
     position: 'relative',
     overflow: 'hidden',
   },
   decorCircle1: {
     position: 'absolute',
-    top: -40,
-    right: -40,
+    top: -Spacing.huge,
+    right: -Spacing.huge,
     width: 120,
     height: 120,
     borderRadius: 60,
@@ -763,9 +750,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -30,
     left: -30,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: ComponentHeight.card,
+    height: ComponentHeight.card,
+    borderRadius: Spacing.huge,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   valueHeader: {
@@ -774,82 +761,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   valueLabel: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
   },
   refreshButton: {
-    padding: 8,
+    padding: Spacing.sm,
   },
   valueAmount: {
-    fontSize: 40,
+    fontSize: FontSize.giant,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
     letterSpacing: -1,
   },
   changeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   changeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm - 2,
+    borderRadius: BorderRadius.xl,
   },
   changePercent: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     fontWeight: '700',
   },
   changeText: {
-    fontSize: 13,
+    fontSize: FontSize.sm + 1,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.6)',
   },
   dayChangeRow: {
-    marginTop: 10,
+    marginTop: Spacing.md - 2,
   },
   dayChangeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    gap: Spacing.sm - 2,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm - 2,
+    borderRadius: BorderRadius.lg,
     alignSelf: 'flex-start',
   },
   dayChangeText: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     fontWeight: '600',
   },
   lastUpdate: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 12,
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
   },
   lastUpdateText: {
-    fontSize: 11,
+    fontSize: FontSize.xs + 1,
     color: 'rgba(255,255,255,0.5)',
   },
   updatingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
+    gap: Spacing.sm - 2,
+    marginTop: Spacing.sm,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm - 2,
+    borderRadius: BorderRadius.md,
     alignSelf: 'flex-start',
   },
   updatingText: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
   },
@@ -857,33 +844,33 @@ const styles = StyleSheet.create({
   // Stats Row
   statsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: Spacing.md - 2,
+    marginBottom: Spacing.lg,
   },
   statCard: {
     flex: 1,
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md + 2,
     alignItems: 'center',
   },
   statIconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: ComponentHeight.buttonSm,
+    height: ComponentHeight.buttonSm,
+    borderRadius: BorderRadius.sm + 2,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: FontSize.xxl,
     fontWeight: '700',
     color: Colors.text,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: FontSize.xs + 1,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -892,87 +879,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing.sm - 2,
     backgroundColor: Colors.successMuted,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginBottom: 16,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
   },
   liveBadgeText: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: Colors.success,
     fontWeight: '500',
   },
 
-  // Creator Card
-  creatorCardWrapper: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  creatorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  creatorIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  creatorContent: {
-    flex: 1,
-  },
-  creatorTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  creatorTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  creatorBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  creatorBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  creatorSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-  },
   // Insights Card
   insightsCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.accentMuted,
   },
   insightsIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: ComponentHeight.iconButtonLg,
+    height: ComponentHeight.iconButtonLg,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.accentMuted,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   insightsContent: {
     flex: 1,
@@ -980,102 +918,102 @@ const styles = StyleSheet.create({
   insightsTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
+    gap: Spacing.sm,
+    marginBottom: Spacing.xxs,
   },
   insightsTitle: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.text,
   },
   insightsSubtitle: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: Colors.textSecondary,
   },
 
   // AI Actions Row (Voice, Receipt, Agent)
   aiActionsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
+    gap: Spacing.md - 2,
+    marginBottom: Spacing.md,
   },
   aiActionCard: {
     flex: 1,
     backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: BorderRadius.md + 2,
+    padding: Spacing.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(66, 133, 244, 0.1)',
   },
   aiActionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: ComponentHeight.buttonSm,
+    height: ComponentHeight.buttonSm,
+    borderRadius: BorderRadius.sm + 2,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: Spacing.sm - 2,
   },
   aiActionTitle: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     fontWeight: '600',
     color: Colors.text,
   },
   aiActionSubtitle: {
-    fontSize: 10,
+    fontSize: FontSize.xs,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
 
   // Quick Actions Row
   quickActionsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   quickActionCard: {
     flex: 1,
     backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: BorderRadius.md + 2,
+    padding: Spacing.md + 2,
     alignItems: 'center',
   },
   quickActionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: ComponentHeight.iconButton,
+    height: ComponentHeight.iconButton,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   quickActionTitle: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     fontWeight: '600',
     color: Colors.text,
   },
   quickActionSubtitle: {
-    fontSize: 11,
+    fontSize: FontSize.xs + 1,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
 
   // Section
   section: {
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FontSize.xl,
     fontWeight: '600',
     color: Colors.text,
   },
   addText: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: Colors.accent,
     fontWeight: '600',
   },
@@ -1083,145 +1021,145 @@ const styles = StyleSheet.create({
   // Allocation Card
   allocationCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
   },
   allocationBar: {
     flexDirection: 'row',
-    height: 14,
-    borderRadius: 7,
+    height: Spacing.md + 2,
+    borderRadius: BorderRadius.sm - 1,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   allocationSegment: {
     height: '100%',
   },
   allocationLegend: {
-    gap: 10,
+    gap: Spacing.md - 2,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
+    width: Spacing.md - 2,
+    height: Spacing.md - 2,
+    borderRadius: BorderRadius.round,
+    marginRight: Spacing.md - 2,
   },
   legendLabel: {
     flex: 1,
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: Colors.text,
   },
   legendPercent: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
 
   // Empty State
   emptyStateContainer: {
-    gap: 12,
+    gap: Spacing.md,
   },
   // Gemini 3 Scan Card - Prominent for Hackathon
   scanCard: {
     backgroundColor: 'rgba(66, 133, 244, 0.08)',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(66, 133, 244, 0.3)',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   scanCardBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     backgroundColor: 'rgba(66, 133, 244, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 16,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
   },
   scanCardBadgeText: {
-    fontSize: 11,
+    fontSize: FontSize.xs + 1,
     fontWeight: '700',
     color: '#4285F4',
   },
   scanCardIcon: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: BorderRadius.round,
     backgroundColor: 'rgba(66, 133, 244, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   scanCardTitle: {
-    fontSize: 18,
+    fontSize: FontSize.xl,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   scanCardSubtitle: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   scanCardFeatures: {
     alignSelf: 'flex-start',
-    gap: 4,
+    gap: Spacing.xs,
   },
   scanCardFeature: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: '#4285F4',
     fontWeight: '500',
   },
   emptyCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 32,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxxl,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
   },
   emptyCardTitle: {
-    fontSize: 17,
+    fontSize: FontSize.lg + 1,
     fontWeight: '600',
     color: Colors.text,
-    marginTop: 16,
+    marginTop: Spacing.lg,
   },
   emptyCardSubtitle: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: Spacing.xs,
     lineHeight: 20,
   },
   importCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: BorderRadius.md + 2,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.primary + '30',
-    gap: 12,
+    gap: Spacing.md,
   },
   importCardContent: {
     flex: 1,
   },
   importCardTitle: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.text,
   },
   importCardSubtitle: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
 
   // Holding Card
@@ -1229,30 +1167,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: BorderRadius.md + 2,
+    padding: Spacing.md + 2,
+    marginBottom: Spacing.md - 2,
   },
   holdingIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: ComponentHeight.iconButtonLg,
+    height: ComponentHeight.iconButtonLg,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   holdingIconText: {
-    fontSize: 13,
+    fontSize: FontSize.sm + 1,
     fontWeight: '700',
     color: Colors.text,
   },
   holdingInfo: {
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   holdingChart: {
     width: 50,
-    marginRight: 12,
+    marginRight: Spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1261,27 +1199,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   holdingName: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
     flex: 1,
   },
   holdingMeta: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: Colors.textSecondary,
   },
   holdingValue: {
     alignItems: 'flex-end',
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   holdingAmount: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.text,
   },
   holdingChange: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     fontWeight: '500',
   },
 
@@ -1291,13 +1229,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
-    padding: 32,
+    padding: Spacing.xxxl,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: FontSize.xl,
     fontWeight: '600',
     color: Colors.text,
-    marginTop: 16,
+    marginTop: Spacing.lg,
     textAlign: 'center',
   },
 });

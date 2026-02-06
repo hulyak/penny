@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +6,6 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,167 +16,45 @@ import {
   Plus,
   PieChart,
   Bell,
-  BarChart3,
   Star,
   Briefcase,
   Sparkles,
   Upload,
-  Mic,
-  Receipt,
-  Bot,
+  ShoppingCart,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { PortfolioCoachCard } from '@/components/PortfolioCoachCard';
 import { CelebrationModal, type CelebrationData } from '@/components/CelebrationModal';
-import { MarketOverview } from '@/components/MarketOverview';
-import { PerformanceChart } from '@/components/PerformanceChart';
+import { AnimatedListItem, AnimatedScaleIn } from '@/components/AnimatedListItem';
+import { PortfolioSkeleton } from '@/components/SkeletonLoader';
 import Colors from '@/constants/colors';
-import { PENNY_MASCOT } from '@/constants/images';
-import { Holding, ASSET_CLASS_COLORS, AssetClass } from '@/types';
-import { hasLivePricing, batchGetPrices } from '@/lib/priceService';
-import portfolioService from '@/lib/portfolioService';
-import portfolioHistory from '@/lib/portfolioHistory';
+import { Spacing, FontSize, BorderRadius, IconSize, ComponentHeight, Layout } from '@/constants/design';
+import { ASSET_CLASS_COLORS, AssetClass } from '@/types';
+import { usePortfolioData } from '@/hooks/usePortfolioData';
+import haptics from '@/lib/haptics';
 import { SparklineChart, generateMockChartData } from '@/components/onboarding';
 import { AgentActivityLog } from '@/components/AgentActivityLog';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-
-  const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationData | null>(null);
-  const [dayChange, setDayChange] = useState<{ valueChange: number; percentChange: number } | null>(null);
+
+  // Use the consolidated portfolio data hook
+  const {
+    holdings,
+    isLoading,
+    refreshing,
+    summary,
+    dayChange,
+    refresh,
+  } = usePortfolioData();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.replace('/auth' as any);
+      router.replace('/auth');
     }
-  }, [authLoading, isAuthenticated]);
-
-  // Reload holdings every time screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      if (isAuthenticated) {
-        loadHoldings();
-      }
-    }, [isAuthenticated])
-  );
-
-  const loadHoldings = async () => {
-    try {
-      const loadedHoldings = await portfolioService.getHoldings();
-      setHoldings(loadedHoldings);
-
-      // Calculate current total value and load day change
-      if (loadedHoldings.length > 0) {
-        // Generate initial history for new users so chart displays immediately
-        await portfolioHistory.generateInitialHistory(loadedHoldings);
-
-        const totalValue = loadedHoldings.reduce((sum, h) => {
-          const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
-          return sum + value;
-        }, 0);
-        const dayChangeData = await portfolioHistory.calculateDayChange(totalValue);
-        if (dayChangeData) {
-          setDayChange({
-            valueChange: dayChangeData.valueChange,
-            percentChange: dayChangeData.percentChange,
-          });
-        }
-      }
-
-      // Update prices for live holdings
-      if (loadedHoldings.length > 0) {
-        await updatePrices(loadedHoldings);
-      }
-    } catch (error) {
-      console.error('Failed to load holdings:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updatePrices = async (currentHoldings: Holding[]) => {
-    if (currentHoldings.length === 0) return;
-
-    try {
-      const holdingsToUpdate = currentHoldings
-        .filter((h) => hasLivePricing(h.type))
-        .map((h) => ({ id: h.id, type: h.type, symbol: h.symbol }));
-
-      if (holdingsToUpdate.length === 0) return;
-
-      const prices = await batchGetPrices(holdingsToUpdate);
-
-      const priceUpdates: { id: string; currentPrice: number; currentValue: number; lastPriceUpdate: string }[] = [];
-
-      const updatedHoldings = currentHoldings.map((h) => {
-        const priceData = prices[h.id];
-        if (priceData) {
-          priceUpdates.push({
-            id: h.id,
-            currentPrice: priceData.price,
-            currentValue: h.quantity * priceData.price,
-            lastPriceUpdate: priceData.timestamp,
-          });
-          return {
-            ...h,
-            currentPrice: priceData.price,
-            currentValue: h.quantity * priceData.price,
-            lastPriceUpdate: priceData.timestamp,
-          };
-        }
-        return h;
-      });
-
-      setHoldings(updatedHoldings);
-      await portfolioService.updateHoldingPrices(priceUpdates);
-
-      // Save portfolio snapshot for performance tracking
-      await portfolioHistory.saveSnapshot(updatedHoldings);
-
-      // Calculate and set day change
-      const totalValue = updatedHoldings.reduce((sum, h) => {
-        const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
-        return sum + value;
-      }, 0);
-      const dayChangeData = await portfolioHistory.calculateDayChange(totalValue);
-      if (dayChangeData) {
-        setDayChange({
-          valueChange: dayChangeData.valueChange,
-          percentChange: dayChangeData.percentChange,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to update prices:', error);
-    }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadHoldings();
-    setRefreshing(false);
-  };
-
-  // Calculate portfolio summary
-  const summary = useMemo(() => {
-    let totalValue = 0;
-    let totalInvested = 0;
-
-    holdings.forEach((h) => {
-      const currentValue = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
-      const investedValue = h.quantity * h.purchasePrice;
-      totalValue += currentValue;
-      totalInvested += investedValue;
-    });
-
-    const totalGain = totalValue - totalInvested;
-    const totalGainPercent = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
-
-    return { totalValue, totalInvested, totalGain, totalGainPercent };
-  }, [holdings]);
+  }, [authLoading, isAuthenticated, router]);
 
   // Calculate allocation
   const allocation = useMemo(() => {
@@ -214,9 +90,16 @@ export default function HomeScreen() {
 
   if (isLoading || authLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Image source={PENNY_MASCOT} style={styles.loadingMascot} />
-        <Text style={styles.loadingText}>Loading your portfolio...</Text>
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>Hello!</Text>
+              <Text style={styles.headerSubtitle}>Loading your portfolio...</Text>
+            </View>
+          </View>
+          <PortfolioSkeleton />
+        </View>
       </View>
     );
   }
@@ -230,7 +113,7 @@ export default function HomeScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.accent} />
       }
     >
       {/* Header */}
@@ -241,7 +124,10 @@ export default function HomeScreen() {
         </View>
         <Pressable
           style={styles.notificationButton}
-          onPress={() => router.push('/portfolio/alerts' as any)}
+          onPress={() => {
+            haptics.lightTap();
+            router.push('/portfolio/alerts' as any);
+          }}
         >
           <Bell size={22} color={Colors.text} />
         </Pressable>
@@ -267,15 +153,16 @@ export default function HomeScreen() {
         celebration={celebration}
       />
 
-      {/* Market Overview - Live prices for indices, gold, crypto */}
-      <MarketOverview />
-
       {/* Portfolio Value Card */}
       {holdings.length > 0 ? (
-        <Pressable
-          style={styles.valueCardWrapper}
-          onPress={() => router.push('/(tabs)/portfolio' as any)}
-        >
+        <AnimatedScaleIn>
+          <Pressable
+            style={styles.valueCardWrapper}
+            onPress={() => {
+              haptics.lightTap();
+              router.push('/(tabs)/portfolio' as any);
+            }}
+          >
           <LinearGradient
             colors={[Colors.primary, Colors.primaryDark]}
             start={{ x: 0, y: 0 }}
@@ -294,13 +181,13 @@ export default function HomeScreen() {
               ${summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Text>
             <View style={styles.changeRow}>
-              <View style={[styles.changeBadge, { backgroundColor: isGain ? 'rgba(0,208,156,0.2)' : 'rgba(255,107,107,0.2)' }]}>
+              <View style={[styles.changeBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
                 {isGain ? (
-                  <TrendingUp size={14} color={Colors.success} />
+                  <TrendingUp size={14} color="#FFFFFF" />
                 ) : (
-                  <TrendingDown size={14} color={Colors.danger} />
+                  <TrendingDown size={14} color="#FFFFFF" />
                 )}
-                <Text style={[styles.changeText, { color: isGain ? '#4ADE80' : '#FF8A8A' }]}>
+                <Text style={[styles.changeText, { color: '#FFFFFF' }]}>
                   {isGain ? '+' : ''}{summary.totalGainPercent.toFixed(2)}%
                 </Text>
               </View>
@@ -313,16 +200,16 @@ export default function HomeScreen() {
               <View style={styles.dayChangeRow}>
                 <View style={[
                   styles.dayChangeBadge,
-                  { backgroundColor: dayChange.valueChange >= 0 ? 'rgba(0,208,156,0.15)' : 'rgba(255,107,107,0.15)' }
+                  { backgroundColor: 'rgba(255,255,255,0.15)' }
                 ]}>
                   {dayChange.valueChange >= 0 ? (
-                    <TrendingUp size={12} color="#4ADE80" />
+                    <TrendingUp size={12} color="#FFFFFF" />
                   ) : (
-                    <TrendingDown size={12} color="#FF8A8A" />
+                    <TrendingDown size={12} color="#FFFFFF" />
                   )}
                   <Text style={[
                     styles.dayChangeText,
-                    { color: dayChange.valueChange >= 0 ? '#4ADE80' : '#FF8A8A' }
+                    { color: '#FFFFFF' }
                   ]}>
                     {dayChange.valueChange >= 0 ? '+' : ''}${Math.abs(dayChange.valueChange).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({dayChange.percentChange >= 0 ? '+' : ''}{dayChange.percentChange.toFixed(2)}%) today
                   </Text>
@@ -330,7 +217,8 @@ export default function HomeScreen() {
               </View>
             )}
           </LinearGradient>
-        </Pressable>
+          </Pressable>
+        </AnimatedScaleIn>
       ) : (
         <View style={styles.emptyStateContainer}>
           <View style={styles.emptyCard}>
@@ -360,9 +248,6 @@ export default function HomeScreen() {
           </View>
         </View>
       )}
-
-      {/* Performance Chart */}
-      {holdings.length > 0 && <PerformanceChart />}
 
       {/* Quick Stats Grid */}
       {holdings.length > 0 && (
@@ -421,6 +306,29 @@ export default function HomeScreen() {
         </LinearGradient>
       </Pressable>
 
+      {/* Ask Before I Buy - Key Feature */}
+      <Pressable
+        style={styles.askBuyCard}
+        onPress={() => router.push('/portfolio/ask-before-buy' as any)}
+      >
+        <View style={styles.askBuyIconWrapper}>
+          <ShoppingCart size={22} color="#4285F4" />
+        </View>
+        <View style={styles.askBuyContent}>
+          <View style={styles.askBuyTitleRow}>
+            <Text style={styles.askBuyTitle}>Ask Before I Buy</Text>
+            <View style={styles.askBuyBadge}>
+              <Sparkles size={10} color="#4285F4" />
+              <Text style={styles.askBuyBadgeText}>GEMINI 3</Text>
+            </View>
+          </View>
+          <Text style={styles.askBuySubtitle}>
+            Buy this or invest? AI analyzes any purchase
+          </Text>
+        </View>
+        <ChevronRight size={20} color={Colors.textMuted} />
+      </Pressable>
+
       {/* Top Holdings */}
       {topHoldings.length > 0 && (
         <View style={styles.section}>
@@ -431,7 +339,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
           <View style={styles.holdingsList}>
-            {topHoldings.map((holding) => {
+            {topHoldings.map((holding, index) => {
               const value = holding.currentValue || holding.quantity * (holding.currentPrice || holding.purchasePrice);
               const invested = holding.quantity * holding.purchasePrice;
               const gain = value - invested;
@@ -440,11 +348,14 @@ export default function HomeScreen() {
               const chartData = generateMockChartData(holding.currentPrice || holding.purchasePrice, gainPercent);
 
               return (
-                <Pressable
-                  key={holding.id}
-                  style={styles.holdingRow}
-                  onPress={() => router.push(`/portfolio/${holding.id}` as any)}
-                >
+                <AnimatedListItem key={holding.id} index={index}>
+                  <Pressable
+                    style={styles.holdingRow}
+                    onPress={() => {
+                      haptics.lightTap();
+                      router.push(`/portfolio/${holding.id}` as any);
+                    }}
+                  >
                   <View style={[styles.holdingIcon, { backgroundColor: ASSET_CLASS_COLORS[holding.assetClass] + '20' }]}>
                     <Text style={[styles.holdingIconText, { color: ASSET_CLASS_COLORS[holding.assetClass] }]}>
                       {holding.symbol?.slice(0, 2).toUpperCase() || holding.name.slice(0, 2).toUpperCase()}
@@ -472,7 +383,8 @@ export default function HomeScreen() {
                       {holdingIsGain ? '+' : ''}{gainPercent.toFixed(1)}%
                     </Text>
                   </View>
-                </Pressable>
+                  </Pressable>
+                </AnimatedListItem>
               );
             })}
           </View>
@@ -526,7 +438,7 @@ export default function HomeScreen() {
         </Pressable>
       )}
 
-      {/* Autonomous Agent Activity */}
+      {/* Portfolio Monitor */}
       {holdings.length > 0 && (
         <AgentActivityLog
           compact
@@ -535,48 +447,6 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <Pressable
-          style={styles.quickAction}
-          onPress={() => router.push('/portfolio/voice-coach' as any)}
-        >
-          <View style={[styles.quickIconWrapper, { backgroundColor: 'rgba(66, 133, 244, 0.15)' }]}>
-            <Mic size={22} color="#4285F4" />
-          </View>
-          <Text style={styles.quickLabel}>Voice</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.quickAction}
-          onPress={() => router.push('/portfolio/receipt-scan' as any)}
-        >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.goldMuted }]}>
-            <Receipt size={22} color={Colors.gold} />
-          </View>
-          <Text style={styles.quickLabel}>Receipt</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.quickAction}
-          onPress={() => router.push('/portfolio/ai-insights' as any)}
-        >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.purpleMuted }]}>
-            <Sparkles size={22} color={Colors.purple} />
-          </View>
-          <Text style={styles.quickLabel}>AI Coach</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.quickAction}
-          onPress={() => router.push('/portfolio/add' as any)}
-        >
-          <View style={[styles.quickIconWrapper, { backgroundColor: Colors.accentMuted }]}>
-            <Plus size={22} color={Colors.accent} />
-          </View>
-          <Text style={styles.quickLabel}>Add</Text>
-        </Pressable>
-      </View>
     </ScrollView>
   );
 }
@@ -587,48 +457,32 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
-    paddingTop: 56,
+    padding: Layout.screenPaddingHorizontal,
+    paddingBottom: Spacing.xxxl,
+    paddingTop: Layout.screenPaddingTop,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-  },
-  loadingMascot: {
-    width: 100,
-    height: 100,
-    marginBottom: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-
   // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   greeting: {
-    fontSize: 26,
+    fontSize: FontSize.display,
     fontWeight: '700',
     color: Colors.text,
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
   notificationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ComponentHeight.iconButtonLg,
+    height: ComponentHeight.iconButtonLg,
+    borderRadius: ComponentHeight.iconButtonLg / 2,
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
@@ -636,24 +490,24 @@ const styles = StyleSheet.create({
 
   // Value Card
   valueCardWrapper: {
-    marginTop: 12,
-    borderRadius: 24,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.xxl,
     overflow: 'hidden',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowRadius: Spacing.lg,
     elevation: 10,
   },
   valueCard: {
-    padding: 24,
+    padding: Spacing.xxl,
     position: 'relative',
     overflow: 'hidden',
   },
   decorCircle1: {
     position: 'absolute',
-    top: -40,
-    right: -40,
+    top: -Spacing.huge,
+    right: -Spacing.huge,
     width: 120,
     height: 120,
     borderRadius: 60,
@@ -663,9 +517,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -30,
     left: -30,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: ComponentHeight.card,
+    height: ComponentHeight.card,
+    borderRadius: Spacing.huge,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   valueHeader: {
@@ -674,65 +528,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   valueLabel: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
   },
   valueAmount: {
-    fontSize: 40,
+    fontSize: FontSize.giant,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
     letterSpacing: -1,
   },
   changeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   changeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm - 2,
+    borderRadius: BorderRadius.xl,
   },
   changeText: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     fontWeight: '700',
   },
   changeAmount: {
-    fontSize: 13,
+    fontSize: FontSize.sm + 1,
     color: 'rgba(255,255,255,0.6)',
     fontWeight: '500',
   },
   dayChangeRow: {
-    marginTop: 10,
+    marginTop: Spacing.md - 2,
   },
   dayChangeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    gap: Spacing.sm - 2,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm - 2,
+    borderRadius: BorderRadius.lg,
     alignSelf: 'flex-start',
   },
   dayChangeText: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     fontWeight: '600',
   },
 
   // Empty Card
   emptyStateContainer: {
-    marginTop: 16,
+    marginTop: Spacing.lg,
   },
   emptyCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xxxl,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
@@ -740,56 +594,56 @@ const styles = StyleSheet.create({
   emptyIconWrapper: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: BorderRadius.round,
     backgroundColor: Colors.accentMuted,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: FontSize.xxl,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   emptyButtonsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.md,
   },
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
   },
   emptyButtonText: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.textLight,
   },
   emptyButtonSecondary: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     backgroundColor: Colors.primary + '15',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.primary + '30',
   },
   emptyButtonSecondaryText: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.primary,
   },
@@ -797,58 +651,58 @@ const styles = StyleSheet.create({
   // Stats Grid
   statsGrid: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 16,
+    gap: Spacing.md - 2,
+    marginTop: Spacing.lg,
   },
   statCard: {
     flex: 1,
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md + 2,
     alignItems: 'center',
   },
   statIconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: ComponentHeight.buttonSm,
+    height: ComponentHeight.buttonSm,
+    borderRadius: BorderRadius.sm + 2,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: FontSize.xxl,
     fontWeight: '700',
     color: Colors.text,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: FontSize.xs + 1,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.xxs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
 
   // Creator Banner
   creatorBanner: {
-    marginTop: 16,
-    borderRadius: 16,
+    marginTop: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
   creatorGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: Spacing.lg,
   },
   creatorContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   creatorIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: ComponentHeight.iconButton,
+    height: ComponentHeight.iconButton,
+    borderRadius: BorderRadius.md,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -857,33 +711,86 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   creatorTitle: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   creatorSubtitle: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: 'rgba(255,255,255,0.7)',
-    marginTop: 2,
+    marginTop: Spacing.xxs,
+  },
+
+  // Ask Before I Buy Card
+  askBuyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(66, 133, 244, 0.08)',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(66, 133, 244, 0.25)',
+  },
+  askBuyIconWrapper: {
+    width: ComponentHeight.iconButtonLg,
+    height: ComponentHeight.iconButtonLg,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(66, 133, 244, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  askBuyContent: {
+    flex: 1,
+  },
+  askBuyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xxs,
+  },
+  askBuyTitle: {
+    fontSize: FontSize.lg - 1,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  askBuyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(66, 133, 244, 0.15)',
+    paddingHorizontal: Spacing.sm - 2,
+    paddingVertical: Spacing.xxs,
+    borderRadius: BorderRadius.xs + 2,
+  },
+  askBuyBadgeText: {
+    fontSize: FontSize.xs - 1,
+    fontWeight: '700',
+    color: '#4285F4',
+  },
+  askBuySubtitle: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
   },
 
   // Section
   section: {
-    marginTop: 24,
+    marginTop: Spacing.xxl,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FontSize.xl,
     fontWeight: '600',
     color: Colors.text,
   },
   seeAllText: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     fontWeight: '500',
     color: Colors.accent,
   },
@@ -891,152 +798,124 @@ const styles = StyleSheet.create({
   // Holdings List
   holdingsList: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
   holdingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    padding: Spacing.md + 2,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   holdingIcon: {
     width: 42,
     height: 42,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   holdingIconText: {
-    fontSize: 13,
+    fontSize: FontSize.sm + 1,
     fontWeight: '700',
   },
   holdingInfo: {
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   holdingChartContainer: {
     width: 50,
-    marginRight: 12,
+    marginRight: Spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   holdingName: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
   holdingMeta: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     color: Colors.textSecondary,
   },
   holdingValue: {
     alignItems: 'flex-end',
   },
   holdingAmount: {
-    fontSize: 15,
+    fontSize: FontSize.lg - 1,
     fontWeight: '600',
     color: Colors.text,
   },
   holdingChange: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: Spacing.xxs,
   },
 
   // Allocation Card
   allocationCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 16,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    marginTop: Spacing.lg,
   },
   allocationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   allocationTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.md - 2,
   },
   allocationIconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: IconSize.xl,
+    height: IconSize.xl,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.accentMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   allocationTitle: {
-    fontSize: 16,
+    fontSize: FontSize.lg,
     fontWeight: '600',
     color: Colors.text,
   },
   allocationBar: {
     flexDirection: 'row',
-    height: 14,
-    borderRadius: 7,
+    height: Spacing.md + 2,
+    borderRadius: BorderRadius.sm - 1,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   allocationSegment: {
     height: '100%',
   },
   allocationLegend: {
-    gap: 10,
+    gap: Spacing.md - 2,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
+    width: Spacing.md - 2,
+    height: Spacing.md - 2,
+    borderRadius: BorderRadius.round,
+    marginRight: Spacing.md - 2,
   },
   legendLabel: {
     flex: 1,
-    fontSize: 14,
+    fontSize: FontSize.md,
     color: Colors.text,
   },
   legendPercent: {
-    fontSize: 14,
+    fontSize: FontSize.md,
     fontWeight: '600',
     color: Colors.textSecondary,
-  },
-
-  // Quick Actions
-  quickActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 24,
-  },
-  quickAction: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  quickIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  quickLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.text,
   },
 });

@@ -17,6 +17,7 @@ import {
 import { auth, isFirebaseConfigured, firestoreHelpers } from '@/lib/firebase';
 import { User } from '@/types';
 import portfolioService from '@/lib/portfolioService';
+import logger from '@/lib/logger';
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
@@ -42,37 +43,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, []);
 
   useEffect(() => {
-    console.log('[AuthContext] Initializing Firebase auth listener...');
-    console.log('[AuthContext] Firebase configured:', isFirebaseConfigured);
+    logger.debug('AuthContext', 'Initializing Firebase auth listener...');
+    logger.debug('AuthContext', `Firebase configured: ${isFirebaseConfigured}`);
 
     if (!isFirebaseConfigured) {
-      console.warn('[AuthContext] Firebase not configured, skipping auth');
+      logger.warn('AuthContext', 'Firebase not configured, skipping auth');
       setIsLoading(false);
       return;
     }
 
     const timeoutId = setTimeout(() => {
-      console.warn('[AuthContext] Session check timed out');
+      logger.warn('AuthContext', 'Session check timed out');
       setIsLoading(false);
     }, 5000);
 
     if (!auth) {
-      console.warn('[AuthContext] Firebase auth not initialized');
+      logger.warn('AuthContext', 'Firebase auth not initialized');
       setIsLoading(false);
       return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       clearTimeout(timeoutId);
-      console.log('[AuthContext] Auth state changed:', fbUser ? 'user exists' : 'no user');
+      logger.debug('AuthContext', `Auth state changed: ${fbUser ? 'user exists' : 'no user'}`);
 
       setFirebaseUser(fbUser);
       if (fbUser) {
         setUser(mapFirebaseUser(fbUser));
         // Sync portfolio data with Firebase after login
-        console.log('[AuthContext] Triggering portfolio sync...');
+        logger.debug('AuthContext', 'Triggering portfolio sync...');
         portfolioService.syncWithFirebase().catch((err) => {
-          console.warn('[AuthContext] Portfolio sync failed:', err);
+          logger.warn('AuthContext', 'Portfolio sync failed', err);
         });
       } else {
         setUser(null);
@@ -87,7 +88,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, [mapFirebaseUser]);
 
   const handleAuthError = (err: any): string => {
-    console.error('[AuthContext] Auth error:', err);
+    logger.error('AuthContext', 'Auth error', err);
     const code = err.code || '';
     const message = err.message || 'An error occurred';
 
@@ -117,7 +118,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   };
 
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
-    console.log('[AuthContext] Signing up with email:', email);
+    logger.info('AuthContext', `Signing up with email: ${email}`);
     setError(null);
 
     if (!email || !password || !displayName) {
@@ -157,7 +158,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         createdAt: new Date().toISOString(),
       });
 
-      console.log('[AuthContext] Sign up successful');
+      logger.info('AuthContext', 'Sign up successful');
       return true;
     } catch (err: any) {
       setError(handleAuthError(err));
@@ -166,7 +167,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
-    console.log('[AuthContext] Signing in with email:', email);
+    logger.info('AuthContext', `Signing in with email: ${email}`);
     setError(null);
 
     if (!email || !password) {
@@ -186,7 +187,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         password
       );
 
-      console.log('[AuthContext] Sign in successful');
+      logger.info('AuthContext', 'Sign in successful');
       return true;
     } catch (err: any) {
       setError(handleAuthError(err));
@@ -195,7 +196,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    console.log('[AuthContext] Starting Google sign in...');
+    logger.info('AuthContext', 'Starting Google sign in...');
     setError(null);
 
     if (!isFirebaseConfigured || !auth) {
@@ -232,7 +233,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         // For standalone builds, use your scheme
       });
 
-      console.log('[AuthContext] Google redirect URI:', redirectUri);
+      logger.debug('AuthContext', `Google redirect URI: ${redirectUri}`);
 
       // Use Google's discovery document
       const discovery = {
@@ -254,33 +255,33 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       // Prompt user for authorization
       const result = await request.promptAsync(discovery);
 
-      console.log('[AuthContext] Google auth result:', result.type);
+      logger.debug('AuthContext', `Google auth result: ${result.type}`);
 
       if (result.type === 'success' && result.params?.id_token) {
         // Sign in to Firebase with Google credential
         const credential = GoogleAuthProvider.credential(result.params.id_token);
         await signInWithCredential(auth, credential);
-        console.log('[AuthContext] Google sign in successful');
+        logger.info('AuthContext', 'Google sign in successful');
         return true;
       }
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
-        console.log('[AuthContext] Google sign in cancelled');
+        logger.debug('AuthContext', 'Google sign in cancelled');
         return false;
       }
 
-      console.log('[AuthContext] Google sign in failed - result:', result);
+      logger.warn('AuthContext', 'Google sign in failed', result);
       setError('Failed to get Google credentials');
       return false;
     } catch (err: any) {
-      console.error('[AuthContext] Google sign in error:', err);
+      logger.error('AuthContext', 'Google sign in error', err);
       setError('Failed to sign in with Google');
       return false;
     }
   }, []);
 
   const signInWithApple = useCallback(async () => {
-    console.log('[AuthContext] Starting Apple sign in...');
+    logger.info('AuthContext', 'Starting Apple sign in...');
     setError(null);
 
     if (!isFirebaseConfigured || !auth) {
@@ -340,17 +341,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return false;
     } catch (err: any) {
       if (err.code === 'ERR_REQUEST_CANCELED') {
-        console.log('[AuthContext] Apple sign in cancelled');
+        logger.debug('AuthContext', 'Apple sign in cancelled');
         return false;
       }
-      console.error('[AuthContext] Apple sign in error:', err);
+      logger.error('AuthContext', 'Apple sign in error', err);
       setError('Failed to sign in with Apple');
       return false;
     }
   }, []);
 
   const signOut = useCallback(async () => {
-    console.log('[AuthContext] Signing out...');
+    logger.info('AuthContext', 'Signing out...');
     try {
       if (!isDemoMode && isFirebaseConfigured && auth) {
         await firebaseSignOut(auth);
@@ -362,7 +363,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setError(null);
       setIsDemoMode(false);
     } catch (err) {
-      console.error('[AuthContext] Sign out error:', err);
+      logger.error('AuthContext', 'Sign out error', err);
     }
   }, [isDemoMode]);
 
@@ -380,16 +381,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       });
 
       setUser(prev => prev ? { ...prev, ...updates } : null);
-      console.log('[AuthContext] Profile updated');
+      logger.info('AuthContext', 'Profile updated');
       return true;
     } catch (err) {
-      console.error('[AuthContext] Profile update error:', err);
+      logger.error('AuthContext', 'Profile update error', err);
       return false;
     }
   }, [firebaseUser]);
 
   const resetPassword = useCallback(async (email: string) => {
-    console.log('[AuthContext] Sending password reset email to:', email);
+    logger.info('AuthContext', `Sending password reset email to: ${email}`);
     setError(null);
 
     if (!isFirebaseConfigured || !auth) {
@@ -407,7 +408,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, []);
 
   const signInAsDemo = useCallback(async () => {
-    console.log('[AuthContext] Signing in as demo user...');
+    logger.info('AuthContext', 'Signing in as demo user...');
     setError(null);
 
     const demoUser: User = {
@@ -421,7 +422,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setUser(demoUser);
     setIsDemoMode(true);
     setIsLoading(false);
-    console.log('[AuthContext] Demo sign in successful');
+    logger.info('AuthContext', 'Demo sign in successful');
     return true;
   }, []);
 

@@ -477,10 +477,135 @@ export async function unregisterAgentLoop(): Promise<void> {
 }
 
 /**
+ * Result of a manual agent check
+ */
+export interface AgentCheckResult {
+  ran: boolean;
+  message: string;
+  checks: string[];
+  interventionSent: boolean;
+}
+
+/**
  * Manually trigger an agent check (for testing/demo)
  */
-export async function triggerAgentCheck(): Promise<void> {
-  await runAgentLoop();
+export async function triggerAgentCheck(): Promise<AgentCheckResult> {
+  console.log('[AgentLoop] Manual trigger...');
+
+  const checks: string[] = [];
+  let interventionSent = false;
+
+  try {
+    const state = await loadAgentState();
+    const goals = await getPortfolioGoals();
+    const holdings = await portfolioService.getLocalHoldings();
+
+    if (holdings.length === 0) {
+      return {
+        ran: true,
+        message: 'No holdings to monitor yet',
+        checks: ['No holdings found'],
+        interventionSent: false,
+      };
+    }
+
+    checks.push(`Checked ${holdings.length} holdings`);
+
+    // Check allocation drift
+    const { drifted, driftDetails } = calculateAllocationDrift(holdings, goals.targetAllocation);
+    if (drifted) {
+      checks.push(`Drift detected: ${driftDetails.join(', ')}`);
+      if (await shouldIntervene(state, 'drift_alert')) {
+        checks.push('Sent drift alert');
+        interventionSent = true;
+      } else {
+        checks.push('Drift alert skipped (rate limited)');
+      }
+    } else {
+      checks.push('No significant drift detected');
+    }
+
+    // Calculate portfolio value
+    const totalValue = holdings.reduce((sum, h) => {
+      return sum + (h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice));
+    }, 0);
+    checks.push(`Portfolio value: $${totalValue.toLocaleString()}`);
+
+    // Update last check time
+    state.lastCheck = new Date().toISOString();
+    await saveAgentState(state);
+
+    return {
+      ran: true,
+      message: interventionSent ? 'Alert sent!' : 'All looks good',
+      checks,
+      interventionSent,
+    };
+
+  } catch (error) {
+    console.error('[AgentLoop] Manual trigger error:', error);
+    return {
+      ran: false,
+      message: 'Check failed',
+      checks: [String(error)],
+      interventionSent: false,
+    };
+  }
+}
+
+/**
+ * Send a demo notification (for hackathon demos)
+ */
+export async function sendDemoNotification(): Promise<Intervention> {
+  const demoMessages = [
+    {
+      type: 'drift_alert' as const,
+      title: 'Portfolio Drift Detected',
+      message: 'Your equity allocation is 12% above target. Consider rebalancing! 📊',
+    },
+    {
+      type: 'rebalance_suggestion' as const,
+      title: 'Rebalance Opportunity',
+      message: 'Markets moved! You could optimize by shifting 5% from stocks to bonds 🎯',
+    },
+    {
+      type: 'milestone' as const,
+      title: 'Milestone Reached! 🎉',
+      message: 'Your portfolio just crossed $10,000! Keep up the great work!',
+    },
+    {
+      type: 'goal_check' as const,
+      title: 'Weekly Check-in',
+      message: 'Your portfolio is up 2.3% this week. Take a moment to review! 📈',
+    },
+  ];
+
+  const demo = demoMessages[Math.floor(Math.random() * demoMessages.length)];
+
+  const intervention: Intervention = {
+    id: `demo_${Date.now()}`,
+    type: demo.type,
+    title: demo.title,
+    message: demo.message,
+    timestamp: new Date().toISOString(),
+    responded: false,
+  };
+
+  // Send push notification
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: demo.title,
+      body: demo.message,
+      data: { interventionId: intervention.id, type: demo.type, isDemo: true },
+    },
+    trigger: null,
+  });
+
+  // Log it
+  await logIntervention(intervention);
+
+  console.log(`[AgentLoop] Sent demo notification: ${demo.title}`);
+  return intervention;
 }
 
 /**

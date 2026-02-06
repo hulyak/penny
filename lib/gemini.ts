@@ -11,6 +11,7 @@ import {
   getAssignedVariant,
   recordExperimentResult,
 } from './experiments';
+import logger from './logger';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_MODEL = 'gemini-3-flash-preview'; // Gemini 3 Flash - frontier intelligence at Flash speed
@@ -55,7 +56,7 @@ interface GeminiResponse {
 const getApiKey = () => {
   const key = process.env.EXPO_PUBLIC_GOOGLE_AI_API_KEY;
   if (!key) {
-    console.warn('[Gemini] API key not configured - get one at https://aistudio.google.com/app/apikey');
+    logger.warn('Gemini', 'API key not configured - get one at https://aistudio.google.com/app/apikey');
     return null;
   }
   return key;
@@ -77,7 +78,7 @@ function getCacheKey(prompt: string, feature: string): string {
 function getCachedResponse(key: string): string | null {
   const cached = responseCache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    console.log('[Gemini] Using cached response');
+    logger.debug('Gemini', 'Using cached response');
     return cached.response;
   }
   responseCache.delete(key);
@@ -216,7 +217,7 @@ export async function generateWithGemini(params: {
     };
   }
 
-  console.log(`[Gemini] Sending request to Gemini 3 (thinking: ${thinkingLevel})...`);
+  logger.debug('Gemini', `Sending request to Gemini 3 (thinking: ${thinkingLevel})...`);
 
   let success = false;
   let responseText = '';
@@ -228,7 +229,7 @@ export async function generateWithGemini(params: {
     try {
       if (attempt > 0) {
         const delay = getBackoffDelay(attempt - 1);
-        console.log(`[Gemini] Retry attempt ${attempt}/${MAX_RETRIES} after ${delay}ms delay...`);
+        logger.debug('Gemini', `Retry attempt ${attempt}/${MAX_RETRIES} after ${delay}ms delay...`);
         await sleep(delay);
       }
 
@@ -245,11 +246,11 @@ export async function generateWithGemini(params: {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[Gemini] API error (${response.status}):`, errorText);
+        logger.error('Gemini', `API error (${response.status}): ${errorText}`);
 
         // Check if we should retry
         if (isRetryableError(response.status) && attempt < MAX_RETRIES) {
-          console.log(`[Gemini] Rate limited or server error, will retry...`);
+          logger.debug('Gemini', 'Rate limited or server error, will retry...');
           lastError = new Error(`Gemini API error: ${response.status}`);
           continue; // Try again
         }
@@ -271,7 +272,7 @@ export async function generateWithGemini(params: {
       };
       success = true;
 
-      console.log('[Gemini] Response received, tokens used:', tokensUsed.total);
+      logger.debug('Gemini', `Response received, tokens used: ${tokensUsed.total}`);
       break; // Success! Exit the retry loop
 
     } catch (error) {
@@ -279,7 +280,7 @@ export async function generateWithGemini(params: {
 
       // If it's a retryable error and we have retries left, continue
       if (attempt < MAX_RETRIES) {
-        console.log(`[Gemini] Error occurred, will retry: ${String(error)}`);
+        logger.debug('Gemini', `Error occurred, will retry: ${String(error)}`);
         continue;
       }
 
@@ -355,7 +356,7 @@ export async function generateWithGemini(params: {
           });
         }
       } catch (evalError) {
-        console.error('[Gemini] Evaluation failed:', evalError);
+        logger.error('Gemini', 'Evaluation failed', evalError);
       }
     })();
   }
@@ -415,8 +416,8 @@ Do not include any explanation, markdown formatting, or code blocks. Just the ra
 
     return schema.parse(parsed);
   } catch (error) {
-    console.error('[Gemini] Failed to parse structured response:', error);
-    console.error('[Gemini] Raw response (first 500 chars):', response.substring(0, 500));
+    logger.error('Gemini', 'Failed to parse structured response', error);
+    logger.error('Gemini', `Raw response (first 500 chars): ${response.substring(0, 500)}`);
     throw new Error('Failed to parse Gemini response as structured data');
   }
 }
@@ -671,7 +672,7 @@ export async function streamWithGemini(params: {
     };
   }
 
-  console.log(`[Gemini] Starting stream (thinking: ${thinkingLevel})...`);
+  logger.debug('Gemini', `Starting stream (thinking: ${thinkingLevel})...`);
 
   const response = await fetch(
     `${GEMINI_API_URL}/${GEMINI_MODEL}:streamGenerateContent?key=${apiKey}&alt=sse`,
@@ -686,7 +687,7 @@ export async function streamWithGemini(params: {
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('[Gemini] Stream error:', error);
+    logger.error('Gemini', 'Stream error', error);
     throw new Error(`Gemini API error: ${response.status}`);
   }
 
@@ -721,7 +722,7 @@ export async function streamWithGemini(params: {
     }
   }
 
-  console.log('[Gemini] Stream complete');
+  logger.debug('Gemini', 'Stream complete');
   onComplete?.(fullText);
 }
 

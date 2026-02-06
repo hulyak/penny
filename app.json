@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Penny Financial App",
+    "name": "Penny",
     "slug": "clearpath-financial-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,6 +17,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.penny.financialapp",
       "usesAppleSignIn": true,
+      "splash": {
+        "image": "./assets/images/bird-penny.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0A0E17"
+      },
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -37,6 +42,11 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/bird-penny.png",
+        "backgroundColor": "#0A0E17"
+      },
+      "splash": {
+        "image": "./assets/images/bird-penny.png",
+        "resizeMode": "contain",
         "backgroundColor": "#0A0E17"
       },
       "package": "com.penny.financialapp",
