@@ -175,7 +175,6 @@ ${portfolioContext}`;
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Ask Penny</Text>
         <View style={styles.pennyIcon}>
           <Image
             source={require('@/assets/images/bird-penny.png')}
@@ -301,7 +300,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 16,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -321,17 +320,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pennyIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: Colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   pennyImage: {
-    width: 32,
-    height: 32,
+    width: 56,
+    height: 56,
   },
   messagesContainer: {
     flex: 1,
@@ -352,18 +351,18 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   aiAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.purple + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 12,
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
   },
   messageBubble: {
     maxWidth: '75%',
