@@ -24,7 +24,7 @@ import EnhancedCard from '@/components/ui/EnhancedCard';
 import haptics from '@/lib/haptics';
 import { generateWithGemini } from '@/lib/gemini';
 import { useAuth } from '@/context/AuthContext';
-import { usePortfolio } from '@/context/PortfolioContext';
+import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { ActivityIndicator } from 'react-native';
 
 interface Message {
@@ -65,7 +65,7 @@ export default function AskPennyScreen() {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const { user } = useAuth();
-  const { holdings, summary } = usePortfolio();
+  const { holdings, summary } = usePortfolioData();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
