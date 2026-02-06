@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -155,6 +156,30 @@ export default function HomeScreen() {
           <Bell size={24} color={Colors.text} />
         </Pressable>
       </View>
+
+      {/* Ask Penny Button */}
+      <Pressable
+        style={styles.askPennyButton}
+        onPress={() => {
+          haptics.lightTap();
+          router.push('/ask-penny' as any);
+        }}
+      >
+        <View style={styles.askPennyContent}>
+          <View style={styles.askPennyIcon}>
+            <Image
+              source={require('@/assets/images/bird-penny.png')}
+              style={styles.pennyImage}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={styles.askPennyText}>
+            <Text style={styles.askPennyTitle}>Ask Penny</Text>
+            <Text style={styles.askPennySubtitle}>Get AI-powered investment advice</Text>
+          </View>
+          <ChevronRight size={20} color={Colors.textSecondary} />
+        </View>
+      </Pressable>
 
       {/* AI Coach Card - Preserved */}
       <PortfolioCoachCard
@@ -452,6 +477,45 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  askPennyButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: Colors.purple + '40',
+  },
+  askPennyContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  askPennyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.purple + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  pennyImage: {
+    width: 40,
+    height: 40,
+  },
+  askPennyText: {
+    flex: 1,
+  },
+  askPennyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  askPennySubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
   portfolioHeader: {
     marginBottom: 16,
