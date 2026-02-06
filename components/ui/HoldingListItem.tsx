@@ -50,7 +50,7 @@ export default function HoldingListItem({
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>{name}</Text>
         <Text style={styles.details}>
-          {shares} shares • ${price.toFixed(2)}
+          {shares} shares
         </Text>
       </View>
 
@@ -58,7 +58,7 @@ export default function HoldingListItem({
       <View style={styles.values}>
         <Text style={styles.value}>${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         <Text style={[styles.change, { color: changeColor }]}>
-          {changeSymbol}${Math.abs(change).toFixed(2)} {changeSymbol}{changePercent.toFixed(2)}%
+          {changeSymbol}{changePercent.toFixed(2)}%
         </Text>
       </View>
     </TouchableOpacity>
