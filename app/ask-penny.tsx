@@ -22,6 +22,10 @@ import {
 import Colors from '@/constants/colors';
 import EnhancedCard from '@/components/ui/EnhancedCard';
 import haptics from '@/lib/haptics';
+import { generateWithGemini } from '@/lib/gemini';
+import { useAuth } from '@/context/AuthContext';
+import { usePortfolio } from '@/context/PortfolioContext';
+import { ActivityIndicator } from 'react-native';
 
 interface Message {
   id: string;
@@ -60,50 +64,85 @@ const QUICK_ACTIONS = [
 export default function AskPennyScreen() {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Should I buy more AAPL?',
-      isUser: true,
-      timestamp: new Date(),
-    },
-    {
-      id: '2',
-      text: "Based on your portfolio and current market conditions, AAPL looks like a good buy. Here's why:\n\n• Strong earnings growth\n• Reasonable P/E ratio\n• Fits your risk profile",
-      isUser: false,
-      timestamp: new Date(),
-    },
-    {
-      id: '3',
-      text: 'What about Tesla?',
-      isUser: true,
-      timestamp: new Date(),
-    },
-  ]);
+  const { user } = useAuth();
+  const { holdings, summary } = usePortfolio();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
-    if (inputText.trim()) {
-      const newMessage: Message = {
+  const handleSend = async () => {
+    if (inputText.trim() && !isLoading) {
+      const userMessage: Message = {
         id: Date.now().toString(),
         text: inputText.trim(),
         isUser: true,
         timestamp: new Date(),
       };
-      setMessages([...messages, newMessage]);
+      
+      const userQuestion = inputText.trim();
+      setMessages([...messages, userMessage]);
       setInputText('');
+      setIsLoading(true);
       haptics.lightTap();
 
-      // Simulate AI response after a short delay
-      setTimeout(() => {
+      try {
+        // Build context about user's portfolio
+        const portfolioContext = `
+User's Portfolio Summary:
+- Total Value: $${summary.totalValue.toFixed(2)}
+- Total Gain: $${summary.totalGain.toFixed(2)} (${summary.totalGainPercent.toFixed(2)}%)
+- Number of Holdings: ${holdings.length}
+
+Holdings:
+${holdings.map(h => `- ${h.name} (${h.symbol}): ${h.shares} shares, Current Value: $${(h.currentPrice * h.shares).toFixed(2)}, Gain: ${((h.currentPrice - h.purchasePrice) / h.purchasePrice * 100).toFixed(2)}%`).join('\n')}
+`;
+
+        const systemPrompt = `You are Penny, a friendly and knowledgeable AI financial advisor for ClearPath, a personal finance app. You help users make informed investment decisions.
+
+Your personality:
+- Supportive and encouraging
+- Clear and concise
+- Educational but not condescending
+- Use bullet points for clarity
+- Always consider the user's current portfolio
+
+When giving advice:
+- Consider their current holdings and diversification
+- Explain reasoning simply
+- Mention risks when relevant
+- Suggest specific actions when appropriate
+
+${portfolioContext}`;
+
+        const aiResponseText = await generateWithGemini({
+          prompt: userQuestion,
+          systemInstruction: systemPrompt,
+          temperature: 0.7,
+          maxTokens: 500,
+          thinkingLevel: 'medium',
+          feature: 'ask_penny_chat',
+        });
+
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: "I'm analyzing your question. This is a demo response - the full AI integration is coming soon!",
+          text: aiResponseText,
           isUser: false,
           timestamp: new Date(),
         };
+        
         setMessages((prev) => [...prev, aiResponse]);
-      }, 1000);
+      } catch (error) {
+        console.error('AI response error:', error);
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: "I'm having trouble connecting right now. Please try again in a moment!",
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -184,14 +223,27 @@ export default function AskPennyScreen() {
               >
                 {message.text}
               </Text>
-              {!message.isUser && message.id === '2' && (
-                <Pressable style={styles.detailedAnalysisButton}>
-                  <Text style={styles.detailedAnalysisText}>[View Detailed Analysis]</Text>
-                </Pressable>
-              )}
+
             </View>
           </View>
         ))}
+
+        {/* Loading Indicator */}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <View style={styles.aiAvatar}>
+              <Image
+                source={require('@/assets/images/bird-penny.png')}
+                style={styles.avatarImage}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.loadingBubble}>
+              <ActivityIndicator size="small" color={Colors.purple} />
+              <Text style={styles.loadingText}>Penny is thinking...</Text>
+            </View>
+          </View>
+        )}
 
         {/* Quick Actions */}
         <View style={styles.quickActionsContainer}>
@@ -351,6 +403,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.purple,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loadingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.purple + '40',
+    borderRadius: 20,
+    borderTopLeftRadius: 4,
+    padding: 16,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
   quickActionsContainer: {
     marginTop: 24,
