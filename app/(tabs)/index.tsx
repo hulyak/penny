@@ -157,7 +157,7 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Ask Penny Button */}
+      {/* Ask Penny Button - Compact */}
       <Pressable
         style={styles.askPennyButton}
         onPress={() => {
@@ -180,20 +180,6 @@ export default function HomeScreen() {
           <ChevronRight size={20} color={Colors.textSecondary} />
         </View>
       </Pressable>
-
-      {/* AI Coach Card - Preserved */}
-      <PortfolioCoachCard
-        holdings={holdings}
-        totalValue={summary.totalValue}
-        totalGain={summary.totalGain}
-        totalGainPercent={summary.totalGainPercent}
-        userName={firstName}
-        onInsightPress={(insight) => {
-          if (insight.actionRoute) {
-            router.push(insight.actionRoute as any);
-          }
-        }}
-      />
 
       <CelebrationModal
         visible={!!celebration}
@@ -480,11 +466,11 @@ const styles = StyleSheet.create({
   },
   askPennyButton: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 16,
-    borderWidth: 2,
-    borderColor: Colors.purple + '40',
+    borderWidth: 1,
+    borderColor: Colors.purple + '30',
   },
   askPennyContent: {
     flexDirection: 'row',
@@ -492,24 +478,24 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   askPennyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Colors.purple + '20',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   pennyImage: {
-    width: 40,
-    height: 40,
+    width: 30,
+    height: 30,
   },
   askPennyText: {
     flex: 1,
   },
   askPennyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     color: Colors.text,
     marginBottom: 2,
   },

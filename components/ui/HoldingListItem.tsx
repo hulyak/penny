@@ -49,9 +49,7 @@ export default function HoldingListItem({
       {/* Info */}
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>{name}</Text>
-        <Text style={styles.details}>
-          {shares} shares
-        </Text>
+        <Text style={styles.symbol}>{symbol}</Text>
       </View>
 
       {/* Value and Change */}
@@ -102,9 +100,10 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 4,
   },
-  details: {
+  symbol: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontWeight: '500',
   },
   values: {
     alignItems: 'flex-end',
