@@ -36,6 +36,9 @@ import Button from '@/components/ui/Button';
 import TimePeriodSelector, { TimePeriod } from '@/components/ui/TimePeriodSelector';
 import HoldingListItem from '@/components/ui/HoldingListItem';
 import PortfolioChart from '@/components/ui/PortfolioChart';
+import { AgentActivityLog } from '@/components/AgentActivityLog';
+import { ASSET_CLASS_COLORS, AssetClass } from '@/types';
+import { PieChart } from 'lucide-react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -67,6 +70,27 @@ export default function HomeScreen() {
         return bValue - aValue;
       })
       .slice(0, 5);
+  }, [holdings]);
+
+  // Calculate allocation
+  const allocation = useMemo(() => {
+    const byClass: Record<string, number> = {};
+    let total = 0;
+
+    holdings.forEach((h) => {
+      const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
+      total += value;
+      byClass[h.assetClass] = (byClass[h.assetClass] || 0) + value;
+    });
+
+    return Object.entries(byClass)
+      .map(([assetClass, value]) => ({
+        assetClass: assetClass as AssetClass,
+        value,
+        percent: total > 0 ? (value / total) * 100 : 0,
+        color: ASSET_CLASS_COLORS[assetClass as AssetClass] || Colors.textMuted,
+      }))
+      .sort((a, b) => b.value - a.value);
   }, [holdings]);
 
   // Generate chart data based on selected period
@@ -260,14 +284,6 @@ export default function HomeScreen() {
               style={styles.actionButton}
               icon={<BarChart3 size={18} color={Colors.text} />}
             />
-            <Button
-              title="AI"
-              onPress={() => router.push('/portfolio/ask-before-buy' as any)}
-              variant="secondary"
-              size="medium"
-              style={styles.actionButton}
-              icon={<Bot size={18} color={Colors.purple} />}
-            />
           </View>
 
           {/* Creator Hub Banner - Preserved */}
@@ -313,6 +329,60 @@ export default function HomeScreen() {
               <ChevronRight size={20} color={Colors.textSecondary} />
             </EnhancedCard>
           </Pressable>
+
+          {/* Asset Allocation */}
+          {allocation.length > 0 && (
+            <Pressable
+              style={styles.allocationSection}
+              onPress={() => router.push('/portfolio/analysis' as any)}
+            >
+              <EnhancedCard>
+                <View style={styles.allocationHeader}>
+                  <View style={styles.allocationTitleRow}>
+                    <PieChart size={20} color={Colors.primary} />
+                    <Text style={styles.allocationTitle}>Asset Allocation</Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.textSecondary} />
+                </View>
+                <View style={styles.allocationBar}>
+                  {allocation.map((item, index) => (
+                    <View
+                      key={item.assetClass}
+                      style={[
+                        styles.allocationSegment,
+                        {
+                          backgroundColor: item.color,
+                          width: `${Math.max(item.percent, 2)}%`,
+                          borderTopLeftRadius: index === 0 ? 8 : 0,
+                          borderBottomLeftRadius: index === 0 ? 8 : 0,
+                          borderTopRightRadius: index === allocation.length - 1 ? 8 : 0,
+                          borderBottomRightRadius: index === allocation.length - 1 ? 8 : 0,
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+                <View style={styles.allocationLegend}>
+                  {allocation.slice(0, 4).map((item) => (
+                    <View key={item.assetClass} style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                      <Text style={styles.legendLabel}>
+                        {item.assetClass.charAt(0).toUpperCase() + item.assetClass.slice(1).replace('_', ' ')}
+                      </Text>
+                      <Text style={styles.legendPercent}>{item.percent.toFixed(0)}%</Text>
+                    </View>
+                  ))}
+                </View>
+              </EnhancedCard>
+            </Pressable>
+          )}
+
+          {/* Portfolio Monitor */}
+          <AgentActivityLog
+            compact
+            maxItems={3}
+            onViewAll={() => router.push('/portfolio/agent-activity' as any)}
+          />
         </>
       ) : (
         /* Empty State - Preserved */
@@ -526,6 +596,58 @@ const styles = StyleSheet.create({
   askBuySubtitle: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  allocationSection: {
+    marginTop: 24,
+  },
+  allocationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  allocationTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  allocationTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  allocationBar: {
+    flexDirection: 'row',
+    height: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  allocationSegment: {
+    height: '100%',
+  },
+  allocationLegend: {
+    gap: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  legendPercent: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
   },
   emptyState: {
     marginTop: 40,
