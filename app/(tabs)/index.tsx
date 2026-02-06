@@ -295,6 +295,14 @@ export default function HomeScreen() {
               style={styles.actionButton}
               icon={<BarChart3 size={18} color={Colors.text} />}
             />
+            <Button
+              title="AI"
+              onPress={() => router.push('/ask-penny' as any)}
+              variant="secondary"
+              size="medium"
+              style={styles.actionButton}
+              icon={<Bot size={18} color={Colors.text} />}
+            />
           </View>
 
           {/* Creator Hub Banner - Preserved */}
