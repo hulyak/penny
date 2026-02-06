@@ -8,7 +8,7 @@ import haptics from '@/lib/haptics';
 interface CreatorProfileHeaderProps {
   name: string;
   username: string;
-  avatar: string;
+  avatar: any; // Can be string URL or require() for local images
   bio: string;
   followers: string;
   performance: string;
@@ -44,7 +44,7 @@ export default function CreatorProfileHeader({
         <View style={styles.content}>
           {/* Avatar and Name */}
           <View style={styles.topRow}>
-            <Image source={{ uri: avatar }} style={styles.avatar} />
+            <Image source={typeof avatar === 'string' ? { uri: avatar } : avatar} style={styles.avatar} />
             <View style={styles.nameContainer}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{name}</Text>
@@ -74,8 +74,8 @@ export default function CreatorProfileHeader({
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <TrendingUp size={18} color={Colors.success} />
-              <Text style={[styles.statValue, { color: Colors.success }]}>{performance}</Text>
+              <TrendingUp size={18} color={Colors.text} />
+              <Text style={styles.statValue}>{performance}</Text>
               <Text style={styles.statLabel}>Performance</Text>
             </View>
           </View>

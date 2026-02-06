@@ -9,13 +9,13 @@ export interface FeedPost {
   creator: {
     name: string;
     username: string;
-    avatar: string;
+    avatar: any; // Can be string URL or require() for local images
     verified: boolean;
   };
   type: 'text' | 'video' | 'image';
   content: string;
   mediaUrl?: string;
-  thumbnail?: string;
+  thumbnail?: any; // Can be string URL or require() for local images
   likes: number;
   comments: number;
   shares: number;
@@ -61,7 +61,7 @@ export default function FeedPostCard({
     >
       {/* Creator Header */}
       <View style={styles.header}>
-        <Image source={{ uri: post.creator.avatar }} style={styles.avatar} />
+        <Image source={typeof post.creator.avatar === 'string' ? { uri: post.creator.avatar } : post.creator.avatar} style={styles.avatar} />
         <View style={styles.creatorInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.creatorName}>{post.creator.name}</Text>
@@ -82,7 +82,7 @@ export default function FeedPostCard({
       {/* Media (Video/Image) */}
       {post.type === 'video' && post.thumbnail && (
         <View style={styles.mediaContainer}>
-          <Image source={{ uri: post.thumbnail }} style={styles.mediaThumbnail} />
+          <Image source={typeof post.thumbnail === 'string' ? { uri: post.thumbnail } : post.thumbnail} style={styles.mediaThumbnail} />
           <View style={styles.playButton}>
             <Play size={32} color={Colors.text} fill={Colors.text} />
           </View>
