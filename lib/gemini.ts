@@ -5,7 +5,7 @@ import {
   endTrace,
   evaluateResponse,
   TraceContext,
-} from './opikClient';
+} from './opik';
 import {
   getExperimentForFeature,
   getAssignedVariant,
@@ -375,15 +375,18 @@ export async function generateStructuredWithGemini<T>(params: {
   image?: string;
   temperature?: number;
   thinkingLevel?: ThinkingLevel;
+  maxTokens?: number;
 }): Promise<T> {
-  const { prompt, systemInstruction, schema, image, temperature = 0.3, thinkingLevel = 'medium' } = params;
+  const { prompt, systemInstruction, schema, image, temperature = 0.3, thinkingLevel = 'medium', maxTokens = 4096 } = params;
 
   const schemaDescription = JSON.stringify(zodToJsonSchema(schema), null, 2);
-  
+
   const structuredPrompt = `${prompt}
 
 IMPORTANT: Respond with ONLY a valid JSON object matching this exact schema:
 ${schemaDescription}
+
+CRITICAL: Keep your response concise to fit within token limits. Prioritize completeness of the JSON structure over lengthy content. Truncate long text fields if needed.
 
 Do not include any explanation, markdown formatting, or code blocks. Just the raw JSON object.`;
 
@@ -393,59 +396,195 @@ Do not include any explanation, markdown formatting, or code blocks. Just the ra
     image,
     temperature,
     thinkingLevel,
+    maxTokens,
   });
 
   try {
-    const cleanedResponse = response
+    let cleanedResponse = response
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
       .trim();
 
+    // Try to fix truncated JSON by closing open brackets/braces
+    cleanedResponse = tryFixTruncatedJson(cleanedResponse);
+
     let parsed = JSON.parse(cleanedResponse);
 
     // Auto-fix common issues
-    if (parsed && typeof parsed === 'object') {
-      for (const key of Object.keys(parsed)) {
-        // Lowercase enum fields (sentiment, priority, status, etc.)
-        if (typeof parsed[key] === 'string' &&
-            (key === 'sentiment' ||
-             key === 'priority' ||
-             key === 'status' ||
-             key === 'type' ||
-             key === 'category' ||
-             key === 'level' ||
-             key === 'risk' ||
-             key === 'healthLabel')) {
-          parsed[key] = parsed[key].toLowerCase();
-        }
-
-        // Convert string arrays to actual arrays
-        if (typeof parsed[key] === 'string' &&
-            (key.toLowerCase().includes('array') ||
-             key === 'whatWouldChange' ||
-             key === 'tradeoffs' ||
-             key === 'alternatives' ||
-             key === 'nextSteps' ||
-             key === 'areasToReview')) {
-          // Try to split numbered items like "1. item 2. item" or newline-separated
-          const items = parsed[key]
-            .split(/(?:\d+\.\s*|\n+|;\s*)/)
-            .map((s: string) => s.trim())
-            .filter((s: string) => s.length > 0);
-          if (items.length > 1) {
-            parsed[key] = items;
-          } else {
-            parsed[key] = [parsed[key]];
-          }
-        }
-      }
-    }
+    parsed = fixParsedResponse(parsed);
 
     return schema.parse(parsed);
   } catch (error) {
     console.error('[Gemini] Failed to parse structured response:', error);
-    console.error('[Gemini] Raw response:', response);
+    console.error('[Gemini] Raw response (first 500 chars):', response.substring(0, 500));
     throw new Error('Failed to parse Gemini response as structured data');
+  }
+}
+
+/**
+ * Fix common issues in parsed JSON response
+ */
+function fixParsedResponse(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== 'object') return parsed;
+
+  const obj = parsed as Record<string, unknown>;
+
+  // Fields that should be numbers
+  const numericFields = ['diversificationScore', 'score', 'rating', 'percent', 'percentage', 'value', 'amount', 'count', 'total'];
+
+  // Fields that should be arrays
+  const arrayFields = [
+    'headlines', 'strengths', 'concerns', 'recommendations', 'risks',
+    'whatWouldChange', 'tradeoffs', 'alternatives', 'nextSteps',
+    'areasToReview', 'relevantSymbols', 'concentrationRisks', 'items',
+    'suggestions', 'tips', 'actions', 'steps', 'points', 'considerations',
+    'pros', 'cons', 'benefits', 'drawbacks', 'factors', 'reasons'
+  ];
+
+  // Enum fields that should be lowercase
+  const enumFields = [
+    'sentiment', 'priority', 'status', 'type', 'category', 'level',
+    'risk', 'riskLevel', 'healthLabel', 'marketSentiment', 'impact'
+  ];
+
+  for (const key of Object.keys(obj)) {
+    const value = obj[key];
+
+    // Convert string numbers to actual numbers
+    if (typeof value === 'string' && numericFields.some(f => key.toLowerCase().includes(f.toLowerCase()))) {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        obj[key] = numValue;
+        continue;
+      }
+    }
+
+    // Lowercase enum fields
+    if (typeof value === 'string' && enumFields.includes(key)) {
+      obj[key] = value.toLowerCase();
+      continue;
+    }
+
+    // Handle fields that should be arrays but came as strings
+    if (typeof value === 'string' && arrayFields.includes(key)) {
+      obj[key] = stringToArray(value);
+      continue;
+    }
+
+    // Recursively fix nested objects
+    if (Array.isArray(value)) {
+      obj[key] = value.map(item => fixParsedResponse(item));
+    } else if (typeof value === 'object' && value !== null) {
+      obj[key] = fixParsedResponse(value);
+    }
+  }
+
+  return obj;
+}
+
+/**
+ * Convert a string that should be an array into an actual array
+ */
+function stringToArray(value: string): string[] {
+  // Try to parse as numbered list: "1. item 2. item"
+  const numberedItems = value.match(/\d+\.\s*[^0-9]+(?=\d+\.|$)/g);
+  if (numberedItems && numberedItems.length > 1) {
+    return numberedItems.map(item => item.replace(/^\d+\.\s*/, '').trim());
+  }
+
+  // Try to split by common delimiters
+  const delimiters = [/\n+/, /;\s*/, /\.\s+(?=[A-Z])/, /,\s*(?=[A-Z])/];
+  for (const delimiter of delimiters) {
+    const items = value.split(delimiter).map(s => s.trim()).filter(s => s.length > 0);
+    if (items.length > 1) {
+      return items;
+    }
+  }
+
+  // Single item becomes array
+  return [value];
+}
+
+/**
+ * Attempts to fix truncated JSON by closing unclosed brackets and braces
+ */
+function tryFixTruncatedJson(json: string): string {
+  // If it already parses, return as-is
+  try {
+    JSON.parse(json);
+    return json;
+  } catch {
+    // Continue with fix attempt
+  }
+
+  let fixed = json.trim();
+
+  // Remove markdown code blocks if present
+  fixed = fixed.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '');
+
+  // Remove trailing incomplete string (ends with unclosed quote and content)
+  if (fixed.match(/:\s*"[^"]*$/)) {
+    fixed = fixed.replace(/:\s*"[^"]*$/, ': ""');
+  }
+
+  // Remove trailing incomplete array item
+  if (fixed.match(/,\s*"[^"]*$/)) {
+    fixed = fixed.replace(/,\s*"[^"]*$/, '');
+  }
+
+  // Remove trailing incomplete object/array
+  if (fixed.match(/,\s*$/)) {
+    fixed = fixed.replace(/,\s*$/, '');
+  }
+
+  // Count brackets and braces
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (const char of fixed) {
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (char === '{') openBraces++;
+    if (char === '}') openBraces--;
+    if (char === '[') openBrackets++;
+    if (char === ']') openBrackets--;
+  }
+
+  // Close any unclosed strings
+  if (inString) {
+    fixed += '"';
+  }
+
+  // Only add closing brackets/braces if there are more opens than closes
+  // Don't add anything if counts are negative (malformed JSON)
+  if (openBrackets > 0) {
+    fixed += ']'.repeat(openBrackets);
+  }
+  if (openBraces > 0) {
+    fixed += '}'.repeat(openBraces);
+  }
+
+  // Validate the fix worked
+  try {
+    JSON.parse(fixed);
+    return fixed;
+  } catch {
+    // Fix didn't work, return original to get better error message
+    return json;
   }
 }
 
@@ -585,6 +724,209 @@ export async function streamWithGemini(params: {
   console.log('[Gemini] Stream complete');
   onComplete?.(fullText);
 }
+
+/**
+ * Function calling support for Gemini 3
+ * Allows the model to call predefined functions and get results
+ */
+export interface GeminiFunctionDeclaration {
+  name: string;
+  description: string;
+  parameters: {
+    type: 'object';
+    properties: Record<string, {
+      type: string;
+      description: string;
+      enum?: string[];
+    }>;
+    required?: string[];
+  };
+}
+
+export interface GeminiFunctionCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export interface GeminiFunctionResponse {
+  name: string;
+  response: unknown;
+}
+
+export async function generateWithFunctions(params: {
+  prompt: string;
+  systemInstruction?: string;
+  functions: GeminiFunctionDeclaration[];
+  functionHandlers: Record<string, (args: Record<string, unknown>) => Promise<unknown>>;
+  maxFunctionCalls?: number;
+  thinkingLevel?: ThinkingLevel;
+}): Promise<{ text: string; functionCalls: GeminiFunctionCall[] }> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const {
+    prompt,
+    systemInstruction,
+    functions,
+    functionHandlers,
+    maxFunctionCalls = 5,
+    thinkingLevel = 'medium',
+  } = params;
+
+  const messages: GeminiMessage[] = [
+    { role: 'user', parts: [{ text: prompt }] }
+  ];
+
+  const allFunctionCalls: GeminiFunctionCall[] = [];
+  let iterations = 0;
+
+  while (iterations < maxFunctionCalls) {
+    iterations++;
+
+    const requestBody: Record<string, unknown> = {
+      contents: messages,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+        thinkingConfig: { thinkingLevel },
+      },
+      tools: [{
+        functionDeclarations: functions,
+      }],
+    };
+
+    if (systemInstruction) {
+      requestBody.systemInstruction = {
+        parts: [{ text: systemInstruction }],
+      };
+    }
+
+    const response = await fetch(
+      `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const candidate = data.candidates?.[0];
+
+    if (!candidate?.content?.parts) {
+      throw new Error('No response from Gemini');
+    }
+
+    // Check for function calls in the response
+    const functionCallPart = candidate.content.parts.find(
+      (p: Record<string, unknown>) => p.functionCall
+    );
+
+    if (functionCallPart?.functionCall) {
+      const functionCall = functionCallPart.functionCall as GeminiFunctionCall;
+      allFunctionCalls.push(functionCall);
+
+      // Execute the function
+      const handler = functionHandlers[functionCall.name];
+      if (!handler) {
+        throw new Error(`No handler for function: ${functionCall.name}`);
+      }
+
+      const result = await handler(functionCall.args);
+
+      // Add function call and result to conversation
+      messages.push({
+        role: 'model',
+        parts: [{ functionCall } as unknown as { text: string }],
+      });
+      messages.push({
+        role: 'user',
+        parts: [{
+          functionResponse: {
+            name: functionCall.name,
+            response: result,
+          },
+        } as unknown as { text: string }],
+      });
+
+      continue; // Let the model process the result
+    }
+
+    // No function call - return the text response
+    const textPart = candidate.content.parts.find(
+      (p: Record<string, unknown>) => p.text
+    );
+
+    return {
+      text: textPart?.text || '',
+      functionCalls: allFunctionCalls,
+    };
+  }
+
+  throw new Error(`Max function calls (${maxFunctionCalls}) exceeded`);
+}
+
+/**
+ * Predefined functions for portfolio analysis
+ */
+export const PORTFOLIO_FUNCTIONS: GeminiFunctionDeclaration[] = [
+  {
+    name: 'get_current_price',
+    description: 'Get the current market price for a stock or crypto symbol',
+    parameters: {
+      type: 'object',
+      properties: {
+        symbol: {
+          type: 'string',
+          description: 'The ticker symbol (e.g., AAPL, BTC)',
+        },
+        type: {
+          type: 'string',
+          description: 'Asset type',
+          enum: ['stock', 'crypto', 'etf'],
+        },
+      },
+      required: ['symbol', 'type'],
+    },
+  },
+  {
+    name: 'calculate_portfolio_metrics',
+    description: 'Calculate diversification and risk metrics for current portfolio',
+    parameters: {
+      type: 'object',
+      properties: {
+        includeRecommendations: {
+          type: 'boolean',
+          description: 'Whether to include rebalancing recommendations',
+        },
+      },
+    },
+  },
+  {
+    name: 'search_market_news',
+    description: 'Search for recent market news about a topic or symbol',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query for market news',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results',
+        },
+      },
+      required: ['query'],
+    },
+  },
+];
 
 export const GEMINI_SYSTEM_PROMPT = `You are Penny, a calm and supportive financial coach powered by Google Gemini 3.
 You leverage advanced reasoning capabilities to provide personalized, context-aware financial guidance.

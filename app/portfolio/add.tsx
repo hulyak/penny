@@ -22,6 +22,13 @@ import {
 } from '@/types';
 import { searchSymbols, searchCrypto } from '@/lib/priceService';
 import portfolioService from '@/lib/portfolioService';
+import {
+  sanitizeNumericInput,
+  validateQuantity,
+  validatePrice,
+  MAX_QUANTITY,
+  MAX_PRICE,
+} from '@/lib/validation';
 
 const ASSET_TYPES: { type: AssetType; label: string; description: string }[] = [
   { type: 'stock', label: 'Stock', description: 'Individual company shares' },
@@ -156,15 +163,40 @@ export default function AddHoldingScreen() {
       Alert.alert('Name Required', 'Please enter the name of your investment.');
       return false;
     }
-    if (!quantity || parseFloat(quantity) <= 0) {
-      Alert.alert('Quantity Required', 'Please enter a valid quantity.');
+
+    const qtyValidation = validateQuantity(quantity);
+    if (!qtyValidation.isValid) {
+      Alert.alert('Invalid Quantity', qtyValidation.error || 'Please enter a valid quantity.');
       return false;
     }
-    if (!purchasePrice || parseFloat(purchasePrice) <= 0) {
-      Alert.alert('Price Required', 'Please enter the purchase price.');
+
+    const priceValidation = validatePrice(purchasePrice);
+    if (!priceValidation.isValid) {
+      Alert.alert('Invalid Price', priceValidation.error || 'Please enter a valid purchase price.');
       return false;
     }
+
     return true;
+  };
+
+  // Sanitize quantity input
+  const handleQuantityChange = (value: string) => {
+    const sanitized = sanitizeNumericInput(value, {
+      allowDecimal: true,
+      maxValue: MAX_QUANTITY,
+      minValue: 0,
+    });
+    setQuantity(sanitized);
+  };
+
+  // Sanitize price input
+  const handlePriceChange = (value: string, setter: (val: string) => void) => {
+    const sanitized = sanitizeNumericInput(value, {
+      allowDecimal: true,
+      maxValue: MAX_PRICE,
+      minValue: 0,
+    });
+    setter(sanitized);
   };
 
   const handleNext = () => {
@@ -341,9 +373,10 @@ export default function AddHoldingScreen() {
             placeholder="0"
             placeholderTextColor={Colors.textMuted}
             value={quantity}
-            onChangeText={setQuantity}
+            onChangeText={handleQuantityChange}
             keyboardType="decimal-pad"
           />
+          <Text style={styles.inputHint}>Max: {MAX_QUANTITY.toLocaleString()}</Text>
         </View>
         <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
           <Text style={styles.inputLabel}>Buy Price *</Text>
@@ -352,7 +385,7 @@ export default function AddHoldingScreen() {
             placeholder="$0.00"
             placeholderTextColor={Colors.textMuted}
             value={purchasePrice}
-            onChangeText={setPurchasePrice}
+            onChangeText={(val) => handlePriceChange(val, setPurchasePrice)}
             keyboardType="decimal-pad"
           />
         </View>
@@ -365,7 +398,7 @@ export default function AddHoldingScreen() {
           placeholder="Leave empty if same as buy price"
           placeholderTextColor={Colors.textMuted}
           value={currentPrice}
-          onChangeText={setCurrentPrice}
+          onChangeText={(val) => handlePriceChange(val, setCurrentPrice)}
           keyboardType="decimal-pad"
         />
       </View>
@@ -690,6 +723,11 @@ const styles = StyleSheet.create({
     color: Colors.text,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  inputHint: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 4,
   },
   searchContainer: {
     position: 'relative',

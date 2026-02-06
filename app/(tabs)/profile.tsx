@@ -36,6 +36,7 @@ import { Card } from '@/components/Card';
 import { ObservabilityDashboard } from '@/components/ObservabilityDashboard';
 import { ReferralCard } from '@/components/ReferralCard';
 import Colors from '@/constants/colors';
+import { validateBudgetAmount } from '@/lib/validation';
 
 import { PENNY_MASCOT } from '@/constants/images';
 
@@ -89,7 +90,7 @@ export default function ProfileScreen() {
   };
 
   const updateField = (field: string, value: string) => {
-    const numValue = parseInt(value.replace(/[^0-9]/g, ''), 10) || 0;
+    const { numValue } = validateBudgetAmount(value);
     setEditedFinancials(prev => ({ ...prev, [field]: numValue }));
   };
 

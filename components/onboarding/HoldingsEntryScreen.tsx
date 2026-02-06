@@ -10,10 +10,11 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SparklineChart, generateMockChartData } from './SparklineChart';
+import { sanitizeNumericInput, MAX_QUANTITY } from '@/lib/validation';
 
 interface Props {
   onContinue: () => void;
@@ -24,10 +25,33 @@ export function HoldingsEntryScreen({ onContinue, onBack }: Props) {
   const insets = useSafeAreaInsets();
   const { selectedAssets, updateAssetQuantity, totalPortfolioValue } = useOnboarding();
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleQuantityChange = (assetId: string, value: string) => {
-    setQuantities(prev => ({ ...prev, [assetId]: value }));
-    const numValue = parseFloat(value) || 0;
+    // Sanitize input: remove non-numeric chars, prevent negatives, limit max value
+    const sanitized = sanitizeNumericInput(value, {
+      allowDecimal: true,
+      maxValue: MAX_QUANTITY,
+      minValue: 0,
+    });
+
+    setQuantities(prev => ({ ...prev, [assetId]: sanitized }));
+
+    const numValue = parseFloat(sanitized) || 0;
+
+    // Validate and set error if needed
+    if (sanitized && numValue <= 0) {
+      setErrors(prev => ({ ...prev, [assetId]: 'Must be greater than 0' }));
+    } else if (numValue > MAX_QUANTITY) {
+      setErrors(prev => ({ ...prev, [assetId]: 'Value too large' }));
+    } else {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[assetId];
+        return newErrors;
+      });
+    }
+
     updateAssetQuantity(assetId, numValue);
   };
 

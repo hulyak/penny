@@ -6,7 +6,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { evaluateResponse, ExperimentResult, EvaluationCriteria } from './opikClient';
+import { evaluateResponse, ExperimentResult, EvaluationCriteria } from './opik';
 
 const ACTIVE_EXPERIMENTS_KEY = 'opik_active_experiments';
 const EXPERIMENT_ASSIGNMENTS_KEY = 'opik_experiment_assignments';

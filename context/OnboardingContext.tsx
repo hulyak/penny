@@ -33,6 +33,7 @@ export type OnboardingStep =
   | 'asset-selection'
   | 'holdings-entry'
   | 'portfolio-confirmation'
+  | 'budget'
   | 'mentor-selection'
   | 'felix-welcome';
 
@@ -111,6 +112,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
       'asset-selection',
       'holdings-entry',
       'portfolio-confirmation',
+      'budget',
       'mentor-selection',
       'felix-welcome',
     ];
@@ -130,6 +132,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
       'asset-selection',
       'holdings-entry',
       'portfolio-confirmation',
+      'budget',
       'mentor-selection',
       'felix-welcome',
     ];

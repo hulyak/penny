@@ -4,11 +4,13 @@ import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, ActivityIndicator, StyleSheet, AppState } from "react-native";
+import { View, ActivityIndicator, StyleSheet, AppState, Text, Image } from "react-native";
+import { PENNY_MASCOT } from "@/constants/images";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { PurchasesProvider } from "@/context/PurchasesContext";
 import { PaywallModal } from "@/components/PaywallModal";
+import { ToastProvider } from "@/components/Toast";
 import Colors from "@/constants/colors";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { startSession, endSession } from "@/lib/analytics";
@@ -67,7 +69,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.accent} />
+        <Image source={PENNY_MASCOT} style={styles.loadingMascot} />
+        <Text style={styles.loadingTitle}>Penny</Text>
+        <Text style={styles.loadingSubtitle}>Your Portfolio Companion</Text>
+        <ActivityIndicator size="small" color={Colors.primary} style={styles.loadingSpinner} />
       </View>
     );
   }
@@ -106,6 +111,18 @@ function RootLayoutNav() {
           options={{
             presentation: 'modal',
             title: 'Details',
+          }}
+        />
+        <Stack.Screen
+          name="portfolio"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="creator"
+          options={{
+            headerShown: false,
           }}
         />
       </Stack>
@@ -172,8 +189,10 @@ export default function RootLayout() {
         <AuthProvider>
         <AppProvider>
           <PurchasesProvider>
-            <RootLayoutNav />
-            <PaywallModal />
+            <ToastProvider>
+              <RootLayoutNav />
+              <PaywallModal />
+            </ToastProvider>
           </PurchasesProvider>
         </AppProvider>
         </AuthProvider>
@@ -189,5 +208,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
+  },
+  loadingMascot: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
+  },
+  loadingTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 24,
+  },
+  loadingSpinner: {
+    marginTop: 8,
   },
 });

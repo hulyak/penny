@@ -236,7 +236,6 @@ bun start --dev-client
 
 Integrate with backend services:
 
-- **Supabase** - PostgreSQL database with real-time features
 - **Firebase** - Google's mobile development platform
 - **Custom API** - Connect to your own backend
 
@@ -247,7 +246,6 @@ Implement user authentication:
 **Basic Authentication (works in Expo Go):**
 
 - **Expo AuthSession** - OAuth providers (Google, Facebook, Apple) - [Guide](https://docs.expo.dev/guides/authentication/)
-- **Supabase Auth** - Email/password and social login - [Integration Guide](https://supabase.com/docs/guides/getting-started/tutorials/with-expo-react-native)
 - **Firebase Auth** - Comprehensive authentication solution - [Setup Guide](https://docs.expo.dev/guides/using-firebase/)
 
 **Native Authentication (requires Custom Development Build):**

@@ -27,6 +27,7 @@ import {
   AssetSelectionScreen,
   HoldingsEntryScreen,
   PortfolioConfirmationScreen,
+  BudgetEntryScreen,
 } from '@/components/onboarding';
 import Colors from '@/constants/colors';
 import { Holding } from '@/types';
@@ -108,6 +109,16 @@ function FeatureCard({ icon, label, color, index, animValue }: {
   );
 }
 
+// Budget data type
+interface BudgetData {
+  monthlyIncome: number;
+  housingCost: number;
+  carCost: number;
+  essentialsCost: number;
+  savings: number;
+  debts: number;
+}
+
 // Main onboarding content (wrapped with provider)
 function OnboardingContent() {
   const router = useRouter();
@@ -120,6 +131,7 @@ function OnboardingContent() {
   } = useOnboarding();
 
   const [introSlide, setIntroSlide] = useState(0);
+  const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const featureAnims = useRef(PORTFOLIO_FEATURES.map(() => new Animated.Value(0))).current;
@@ -216,19 +228,33 @@ function OnboardingContent() {
   };
 
   // Complete onboarding and navigate to auth
-  const handleComplete = async () => {
+  const handleComplete = async (finalBudgetData?: BudgetData) => {
     // Save portfolio holdings
     await savePortfolioHoldings();
 
-    // Complete onboarding with default financials
-    completeOnboarding({
+    // Use provided budget data or stored budget data or defaults
+    const budget = finalBudgetData || budgetData || {
       monthlyIncome: 5500,
       housingCost: 1800,
       carCost: 450,
       essentialsCost: 800,
       savings: 3200,
       debts: 12000,
-      emergencyFundGoal: 9150,
+    };
+
+    // Calculate emergency fund goal (3 months of expenses)
+    const monthlyExpenses = budget.housingCost + budget.carCost + budget.essentialsCost;
+    const emergencyFundGoal = monthlyExpenses * 3;
+
+    // Complete onboarding with user's financials
+    completeOnboarding({
+      monthlyIncome: budget.monthlyIncome,
+      housingCost: budget.housingCost,
+      carCost: budget.carCost,
+      essentialsCost: budget.essentialsCost,
+      savings: budget.savings,
+      debts: budget.debts,
+      emergencyFundGoal,
     });
 
     router.replace('/auth' as any);
@@ -245,8 +271,8 @@ function OnboardingContent() {
   };
 
   const handleSkip = () => {
-    // Skip to mentor selection (skip asset entry)
-    setStep('mentor-selection');
+    // Skip to budget entry (skip asset entry)
+    setStep('budget');
   };
 
   const handleSkipToEnd = () => {
@@ -375,9 +401,22 @@ function OnboardingContent() {
   if (currentStep === 'portfolio-confirmation') {
     return (
       <PortfolioConfirmationScreen
-        onContinue={handleComplete}
+        onContinue={() => setStep('budget')}
         onBack={() => setStep('holdings-entry')}
         onAddMore={() => setStep('asset-selection')}
+      />
+    );
+  }
+
+  if (currentStep === 'budget') {
+    return (
+      <BudgetEntryScreen
+        onContinue={(data) => {
+          setBudgetData(data);
+          handleComplete(data);
+        }}
+        onBack={() => setStep('portfolio-confirmation')}
+        onSkip={() => handleComplete()}
       />
     );
   }

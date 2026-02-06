@@ -321,7 +321,11 @@ async function fetchCommodityPrice(commodity: 'GOLD' | 'SILVER' | 'PLATINUM'): P
 
     throw new Error('No price data received');
   } catch (error) {
-    console.error(`[PriceService] ${commodity} price error:`, error);
+    // Silently handle 403 errors (API key issues) - use fallback instead
+    const errorMessage = String(error);
+    if (!errorMessage.includes('403')) {
+      console.warn(`[PriceService] ${commodity} price fetch failed, using fallback`);
+    }
 
     // Try Yahoo Finance as fallback for commodities
     try {

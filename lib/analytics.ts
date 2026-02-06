@@ -107,15 +107,20 @@ export async function startSession(): Promise<string> {
  * End the current session
  */
 export async function endSession(): Promise<void> {
-  if (!currentSession) return;
+  // Capture and clear current session to prevent race conditions
+  const session = currentSession;
+  if (!session) return;
+  currentSession = null;
 
-  currentSession.endTime = new Date().toISOString();
+  session.endTime = new Date().toISOString();
 
   // Save session
   try {
     const stored = await AsyncStorage.getItem(SESSIONS_KEY);
-    const sessions: SessionData[] = stored ? JSON.parse(stored) : [];
-    sessions.push(currentSession);
+    const rawSessions = stored ? JSON.parse(stored) : [];
+    // Filter out any null sessions that might have been saved
+    const sessions: SessionData[] = rawSessions.filter((s: SessionData | null) => s != null);
+    sessions.push(session);
 
     // Keep last 100 sessions
     if (sessions.length > 100) {
@@ -123,7 +128,7 @@ export async function endSession(): Promise<void> {
     }
 
     await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-    console.log('[Analytics] Ended session:', currentSession.id);
+    console.log('[Analytics] Ended session:', session.id);
   } catch (error) {
     console.error('[Analytics] Error saving session:', error);
   }
@@ -265,24 +270,29 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
     ]);
 
     const interactions: InteractionEvent[] = interactionsStr ? JSON.parse(interactionsStr) : [];
-    const sessions: SessionData[] = sessionsStr ? JSON.parse(sessionsStr) : [];
+    const rawSessions = sessionsStr ? JSON.parse(sessionsStr) : [];
+    // Filter out null/undefined sessions
+    const sessions: SessionData[] = rawSessions.filter((s: SessionData | null) => s != null);
     const analytics = analyticsStr ? JSON.parse(analyticsStr) : { aiCalls: [] };
 
     // Count interactions by type
     const interactionsByType: Record<string, number> = {};
     for (const event of interactions) {
-      interactionsByType[event.type] = (interactionsByType[event.type] || 0) + 1;
+      if (event) {
+        interactionsByType[event.type] = (interactionsByType[event.type] || 0) + 1;
+      }
     }
 
     // Calculate session stats
     let totalDuration = 0;
     for (const session of sessions) {
-      if (session.endTime) {
+      if (session && session.endTime && session.startTime) {
         const duration = new Date(session.endTime).getTime() - new Date(session.startTime).getTime();
         totalDuration += duration;
       }
     }
-    const averageSessionDuration = sessions.length > 0 ? totalDuration / sessions.length : 0;
+    const validSessions = sessions.filter(s => s && s.endTime && s.startTime);
+    const averageSessionDuration = validSessions.length > 0 ? totalDuration / validSessions.length : 0;
 
     // Feedback stats from Opik
     const feedback = await opik.getFeedback();

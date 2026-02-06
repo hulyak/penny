@@ -40,7 +40,7 @@ import {
   EvaluationResult,
   EvaluationCriteria,
   isOpikConfigured,
-} from '@/lib/opikClient';
+} from '@/lib/opik';
 import {
   getExperimentSummary,
   ALL_EXPERIMENTS,
