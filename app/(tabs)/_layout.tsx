@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, User, PieChart } from 'lucide-react-native';
+import { Home, User, PieChart, Users } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Platform } from 'react-native';
 
@@ -53,6 +53,14 @@ export default function TabLayout() {
           title: 'Portfolio',
           headerShown: false,
           tabBarIcon: ({ color }) => <PieChart size={24} color={color} strokeWidth={2.5} />,
+        }}
+      />
+      <Tabs.Screen
+        name="creator"
+        options={{
+          title: 'Creators',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Users size={24} color={color} strokeWidth={2.5} />,
         }}
       />
       <Tabs.Screen
