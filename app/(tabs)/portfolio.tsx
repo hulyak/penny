@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Plus,
   TrendingUp,
@@ -19,7 +18,6 @@ import {
   PieChart,
   AlertCircle,
   Briefcase,
-  RefreshCw,
   Wifi,
   Bell,
   BarChart3,
@@ -28,15 +26,15 @@ import {
   Upload,
   Camera,
   Sparkles,
-  Mic,
   Receipt,
   Bot,
+  FileDown,
+  Scissors,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { usePurchases } from '@/context/PurchasesContext';
 import Colors from '@/constants/colors';
-import { Spacing, FontSize, BorderRadius, IconSize, ComponentHeight, Layout } from '@/constants/design';
-import { AnimatedListItem, AnimatedScaleIn } from '@/components/AnimatedListItem';
+import { Spacing, FontSize, BorderRadius, ComponentHeight, Layout } from '@/constants/design';
 import { PortfolioSkeleton } from '@/components/SkeletonLoader';
 import haptics from '@/lib/haptics';
 import {
@@ -48,24 +46,10 @@ import {
 } from '@/types';
 import { batchGetPrices, hasLivePricing } from '@/lib/priceService';
 import { PremiumBadge } from '@/components/PremiumBadge';
-import { PerformanceChart } from '@/components/PerformanceChart';
 import portfolioService from '@/lib/portfolioService';
 import portfolioHistory from '@/lib/portfolioHistory';
 import { SparklineChart, generateMockChartData } from '@/components/onboarding';
-
-// Helper function to format relative time
-function getRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
-}
+import { exportPortfolioPDF } from '@/lib/pdfExport';
 
 export default function PortfolioScreen() {
   const router = useRouter();
@@ -74,9 +58,6 @@ export default function PortfolioScreen() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPriceLoading, setIsPriceLoading] = useState(false);
-  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
-  const [dayChange, setDayChange] = useState<{ valueChange: number; percentChange: number } | null>(null);
 
   // Load holdings from storage - reload every time screen comes into focus
   useFocusEffect(
@@ -97,22 +78,8 @@ export default function PortfolioScreen() {
       const holdings = await portfolioService.getHoldings();
       setHoldings(holdings);
 
-      // Calculate current total value and load day change
       if (holdings.length > 0) {
-        // Generate initial history for new users so chart displays immediately
         await portfolioHistory.generateInitialHistory(holdings);
-
-        const totalValue = holdings.reduce((sum, h) => {
-          const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
-          return sum + value;
-        }, 0);
-        const dayChangeData = await portfolioHistory.calculateDayChange(totalValue);
-        if (dayChangeData) {
-          setDayChange({
-            valueChange: dayChangeData.valueChange,
-            percentChange: dayChangeData.percentChange,
-          });
-        }
       }
     } catch (error) {
       console.error('Failed to load holdings:', error);
@@ -124,23 +91,17 @@ export default function PortfolioScreen() {
   const updatePrices = async () => {
     if (holdings.length === 0) return;
 
-    setIsPriceLoading(true);
     try {
       const holdingsToUpdate = holdings
         .filter((h) => hasLivePricing(h.type))
         .map((h) => ({ id: h.id, type: h.type, symbol: h.symbol }));
 
-      if (holdingsToUpdate.length === 0) {
-        setIsPriceLoading(false);
-        return;
-      }
+      if (holdingsToUpdate.length === 0) return;
 
       const prices = await batchGetPrices(holdingsToUpdate);
 
-      // Build price updates
       const priceUpdates: { id: string; currentPrice: number; currentValue: number; lastPriceUpdate: string }[] = [];
 
-      // Update holdings with new prices
       const updatedHoldings = holdings.map((h) => {
         const priceData = prices[h.id];
         if (priceData) {
@@ -161,30 +122,10 @@ export default function PortfolioScreen() {
       });
 
       setHoldings(updatedHoldings);
-      setLastPriceUpdate(new Date());
-
-      // Save updated holdings via portfolio service
       await portfolioService.updateHoldingPrices(priceUpdates);
-
-      // Save portfolio snapshot for performance tracking
       await portfolioHistory.saveSnapshot(updatedHoldings);
-
-      // Calculate and set day change
-      const totalValue = updatedHoldings.reduce((sum, h) => {
-        const value = h.currentValue || h.quantity * (h.currentPrice || h.purchasePrice);
-        return sum + value;
-      }, 0);
-      const dayChangeData = await portfolioHistory.calculateDayChange(totalValue);
-      if (dayChangeData) {
-        setDayChange({
-          valueChange: dayChangeData.valueChange,
-          percentChange: dayChangeData.percentChange,
-        });
-      }
     } catch (error) {
       console.error('Failed to update prices:', error);
-    } finally {
-      setIsPriceLoading(false);
     }
   };
 
@@ -302,84 +243,6 @@ export default function PortfolioScreen() {
         </View>
       </View>
 
-      {/* Portfolio Value Card */}
-      <View style={styles.valueCardWrapper}>
-        <LinearGradient
-          colors={[Colors.primary, Colors.primaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.valueCard}
-        >
-          {/* Decorative elements */}
-          <View style={styles.decorCircle1} />
-          <View style={styles.decorCircle2} />
-
-          <View style={styles.valueHeader}>
-            <Text style={styles.valueLabel}>Total Portfolio Value</Text>
-            {isPriceLoading ? (
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
-            ) : liveHoldingsCount > 0 ? (
-              <Pressable onPress={updatePrices} style={styles.refreshButton}>
-                <RefreshCw size={16} color="rgba(255,255,255,0.7)" />
-              </Pressable>
-            ) : null}
-          </View>
-          <Text style={styles.valueAmount}>
-            ${summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </Text>
-          <View style={styles.changeRow}>
-            <View style={[styles.changeBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              {isGain ? (
-                <TrendingUp size={14} color="#FFFFFF" />
-              ) : (
-                <TrendingDown size={14} color="#FFFFFF" />
-              )}
-              <Text style={[styles.changePercent, { color: '#FFFFFF' }]}>
-                {isGain ? '+' : ''}{summary.totalGainPercent.toFixed(2)}%
-              </Text>
-            </View>
-            <Text style={styles.changeText}>
-              {isGain ? '+' : '-'}${Math.abs(summary.totalGain).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} all time
-            </Text>
-          </View>
-          {/* Day Change Display */}
-          {dayChange && (
-            <View style={styles.dayChangeRow}>
-              <View style={[
-                styles.dayChangeBadge,
-                { backgroundColor: 'rgba(255,255,255,0.15)' }
-              ]}>
-                {dayChange.valueChange >= 0 ? (
-                  <TrendingUp size={12} color="#FFFFFF" />
-                ) : (
-                  <TrendingDown size={12} color="#FFFFFF" />
-                )}
-                <Text style={[
-                  styles.dayChangeText,
-                  { color: '#FFFFFF' }
-                ]}>
-                  {dayChange.valueChange >= 0 ? '+' : ''}${Math.abs(dayChange.valueChange).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({dayChange.percentChange >= 0 ? '+' : ''}{dayChange.percentChange.toFixed(2)}%) today
-                </Text>
-              </View>
-            </View>
-          )}
-          {lastPriceUpdate && (
-            <View style={styles.lastUpdate}>
-              <Wifi size={12} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.lastUpdateText}>
-                Updated {getRelativeTime(lastPriceUpdate)}
-              </Text>
-            </View>
-          )}
-          {isPriceLoading && (
-            <View style={styles.updatingIndicator}>
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
-              <Text style={styles.updatingText}>Updating prices...</Text>
-            </View>
-          )}
-        </LinearGradient>
-      </View>
-
       {/* Quick Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
@@ -443,107 +306,6 @@ export default function PortfolioScreen() {
           </View>
           <ChevronRight size={20} color={Colors.textMuted} />
         </Pressable>
-      )}
-
-      {/* Performance Chart */}
-      {holdings.length > 0 && <PerformanceChart />}
-
-      {/* AI Features Row - Voice Coach, Receipt Scan, Agent */}
-      <View style={styles.aiActionsRow}>
-        <Pressable
-          style={styles.aiActionCard}
-          onPress={() => router.push('/portfolio/voice-coach' as any)}
-        >
-          <View style={[styles.aiActionIcon, { backgroundColor: 'rgba(66, 133, 244, 0.15)' }]}>
-            <Mic size={20} color="#4285F4" />
-          </View>
-          <Text style={styles.aiActionTitle}>Voice Coach</Text>
-          <Text style={styles.aiActionSubtitle}>Talk to Gemini 3</Text>
-        </Pressable>
-        <Pressable
-          style={styles.aiActionCard}
-          onPress={() => router.push('/portfolio/receipt-scan' as any)}
-        >
-          <View style={[styles.aiActionIcon, { backgroundColor: Colors.goldMuted }]}>
-            <Receipt size={20} color={Colors.gold} />
-          </View>
-          <Text style={styles.aiActionTitle}>Scan Receipt</Text>
-          <Text style={styles.aiActionSubtitle}>Track expenses</Text>
-        </Pressable>
-        <Pressable
-          style={styles.aiActionCard}
-          onPress={() => router.push('/portfolio/agent-activity' as any)}
-        >
-          <View style={[styles.aiActionIcon, { backgroundColor: Colors.lavenderMuted }]}>
-            <Bot size={20} color={Colors.lavender} />
-          </View>
-          <Text style={styles.aiActionTitle}>Agent</Text>
-          <Text style={styles.aiActionSubtitle}>View activity</Text>
-        </Pressable>
-      </View>
-
-      {/* Quick Actions - Loans & Dividends */}
-      <View style={styles.quickActionsRow}>
-        <Pressable
-          style={styles.quickActionCard}
-          onPress={() => router.push('/portfolio/loans' as any)}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningMuted }]}>
-            <CreditCard size={20} color={Colors.warning} />
-          </View>
-          <Text style={styles.quickActionTitle}>Loans</Text>
-          <Text style={styles.quickActionSubtitle}>Track amortization</Text>
-        </Pressable>
-        <Pressable
-          style={styles.quickActionCard}
-          onPress={() => router.push('/portfolio/dividends' as any)}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: Colors.successMuted }]}>
-            <DollarSign size={20} color={Colors.success} />
-          </View>
-          <Text style={styles.quickActionTitle}>Dividends</Text>
-          <Text style={styles.quickActionSubtitle}>Track income</Text>
-        </Pressable>
-      </View>
-
-      {/* Allocation Section */}
-      {allocation.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Allocation</Text>
-          <View style={styles.allocationCard}>
-            {/* Simple bar chart */}
-            <View style={styles.allocationBar}>
-              {allocation.map((item, index) => (
-                <View
-                  key={item.assetClass}
-                  style={[
-                    styles.allocationSegment,
-                    {
-                      backgroundColor: item.color,
-                      width: `${item.percent}%`,
-                      borderTopLeftRadius: index === 0 ? 6 : 0,
-                      borderBottomLeftRadius: index === 0 ? 6 : 0,
-                      borderTopRightRadius: index === allocation.length - 1 ? 6 : 0,
-                      borderBottomRightRadius: index === allocation.length - 1 ? 6 : 0,
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-            {/* Legend */}
-            <View style={styles.allocationLegend}>
-              {allocation.map((item) => (
-                <View key={item.assetClass} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                  <Text style={styles.legendLabel}>
-                    {item.assetClass.charAt(0).toUpperCase() + item.assetClass.slice(1).replace('_', ' ')}
-                  </Text>
-                  <Text style={styles.legendPercent}>{item.percent.toFixed(1)}%</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
       )}
 
       {/* Holdings Section */}
@@ -616,6 +378,80 @@ export default function PortfolioScreen() {
           ))
         )}
       </View>
+
+      {/* AI Features Row - Receipt Scan, Agent */}
+      <View style={styles.aiActionsRow}>
+        <Pressable
+          style={styles.aiActionCard}
+          onPress={() => router.push('/portfolio/receipt-scan' as any)}
+        >
+          <View style={[styles.aiActionIcon, { backgroundColor: Colors.goldMuted }]}>
+            <Receipt size={20} color={Colors.gold} />
+          </View>
+          <Text style={styles.aiActionTitle}>Scan Receipt</Text>
+          <Text style={styles.aiActionSubtitle}>Track expenses</Text>
+        </Pressable>
+        <Pressable
+          style={styles.aiActionCard}
+          onPress={() => router.push('/portfolio/agent-activity' as any)}
+        >
+          <View style={[styles.aiActionIcon, { backgroundColor: Colors.lavenderMuted }]}>
+            <Bot size={20} color={Colors.lavender} />
+          </View>
+          <Text style={styles.aiActionTitle}>Agent</Text>
+          <Text style={styles.aiActionSubtitle}>View activity</Text>
+        </Pressable>
+      </View>
+
+      {/* Quick Actions - Loans & Dividends */}
+      <View style={styles.quickActionsRow}>
+        <Pressable
+          style={styles.quickActionCard}
+          onPress={() => router.push('/portfolio/loans' as any)}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningMuted }]}>
+            <CreditCard size={20} color={Colors.warning} />
+          </View>
+          <Text style={styles.quickActionTitle}>Loans</Text>
+          <Text style={styles.quickActionSubtitle}>Track amortization</Text>
+        </Pressable>
+        <Pressable
+          style={styles.quickActionCard}
+          onPress={() => router.push('/portfolio/dividends' as any)}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: Colors.successMuted }]}>
+            <DollarSign size={20} color={Colors.success} />
+          </View>
+          <Text style={styles.quickActionTitle}>Dividends</Text>
+          <Text style={styles.quickActionSubtitle}>Track income</Text>
+        </Pressable>
+      </View>
+
+      {/* PDF Export & Tax Loss Row */}
+      {holdings.length > 0 && (
+        <View style={styles.quickActionsRow}>
+          <Pressable
+            style={styles.quickActionCard}
+            onPress={() => exportPortfolioPDF(holdings)}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: Colors.accentMuted }]}>
+              <FileDown size={20} color={Colors.accent} />
+            </View>
+            <Text style={styles.quickActionTitle}>Export PDF</Text>
+            <Text style={styles.quickActionSubtitle}>Share report</Text>
+          </Pressable>
+          <Pressable
+            style={styles.quickActionCard}
+            onPress={() => router.push('/portfolio/tax-loss' as any)}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: Colors.dangerMuted }]}>
+              <Scissors size={20} color={Colors.danger} />
+            </View>
+            <Text style={styles.quickActionTitle}>Tax Loss</Text>
+            <Text style={styles.quickActionSubtitle}>Harvest savings</Text>
+          </Pressable>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -627,7 +463,7 @@ function HoldingCard({ holding, onPress }: { holding: Holding; onPress: () => vo
   const gainPercent = investedValue > 0 ? (gain / investedValue) * 100 : 0;
   const isGain = gain >= 0;
   const hasLive = hasLivePricing(holding.type);
-  const chartData = generateMockChartData(holding.currentPrice || holding.purchasePrice, gainPercent);
+  const chartData = generateMockChartData(holding.currentPrice || holding.purchasePrice, gainPercent, 20, holding.id);
 
   const config = ASSET_TYPE_CONFIG[holding.type];
 

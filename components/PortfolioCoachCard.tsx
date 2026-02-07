@@ -75,7 +75,7 @@ export function PortfolioCoachCard({
 
       // Calculate allocation
       const allocation: Record<AssetClass, number> = {
-        equity: 0, debt: 0, commodity: 0, real_asset: 0, cash: 0,
+        equity: 0, debt: 0, commodity: 0, real_asset: 0, cash: 0, other: 0,
       };
       let total = 0;
       holdings.forEach((h) => {

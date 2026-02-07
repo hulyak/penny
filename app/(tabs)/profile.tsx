@@ -28,9 +28,16 @@ import {
   ChevronRight,
   X,
   Shield,
+  Crown,
+  Zap,
+  Sparkles,
+  Check,
+  Trash2,
+  FileText,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
+import { usePurchases } from '@/context/PurchasesContext';
 import { useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
 import { ObservabilityDashboard } from '@/components/ObservabilityDashboard';
@@ -44,6 +51,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { financials, updateFinancials, resetDemo } = useApp();
   const { user, signOut } = useAuth();
+  const { subscriptionTier, isTrialActive, trialDaysRemaining, showPaywall } = usePurchases();
   const [isEditing, setIsEditing] = useState(false);
   const [editedFinancials, setEditedFinancials] = useState({ ...financials });
   const [showDashboard, setShowDashboard] = useState(false);
@@ -77,10 +85,30 @@ export default function ProfileScreen() {
       'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Sign Out', 
+        {
+          text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
+            await signOut();
+            router.replace('/auth' as any);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteProfile = () => {
+    Alert.alert(
+      'Delete Profile',
+      'Are you sure you want to delete your profile? This action cannot be undone. All your data will be permanently deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Clear all local data
+            resetDemo();
             await signOut();
             router.replace('/auth' as any);
           },
@@ -178,6 +206,101 @@ export default function ProfileScreen() {
       {/* Referral Card - Virality Feature */}
       <ReferralCard userId={user?.id || 'guest'} compact />
 
+      {/* Penny Pro Subscription Card */}
+      <Pressable
+        style={styles.subscriptionCard}
+        onPress={() => router.push('/portfolio/subscription' as any)}
+      >
+        <View style={styles.subscriptionHeader}>
+          <View style={[
+            styles.subscriptionIconContainer,
+            {
+              backgroundColor: subscriptionTier === 'pro' ? `${Colors.primary}20` :
+                               Colors.surfaceSecondary,
+            },
+          ]}>
+            {subscriptionTier === 'pro' ? (
+              <Zap size={22} color={Colors.primary} />
+            ) : (
+              <Sparkles size={22} color={Colors.textMuted} />
+            )}
+          </View>
+          <View style={styles.subscriptionInfo}>
+            <Text style={styles.subscriptionTitle}>
+              Penny {subscriptionTier === 'pro' ? 'Pro' : 'Free'}
+            </Text>
+            {isTrialActive ? (
+              <Text style={styles.subscriptionSubtitle}>
+                Trial: {trialDaysRemaining} days remaining
+              </Text>
+            ) : subscriptionTier === 'free' ? (
+              <Text style={styles.subscriptionSubtitle}>
+                Upgrade to unlock all features
+              </Text>
+            ) : (
+              <Text style={styles.subscriptionSubtitle}>Active subscription</Text>
+            )}
+          </View>
+          <ChevronRight size={20} color={Colors.textMuted} />
+        </View>
+
+        {subscriptionTier === 'free' && (
+          <View style={styles.subscriptionPricing}>
+            <View style={styles.pricingOption}>
+              <View style={styles.pricingBadge}>
+                <Zap size={12} color={Colors.primary} />
+                <Text style={styles.pricingBadgeText}>PRO</Text>
+              </View>
+              <Text style={styles.pricingAmount}>$4.99</Text>
+              <Text style={styles.pricingPeriod}>/month</Text>
+            </View>
+            <View style={styles.pricingDivider} />
+            <View style={styles.pricingOption}>
+              <View style={[styles.pricingBadge, { backgroundColor: `${Colors.gold}20` }]}>
+                <Crown size={12} color={Colors.gold} />
+                <Text style={[styles.pricingBadgeText, { color: Colors.gold }]}>PREMIUM</Text>
+              </View>
+              <Text style={styles.pricingAmount}>$9.99</Text>
+              <Text style={styles.pricingPeriod}>/month</Text>
+            </View>
+          </View>
+        )}
+
+        {subscriptionTier === 'free' && (
+          <View style={styles.subscriptionFeatures}>
+            {['Real-time prices', 'AI insights', 'Statement parsing'].map((feature) => (
+              <View key={feature} style={styles.subscriptionFeature}>
+                <Check size={14} color={Colors.success} />
+                <Text style={styles.subscriptionFeatureText}>{feature}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {subscriptionTier === 'free' && (
+          <Pressable
+            style={styles.upgradeCtaButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              showPaywall();
+            }}
+          >
+            <Text style={styles.upgradeCtaText}>Upgrade Now</Text>
+          </Pressable>
+        )}
+
+        {subscriptionTier === 'pro' && (
+          <View style={styles.subscriptionFeatures}>
+            <View style={styles.subscriptionFeature}>
+              <Crown size={14} color={Colors.gold} />
+              <Text style={styles.subscriptionFeatureText}>
+                Upgrade to Premium for AI insights & statement parsing
+              </Text>
+            </View>
+          </View>
+        )}
+      </Pressable>
+
       {/* Income & Expenses Card */}
       <Card style={styles.card}>
         <View style={styles.cardHeader}>
@@ -262,6 +385,32 @@ export default function ProfileScreen() {
         <RefreshCw size={18} color={Colors.danger} />
         <Text style={styles.resetText}>Reset to Demo Data</Text>
       </Pressable>
+
+      {/* Delete Profile Button */}
+      <Pressable style={styles.deleteButton} onPress={handleDeleteProfile}>
+        <Trash2 size={18} color={Colors.danger} />
+        <Text style={styles.deleteText}>Delete Profile</Text>
+      </Pressable>
+
+      {/* Legal Links */}
+      <View style={styles.legalSection}>
+        <Pressable
+          style={styles.legalButton}
+          onPress={() => router.push('/legal/terms' as any)}
+        >
+          <FileText size={18} color={Colors.textSecondary} />
+          <Text style={styles.legalButtonText}>Terms of Use</Text>
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </Pressable>
+        <Pressable
+          style={styles.legalButton}
+          onPress={() => router.push('/legal/privacy' as any)}
+        >
+          <Shield size={18} color={Colors.textSecondary} />
+          <Text style={styles.legalButtonText}>Privacy Policy</Text>
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </Pressable>
+      </View>
 
       {/* Observability Dashboard Modal */}
       <Modal
@@ -389,17 +538,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 12,
+  },
+  resetText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginLeft: 8,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
     backgroundColor: Colors.danger + '10',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.danger + '30',
     marginBottom: 16,
   },
-  resetText: {
+  deleteText: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.danger,
     marginLeft: 8,
+  },
+  legalSection: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  legalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  legalButtonText: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.text,
+    marginLeft: 12,
   },
   tipCard: {
     flexDirection: 'row',
@@ -592,5 +777,116 @@ const styles = StyleSheet.create({
   },
   modalClose: {
     padding: 4,
+  },
+
+  // Subscription Card
+  subscriptionCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subscriptionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  subscriptionInfo: {
+    flex: 1,
+  },
+  subscriptionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  subscriptionSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  subscriptionPricing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  pricingOption: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  pricingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: `${Colors.primary}15`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  pricingBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  pricingAmount: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  pricingPeriod: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  pricingDivider: {
+    width: 1,
+    height: 50,
+    backgroundColor: Colors.border,
+  },
+  subscriptionFeatures: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  subscriptionFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  subscriptionFeatureText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  upgradeCtaButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  upgradeCtaText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

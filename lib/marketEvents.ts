@@ -133,20 +133,17 @@ export async function getNewsAnalysis(holdings: Holding[]): Promise<{
     keyTakeaway: z.string(),
   });
 
-  const prompt = `Generate 2 brief market news headlines for: ${symbols.slice(0, 5).join(', ')}.
+  const prompt = `Generate 2 market headlines for: ${symbols.slice(0, 3).join(', ')}.
 
-Return ONLY valid JSON:
-{"headlines":[{"title":"SHORT TITLE","summary":"Brief summary under 50 chars","impact":"positive","relevantSymbols":["SYM"]}],"marketSentiment":"neutral","keyTakeaway":"One brief sentence"}
-
-CRITICAL: Keep each summary under 50 characters. Only 2 headlines. No truncation.`;
+Return JSON: {"headlines":[{"title":"Title","summary":"Brief","impact":"positive","relevantSymbols":["SYM"]}],"marketSentiment":"neutral","keyTakeaway":"Brief"}`;
 
   try {
     const result = await generateStructuredWithGemini({
       prompt,
-      systemInstruction: 'Return ONLY valid compact JSON. No markdown. Keep all text fields very short.',
+      systemInstruction: 'Return ONLY valid JSON. Very brief text. Max 30 chars per field.',
       schema,
-      maxTokens: 800,
-      temperature: 0.3,
+      maxTokens: 1200,
+      temperature: 0.2,
     });
 
     // Cache the result

@@ -219,7 +219,7 @@ export type AssetType =
   | 'cash'
   | 'other';
 
-export type AssetClass = 'equity' | 'debt' | 'commodity' | 'real_asset' | 'cash';
+export type AssetClass = 'equity' | 'debt' | 'commodity' | 'real_asset' | 'cash' | 'other';
 
 export type InterestFrequency = 'monthly' | 'quarterly' | 'semi-annual' | 'annual' | 'at-maturity';
 
@@ -412,10 +412,10 @@ export const ASSET_TYPE_CONFIG: Record<AssetType, { label: string; icon: string;
   fixed_deposit: { label: 'Fixed Deposit', icon: 'lock', assetClass: 'debt' },
   crypto: { label: 'Cryptocurrency', icon: 'cpu', assetClass: 'equity' },
   cash: { label: 'Cash', icon: 'dollar-sign', assetClass: 'cash' },
-  other: { label: 'Other', icon: 'box', assetClass: 'other' as AssetClass },
+  other: { label: 'Other', icon: 'box', assetClass: 'other' },
 };
 
-export const ASSET_CLASS_COLORS: Record<AssetClass | 'other', string> = {
+export const ASSET_CLASS_COLORS: Record<AssetClass, string> = {
   equity: '#4CAF50',
   debt: '#2196F3',
   commodity: '#FFC107',

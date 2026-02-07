@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Penny",
+    "name": "Penny - Portfolio Tracker",
     "slug": "clearpath-financial-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/bird-penny.png",
+    "icon": "./assets/images/icon-square.png",
     "scheme": "penny",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,8 +17,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.penny.financialapp",
       "usesAppleSignIn": true,
+      "icon": "./assets/images/icon-square.png",
       "splash": {
-        "image": "./assets/images/bird-penny.png",
+        "image": "./assets/images/icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#0A0E17"
       },
@@ -28,24 +29,22 @@
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.114545191096-h3jf6qkljg4c90jjrojpm47a4frjkbnk"
             ]
-          },
-          {
-            "CFBundleURLSchemes": [
-              "com.googleusercontent.apps.114545191096-h3jf6qkljg4c90jjrojpm47a4frjkbnk"
-            ]
           }
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["fetch", "processing"]
+        "UIBackgroundModes": ["fetch", "processing"],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "PORTFOLIO_PRICE_REFRESH"
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/bird-penny.png",
+        "foregroundImage": "./assets/images/icon-square.png",
         "backgroundColor": "#0A0E17"
       },
       "splash": {
-        "image": "./assets/images/bird-penny.png",
+        "image": "./assets/images/icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#0A0E17"
       },
@@ -70,7 +69,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/bird-penny.png",
+          "icon": "./assets/images/icon.png",
           "color": "#064E3B"
         }
       ],

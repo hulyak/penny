@@ -93,7 +93,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ReceiptScanScreen() {
   const router = useRouter();
-  const { isPremium, showPaywall } = usePurchases();
+  const { isPremium, showPaywall, subscriptionTier } = usePurchases();
+  const hasProAccess = subscriptionTier === 'pro';
   const [permission, requestPermission] = useCameraPermissions();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -234,8 +235,8 @@ Be thorough and accurate with numbers.`,
     );
   }
 
-  // Premium gate
-  if (!isPremium) {
+  // Pro tier gate (requires Pro or Premium)
+  if (!hasProAccess) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -255,7 +256,7 @@ Be thorough and accurate with numbers.`,
           </Text>
           <PremiumCard
             title="Unlock Receipt Scanning"
-            description="Snap a photo of any receipt and let AI extract all the details automatically."
+            description="Upgrade to Pro to snap a photo of any receipt and let AI extract all the details automatically."
             onUpgrade={showPaywall}
           />
         </View>

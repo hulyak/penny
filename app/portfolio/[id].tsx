@@ -19,7 +19,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
 import { Holding } from '@/types';
-import { StockChart, CryptoChart, getCoinGeckoId } from '@/components/StockChart';
+import { StockChart, CryptoChart } from '@/components/StockChart';
 import portfolioService from '@/lib/portfolioService';
 import EnhancedCard from '@/components/ui/EnhancedCard';
 import Button from '@/components/ui/Button';
@@ -130,23 +130,23 @@ export default function HoldingDetailScreen() {
         </View>
       </View>
 
-      {/* OHLC Stats Bar */}
+      {/* OHLC Stats Bar - Note: These are estimates based on typical daily ranges */}
       <View style={styles.statsBar}>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Open</Text>
-          <Text style={styles.statValue}>${(currentPrice * 0.992).toFixed(2)}</Text>
+          <Text style={styles.statLabel}>Open (est)</Text>
+          <Text style={styles.statValue}>${(currentPrice * 0.998).toFixed(2)}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>High</Text>
-          <Text style={styles.statValue}>${(currentPrice * 1.008).toFixed(2)}</Text>
+          <Text style={styles.statLabel}>High (est)</Text>
+          <Text style={styles.statValue}>${(currentPrice * 1.005).toFixed(2)}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Low</Text>
-          <Text style={styles.statValue}>${(currentPrice * 0.988).toFixed(2)}</Text>
+          <Text style={styles.statLabel}>Low (est)</Text>
+          <Text style={styles.statValue}>${(currentPrice * 0.995).toFixed(2)}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Prev</Text>
-          <Text style={styles.statValue}>${(currentPrice * 0.985).toFixed(2)}</Text>
+          <Text style={styles.statLabel}>Prev Close</Text>
+          <Text style={styles.statValue}>${(currentPrice * 0.997).toFixed(2)}</Text>
         </View>
       </View>
 
@@ -177,10 +177,10 @@ export default function HoldingDetailScreen() {
 
       {/* Chart */}
       <View style={styles.chartContainer}>
-        {holding.type === 'crypto' && getCoinGeckoId(holding.symbol || '') ? (
-          <CryptoChart symbol={holding.symbol || ''} />
-        ) : holding.type === 'stock' && holding.symbol ? (
-          <StockChart symbol={holding.symbol} />
+        {holding.type === 'crypto' && holding.symbol ? (
+          <CryptoChart symbol={holding.symbol} />
+        ) : (holding.type === 'stock' || holding.type === 'etf') && holding.symbol ? (
+          <StockChart symbol={holding.symbol} chartType={chartType} />
         ) : (
           <View style={styles.noChartContainer}>
             <Text style={styles.noChartText}>Chart not available for this asset</Text>

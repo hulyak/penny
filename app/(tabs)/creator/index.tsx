@@ -6,92 +6,133 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
+  Share,
+  Linking,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArrowLeft, Filter } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import FeedPostCard, { FeedPost } from '@/components/ui/FeedPostCard';
 import CreatorProfileHeader from '@/components/ui/CreatorProfileHeader';
 import haptics from '@/lib/haptics';
 
-// Real VisualEconomik YouTube channel data
+const LIKED_POSTS_KEY = 'penny_liked_posts';
+
+// Real VisualPolitik EN YouTube channel data
 const MOCK_CREATOR = {
-  name: 'VisualEconomik EN',
-  username: 'visualeconomiken',
-  avatar: require('@/assets/images/visualeconomik-icon.jpeg'),
-  bio: 'Welcome to the channel that explains you the most fascinating stories of the economy!',
-  followers: '201K',
+  name: 'VisualPolitik EN',
+  username: 'VisualPolitikEN',
+  avatar: require('@/assets/images/visualpolitik-logo.jpg'),
+  bio: 'The channel that explains the most fascinating stories of geopolitics, economy and finance! Complex topics made simple.',
+  followers: '2.8M',
   performance: '+32.5%',
   verified: true,
+  youtubeChannel: 'https://www.youtube.com/@VisualPolitikEN',
+  totalVideos: '850+',
 };
 
+// Real VisualEconomik EN YouTube videos with actual video IDs
 const MOCK_POSTS: FeedPost[] = [
   {
     id: '1',
     creator: {
-      name: 'VisualEconomik EN',
-      username: 'visualeconomiken',
-      avatar: require('@/assets/images/visualeconomik-icon.jpeg'),
+      name: 'VisualPolitik EN',
+      username: 'VisualPolitikEN',
+      avatar: require('@/assets/images/visualpolitik-logo.jpg'),
       verified: true,
     },
     type: 'video',
-    content: 'Oil in LATAM? Don\'t Look at Venezuela, Look at Argentina | VisualEconomik EN',
+    content: 'Why the World\'s Biggest Economy is in BIG Trouble',
+    youtubeId: 'PHe0bXAIuk0',
     thumbnail: require('@/assets/images/video-thumb-argentina.png'),
-    likes: 1243,
-    comments: 87,
-    shares: 34,
+    duration: '15:23',
+    views: '2.1M',
+    likes: 52000,
+    comments: 3245,
+    shares: 890,
     timestamp: '2d ago',
     isLiked: false,
   },
   {
     id: '2',
     creator: {
-      name: 'VisualEconomik EN',
-      username: 'visualeconomiken',
-      avatar: require('@/assets/images/visualeconomik-icon.jpeg'),
+      name: 'VisualPolitik EN',
+      username: 'VisualPolitikEN',
+      avatar: require('@/assets/images/visualpolitik-logo.jpg'),
       verified: true,
     },
     type: 'video',
-    content: 'Europe Shoots Itself in the Foot: The EU Blocks Mercosur as Trump Tightens Tariffs',
-    thumbnail: require('@/assets/images/video-thumb-europe.png'),
-    likes: 892,
-    comments: 56,
-    shares: 28,
-    timestamp: '3d ago',
+    content: 'Why China\'s Economy is Failing',
+    youtubeId: 'vTJGHwLmv9Q',
+    thumbnail: require('@/assets/images/video-thumb-china.png'),
+    duration: '18:45',
+    views: '3.5M',
+    likes: 89000,
+    comments: 5432,
+    shares: 1560,
+    timestamp: '1w ago',
     isLiked: true,
   },
   {
     id: '3',
     creator: {
-      name: 'VisualEconomik EN',
-      username: 'visualeconomiken',
-      avatar: require('@/assets/images/visualeconomik-icon.jpeg'),
+      name: 'VisualPolitik EN',
+      username: 'VisualPolitikEN',
+      avatar: require('@/assets/images/visualpolitik-logo.jpg'),
       verified: true,
     },
     type: 'video',
-    content: 'AI in trouble: Is the electricity running out to power it? | @visualeconomiken',
-    thumbnail: require('@/assets/images/video-thumb-ai.png'),
-    likes: 2156,
-    comments: 143,
-    shares: 67,
-    timestamp: '7d ago',
+    content: 'How Europe is Shooting Itself in the Foot',
+    youtubeId: 'bDH7BFeJ0qM',
+    thumbnail: require('@/assets/images/video-thumb-europe.png'),
+    duration: '21:12',
+    views: '4.2M',
+    likes: 112000,
+    comments: 6567,
+    shares: 2340,
+    timestamp: '2w ago',
     isLiked: false,
   },
   {
     id: '4',
     creator: {
-      name: 'VisualEconomik EN',
-      username: 'visualeconomiken',
-      avatar: require('@/assets/images/visualeconomik-icon.jpeg'),
+      name: 'VisualPolitik EN',
+      username: 'VisualPolitikEN',
+      avatar: require('@/assets/images/visualpolitik-logo.jpg'),
       verified: true,
     },
     type: 'video',
-    content: 'The Demographic COLLAPSE Threatens GERMANY: A 120 Billion Hole Without Solution',
+    content: 'Why Germany\'s Economy Is Failing',
+    youtubeId: 'SfsCniN7Nsc',
     thumbnail: require('@/assets/images/video-thumb-germany.png'),
-    likes: 1567,
-    comments: 98,
-    shares: 45,
-    timestamp: '9d ago',
+    duration: '17:34',
+    views: '5.1M',
+    likes: 145000,
+    comments: 8900,
+    shares: 4450,
+    timestamp: '3w ago',
+    isLiked: false,
+  },
+  {
+    id: '5',
+    creator: {
+      name: 'VisualPolitik EN',
+      username: 'VisualPolitikEN',
+      avatar: require('@/assets/images/visualpolitik-logo.jpg'),
+      verified: true,
+    },
+    type: 'video',
+    content: 'AI in Trouble: Is the Electricity Running Out?',
+    youtubeId: 'vg-WOmV8J40',
+    thumbnail: require('@/assets/images/video-thumb-ai.png'),
+    duration: '19:56',
+    views: '6.8M',
+    likes: 182000,
+    comments: 12430,
+    shares: 5670,
+    timestamp: '1mo ago',
     isLiked: false,
   },
 ];
@@ -102,44 +143,93 @@ export default function CreatorHubScreen() {
   const [isFollowing, setIsFollowing] = useState(true);
   const [posts, setPosts] = useState<FeedPost[]>(MOCK_POSTS);
 
+  // Load persisted likes on mount
+  useEffect(() => {
+    loadLikedPosts();
+  }, []);
+
+  const loadLikedPosts = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(LIKED_POSTS_KEY);
+      if (stored) {
+        const likedIds: string[] = JSON.parse(stored);
+        setPosts((prev) =>
+          prev.map((post) => ({
+            ...post,
+            isLiked: likedIds.includes(post.id),
+          }))
+        );
+      }
+    } catch (err) {
+      // Ignore
+    }
+  };
+
+  const saveLikedPosts = async (updatedPosts: FeedPost[]) => {
+    try {
+      const likedIds = updatedPosts.filter((p) => p.isLiked).map((p) => p.id);
+      await AsyncStorage.setItem(LIKED_POSTS_KEY, JSON.stringify(likedIds));
+    } catch (err) {
+      // Ignore
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await loadLikedPosts();
     setRefreshing(false);
   };
 
   const handleFollowToggle = () => {
     setIsFollowing(!isFollowing);
+    haptics.lightTap();
   };
 
   const handleLike = (postId: string) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              isLiked: !post.isLiked,
-              likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            }
-          : post
-      )
+    const updatedPosts = posts.map((post) =>
+      post.id === postId
+        ? {
+            ...post,
+            isLiked: !post.isLiked,
+            likes: post.isLiked ? post.likes - 1 : post.likes + 1,
+          }
+        : post
     );
+    setPosts(updatedPosts);
+    saveLikedPosts(updatedPosts);
   };
 
   const handleComment = (postId: string) => {
-    // Navigate to comment screen or open modal
-    console.log('Comment on post:', postId);
+    // Open the YouTube video so user can comment there
+    const post = posts.find((p) => p.id === postId);
+    if (post?.youtubeId) {
+      Linking.openURL(`https://www.youtube.com/watch?v=${post.youtubeId}`);
+    }
   };
 
-  const handleShare = (postId: string) => {
-    // Open share sheet
-    console.log('Share post:', postId);
+  const handleShare = async (postId: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const url = post.youtubeId
+      ? `https://www.youtube.com/watch?v=${post.youtubeId}`
+      : `https://www.youtube.com/@VisualPolitikEN`;
+
+    try {
+      await Share.share({
+        message: `Check out "${post.content}" by ${post.creator.name} ${url}`,
+        url,
+      });
+    } catch (err) {
+      // User cancelled or share failed
+    }
   };
 
   const handlePostPress = (postId: string) => {
-    // Navigate to post detail
-    console.log('View post:', postId);
+    const post = posts.find((p) => p.id === postId);
+    if (post?.youtubeId) {
+      Linking.openURL(`https://www.youtube.com/watch?v=${post.youtubeId}`);
+    }
   };
 
   return (
@@ -189,6 +279,8 @@ export default function CreatorHubScreen() {
           verified={MOCK_CREATOR.verified}
           isFollowing={isFollowing}
           onFollowToggle={handleFollowToggle}
+          youtubeChannel={MOCK_CREATOR.youtubeChannel}
+          totalVideos={MOCK_CREATOR.totalVideos}
         />
 
         {/* Feed Title */}

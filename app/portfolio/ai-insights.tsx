@@ -121,6 +121,7 @@ export default function AIInsightsScreen() {
         commodity: allocationMap['commodity'] || 0,
         real_asset: allocationMap['real_asset'] || 0,
         cash: allocationMap['cash'] || 0,
+        other: allocationMap['other'] || 0,
       };
 
       // Get user goals

@@ -26,15 +26,10 @@ if (rcToken) {
   Purchases.configure({ apiKey: rcToken });
 }
 
-// Define entitlements for different features
+// Define entitlements for Penny Pro
 export const ENTITLEMENTS = {
-  COACH_PLUS: 'coach_plus', // Legacy entitlement for backward compatibility
-  REAL_TIME_PRICING: 'real_time_pricing', // Pro tier
-  PREMIUM_ANALYTICS: 'premium_analytics', // Premium tier
-  ADVANCED_ALERTS: 'advanced_alerts', // Pro tier
-  RECEIPT_SCANNING: 'receipt_scanning', // Pro tier
-  STATEMENT_PARSING: 'statement_parsing', // Premium tier
-  AI_INSIGHTS: 'ai_insights', // Premium tier
+  PRO: 'coach_plus', // Main Pro entitlement (named coach_plus in RevenueCat)
+  COACH_PLUS: 'coach_plus', // Alias for backward compatibility
 } as const;
 
 // Subscription tiers
@@ -155,49 +150,51 @@ export const [PurchasesProvider, usePurchases] = createContextHook(() => {
 
   // Determine current subscription tier
   const subscriptionTier: SubscriptionTier = (() => {
-    if (isDemoMode || isTrialActive()) return 'premium';
-    
-    // Check for premium tier entitlements
-    if (hasEntitlement(ENTITLEMENTS.PREMIUM_ANALYTICS) || 
-        hasEntitlement(ENTITLEMENTS.STATEMENT_PARSING) ||
-        hasEntitlement(ENTITLEMENTS.AI_INSIGHTS)) {
-      return 'premium';
-    }
-    
-    // Check for pro tier entitlements
-    if (hasEntitlement(ENTITLEMENTS.REAL_TIME_PRICING) || 
-        hasEntitlement(ENTITLEMENTS.ADVANCED_ALERTS) ||
-        hasEntitlement(ENTITLEMENTS.RECEIPT_SCANNING)) {
+    if (isDemoMode || isTrialActive()) return 'pro';
+
+    // Check for Penny Pro entitlement (coach_plus in RevenueCat)
+    if (hasEntitlement(ENTITLEMENTS.PRO)) {
       return 'pro';
     }
-    
+
     return 'free';
   })();
 
   // Legacy support: isPremium checks for any paid tier
   const isPremium = subscriptionTier !== 'free';
-  const isPro = subscriptionTier === 'pro' || subscriptionTier === 'premium';
-  const isPremiumTier = subscriptionTier === 'premium';
+  const isPro = subscriptionTier === 'pro';
+  const isPremiumTier = false;
 
   const currentOffering = offeringsQuery.data?.current ?? null;
 
-  // Get packages for Pro tier
+  // Get packages for Penny Pro
+  // Package identifiers from RevenueCat: "monthly" and "annual"
   const proMonthlyPackage = currentOffering?.availablePackages.find(
-    pkg => pkg.identifier === 'pro_monthly' || pkg.identifier === '$rc_monthly'
+    pkg => pkg.identifier === 'monthly' ||
+           pkg.identifier === '$rc_monthly' ||
+           pkg.product.identifier === 'penny_pro_monthly'
   ) ?? null;
 
   const proAnnualPackage = currentOffering?.availablePackages.find(
-    pkg => pkg.identifier === 'pro_annual' || pkg.identifier === '$rc_annual'
+    pkg => pkg.identifier === 'annual' ||
+           pkg.identifier === '$rc_annual' ||
+           pkg.product.identifier === 'penny_pro_annual'
   ) ?? null;
 
-  // Get packages for Premium tier
-  const premiumMonthlyPackage = currentOffering?.availablePackages.find(
-    pkg => pkg.identifier === 'premium_monthly'
-  ) ?? null;
+  // Debug logging
+  if (__DEV__ && currentOffering) {
+    console.log('[Purchases] Available packages:', currentOffering.availablePackages.map(p => ({
+      packageId: p.identifier,
+      productId: p.product.identifier,
+      price: p.product.priceString,
+    })));
+    console.log('[Purchases] Monthly package:', proMonthlyPackage?.identifier);
+    console.log('[Purchases] Annual package:', proAnnualPackage?.identifier);
+  }
 
-  const premiumAnnualPackage = currentOffering?.availablePackages.find(
-    pkg => pkg.identifier === 'premium_annual'
-  ) ?? null;
+  // Legacy package support (not used anymore)
+  const premiumMonthlyPackage = null;
+  const premiumAnnualPackage = null;
 
   // Legacy package support
   const monthlyPackage = proMonthlyPackage;

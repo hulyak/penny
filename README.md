@@ -1,316 +1,112 @@
-# Welcome to your Rork app
+# PENNY - Portfolio Aggregation & Intelligence Platform
 
-## Project info
+A unified portfolio tracking app for investors who manage assets across multiple platforms. Built with React Native, Expo, and Gemini 3.
 
-This is a native cross-platform mobile app created with [Rork](https://rork.com)
+## What is PENNY?
 
-**Platform**: Native iOS & Android app, exportable to web
-**Framework**: Expo Router + React Native
+PENNY brings all your investments into one place — stocks, bonds, ETFs, crypto, gold, real estate, and alternatives — and surfaces the insights that matter.
 
-## How can I edit this code?
+### Features
 
-There are several ways of editing your native mobile application.
+- **Document Scanning** — Photograph brokerage statements and extract holdings automatically using Gemini 3 Vision
+- **Universal Portfolio** — Track all asset classes in a single dashboard with real-time pricing
+- **AI Financial Advisor** — Ask Penny questions about your portfolio via text or voice
+- **Diversification Analysis** — Country exposure, sector breakdown, concentration risk detection
+- **Voice Coaching** — Real-time streaming voice responses powered by Gemini 3
+- **Background Agent** — Proactive portfolio monitoring with drift alerts and push notifications
+- **Tax Loss Harvesting** — Identify opportunities to harvest losses for tax efficiency
+- **Rebalancing Alerts** — Get notified when your portfolio drifts from target allocation
+- **Loan & Dividend Tracking** — Track loans against holdings and dividend income
+- **PDF Reports** — Export portfolio reports as PDF
+- **AI Observability** — Opik integration for monitoring all AI calls
 
-### **Use Rork**
+## Tech Stack
 
-Simply visit [rork.com](https://rork.com) and prompt to build your app with AI.
+| Component | Technology |
+|-----------|------------|
+| Frontend | React Native + Expo |
+| Routing | Expo Router (file-based) |
+| AI Engine | Gemini 3 Flash Preview |
+| Monetization | RevenueCat |
+| Authentication | Firebase Authentication |
+| Storage | AsyncStorage + Firebase |
+| Background Tasks | expo-background-fetch + expo-task-manager |
+| Voice | ElevenLabs TTS |
+| Observability | Opik |
+| Schema Validation | Zod |
 
-Changes made via Rork will be committed automatically to this GitHub repo.
+## Gemini 3 Integration
 
-Whenever you make a change in your local code editor and push it to GitHub, it will be also reflected in Rork.
+PENNY uses five Gemini 3 capabilities:
 
-### **Use your preferred code editor**
-
-If you want to work locally using your own code editor, you can clone this repo and push changes. Pushed changes will also be reflected in Rork.
-
-If you are new to coding and unsure which editor to use, we recommend Cursor. If you're familiar with terminals, try Claude Code.
-
-The only requirement is having Node.js & Bun installed - [install Node.js with nvm](https://github.com/nvm-sh/nvm) and [install Bun](https://bun.sh/docs/installation)
-
-Follow these steps:
-
-```bash
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-bun i
-
-# Step 4: Start the instant web preview of your Rork app in your browser, with auto-reloading of your changes
-bun run start-web
-
-# Step 5: Start iOS preview
-# Option A (recommended):
-bun run start  # then press "i" in the terminal to open iOS Simulator
-# Option B (if supported by your environment):
-bun run start -- --ios
-```
-
-### **Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-## What technologies are used for this project?
-
-This project is built with the most popular native mobile cross-platform technical stack:
-
-- **React Native** - Cross-platform native mobile development framework created by Meta and used for Instagram, Airbnb, and lots of top apps in the App Store
-- **Expo** - Extension of React Native + platform used by Discord, Shopify, Coinbase, Telsa, Starlink, Eightsleep, and more
-- **Expo Router** - File-based routing system for React Native with support for web, server functions and SSR
-- **TypeScript** - Type-safe JavaScript
-- **React Query** - Server state management
-- **Lucide React Native** - Beautiful icons
-
-## How can I test my app?
-
-### **On your phone (Recommended)**
-
-1. **iOS**: Download the [Rork app from the App Store](https://apps.apple.com/app/rork) or [Expo Go](https://apps.apple.com/app/expo-go/id982107779)
-2. **Android**: Download the [Expo Go app from Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)
-3. Run `bun run start` and scan the QR code from your development server
-
-### **In your browser**
-
-Run `bun start-web` to test in a web browser. Note: The browser preview is great for quick testing, but some native features may not be available.
-
-### **iOS Simulator / Android Emulator**
-
-You can test Rork apps in Expo Go or Rork iOS app. You don't need XCode or Android Studio for most features.
-
-**When do you need Custom Development Builds?**
-
-- Native authentication (Face ID, Touch ID, Apple Sign In)
-- In-app purchases and subscriptions
-- Push notifications
-- Custom native modules
-
-Learn more: [Expo Custom Development Builds Guide](https://docs.expo.dev/develop/development-builds/introduction/)
-
-If you have XCode (iOS) or Android Studio installed:
-
-```bash
-# iOS Simulator
-bun run start -- --ios
-
-# Android Emulator
-bun run start -- --android
-```
-
-## How can I deploy this project?
-
-### **Publish to App Store (iOS)**
-
-1. **Install EAS CLI**:
-
-   ```bash
-   bun i -g @expo/eas-cli
-   ```
-
-2. **Configure your project**:
-
-   ```bash
-   eas build:configure
-   ```
-
-3. **Build for iOS**:
-
-   ```bash
-   eas build --platform ios
-   ```
-
-4. **Submit to App Store**:
-   ```bash
-   eas submit --platform ios
-   ```
-
-For detailed instructions, visit [Expo's App Store deployment guide](https://docs.expo.dev/submit/ios/).
-
-### **Publish to Google Play (Android)**
-
-1. **Build for Android**:
-
-   ```bash
-   eas build --platform android
-   ```
-
-2. **Submit to Google Play**:
-   ```bash
-   eas submit --platform android
-   ```
-
-For detailed instructions, visit [Expo's Google Play deployment guide](https://docs.expo.dev/submit/android/).
-
-### **Publish as a Website**
-
-Your React Native app can also run on the web:
-
-1. **Build for web**:
-
-   ```bash
-   eas build --platform web
-   ```
-
-2. **Deploy with EAS Hosting**:
-   ```bash
-   eas hosting:configure
-   eas hosting:deploy
-   ```
-
-Alternative web deployment options:
-
-- **Vercel**: Deploy directly from your GitHub repository
-- **Netlify**: Connect your GitHub repo to Netlify for automatic deployments
-
-## App Features
-
-This template includes:
-
-- **Cross-platform compatibility** - Works on iOS, Android, and Web
-- **File-based routing** with Expo Router
-- **Tab navigation** with customizable tabs
-- **Modal screens** for overlays and dialogs
-- **TypeScript support** for better development experience
-- **Async storage** for local data persistence
-- **Vector icons** with Lucide React Native
+1. **Vision API** — Document and receipt scanning with semantic understanding
+2. **Configurable Thinking Levels** — Minimal, low, medium, high reasoning depth matched to task
+3. **Structured Output** — Type-safe JSON responses with Zod schema validation
+4. **Streaming Responses** — Real-time voice coaching
+5. **Background Agent** — Autonomous portfolio monitoring and proactive notifications
 
 ## Project Structure
 
 ```
-├── app/                    # App screens (Expo Router)
-│   ├── (tabs)/            # Tab navigation screens
-│   │   ├── _layout.tsx    # Tab layout configuration
-│   │   └── index.tsx      # Home tab screen
-│   ├── _layout.tsx        # Root layout
-│   ├── modal.tsx          # Modal screen example
-│   └── +not-found.tsx     # 404 screen
-├── assets/                # Static assets
-│   └── images/           # App icons and images
-├── constants/            # App constants and configuration
-├── app.json             # Expo configuration
-├── package.json         # Dependencies and scripts
-└── tsconfig.json        # TypeScript configuration
+app/                          # Screens (Expo Router)
+├── (tabs)/                   # Tab navigation
+│   ├── index.tsx             # Home / Overview
+│   ├── portfolio.tsx         # Portfolio dashboard
+│   ├── profile.tsx           # User profile
+│   └── creator/              # Creator Hub
+├── portfolio/
+│   ├── [id].tsx              # Holding detail
+│   ├── ai-insights.tsx       # AI portfolio insights
+│   ├── analysis.tsx          # Portfolio analysis
+│   ├── receipt-scan.tsx      # Receipt scanning
+│   ├── statement-parse.tsx   # Statement parsing
+│   ├── voice-coach.tsx       # Voice coaching
+│   ├── tax-loss.tsx          # Tax loss harvesting
+│   ├── loans.tsx             # Loan tracking
+│   ├── subscription.tsx      # Subscription management
+│   └── add-dividend.tsx      # Dividend tracking
+├── ask-penny.tsx             # AI chat
+├── auth.tsx                  # Authentication
+└── _layout.tsx               # Root layout
+
+lib/                          # Services
+├── gemini.ts                 # Gemini 3 integration
+├── portfolioService.ts       # Portfolio data management
+├── priceService.ts           # Real-time price feeds
+├── agentLoop.ts              # Background agent
+├── portfolioCoach.ts         # AI coaching
+├── rebalanceService.ts       # Rebalancing logic
+├── taxLossHarvesting.ts      # Tax loss harvesting
+├── pdfExport.ts              # PDF report generation
+├── elevenLabs.ts             # Voice TTS
+├── binanceService.ts         # Crypto pricing
+├── marketEvents.ts           # Market event tracking
+└── opik.ts                   # AI observability
+
+components/                   # Reusable components
+├── PaywallModal.tsx          # Subscription paywall
+├── CelebrationModal.tsx      # Achievement celebrations
+├── PortfolioCoachCard.tsx    # Coach recommendations
+├── RebalanceCard.tsx         # Rebalancing suggestions
+├── StockChart.tsx            # Price charts
+└── ui/                       # UI primitives
+
+context/
+└── PurchasesContext.tsx       # RevenueCat subscription state
 ```
 
-## Custom Development Builds
-
-For advanced native features, you'll need to create a Custom Development Build instead of using Expo Go.
-
-### **When do you need a Custom Development Build?**
-
-- **Native Authentication**: Face ID, Touch ID, Apple Sign In, Google Sign In
-- **In-App Purchases**: App Store and Google Play subscriptions
-- **Advanced Native Features**: Third-party SDKs, platform-specifc features (e.g. Widgets on iOS)
-- **Background Processing**: Background tasks, location tracking
-
-### **Creating a Custom Development Build**
+## Getting Started
 
 ```bash
-# Install EAS CLI
-bun i -g @expo/eas-cli
+# Install dependencies
+npm install
 
-# Configure your project for development builds
-eas build:configure
+# Start development server
+npx expo start
 
-# Create a development build for your device
-eas build --profile development --platform ios
-eas build --profile development --platform android
+# Run on iOS simulator
+npx expo start --ios
 
-# Install the development build on your device and start developing
-bun start --dev-client
+# Build for web
+npx expo export --platform web
 ```
-
-**Learn more:**
-
-- [Development Builds Introduction](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Creating Development Builds](https://docs.expo.dev/develop/development-builds/create-a-build/)
-- [Installing Development Builds](https://docs.expo.dev/develop/development-builds/installation/)
-
-## Advanced Features
-
-### **Add a Database**
-
-Integrate with backend services:
-
-- **Firebase** - Google's mobile development platform
-- **Custom API** - Connect to your own backend
-
-### **Add Authentication**
-
-Implement user authentication:
-
-**Basic Authentication (works in Expo Go):**
-
-- **Expo AuthSession** - OAuth providers (Google, Facebook, Apple) - [Guide](https://docs.expo.dev/guides/authentication/)
-- **Firebase Auth** - Comprehensive authentication solution - [Setup Guide](https://docs.expo.dev/guides/using-firebase/)
-
-**Native Authentication (requires Custom Development Build):**
-
-- **Apple Sign In** - Native Apple authentication - [Implementation Guide](https://docs.expo.dev/versions/latest/sdk/apple-authentication/)
-- **Google Sign In** - Native Google authentication - [Setup Guide](https://docs.expo.dev/guides/google-authentication/)
-
-### **Add Push Notifications**
-
-Send notifications to your users:
-
-- **Expo Notifications** - Cross-platform push notifications
-- **Firebase Cloud Messaging** - Advanced notification features
-
-### **Add Payments**
-
-Monetize your app:
-
-**Web & Credit Card Payments (works in Expo Go):**
-
-- **Stripe** - Credit card payments and subscriptions - [Expo + Stripe Guide](https://docs.expo.dev/guides/using-stripe/)
-- **PayPal** - PayPal payments integration - [Setup Guide](https://developer.paypal.com/docs/checkout/mobile/react-native/)
-
-**Native In-App Purchases (requires Custom Development Build):**
-
-- **RevenueCat** - Cross-platform in-app purchases and subscriptions - [Expo Integration Guide](https://www.revenuecat.com/docs/expo)
-- **Expo In-App Purchases** - Direct App Store/Google Play integration - [Implementation Guide](https://docs.expo.dev/versions/latest/sdk/in-app-purchases/)
-
-**Paywall Optimization:**
-
-- **Superwall** - Paywall A/B testing and optimization - [React Native SDK](https://docs.superwall.com/docs/react-native)
-- **Adapty** - Mobile subscription analytics and paywalls - [Expo Integration](https://docs.adapty.io/docs/expo)
-
-## I want to use a custom domain - is that possible?
-
-For web deployments, you can use custom domains with:
-
-- **EAS Hosting** - Custom domains available on paid plans
-- **Netlify** - Free custom domain support
-- **Vercel** - Custom domains with automatic SSL
-
-For mobile apps, you'll configure your app's deep linking scheme in `app.json`.
-
-## Troubleshooting
-
-### **App not loading on device?**
-
-1. Make sure your phone and computer are on the same WiFi network
-2. Try using tunnel mode: `bun start -- --tunnel`
-3. Check if your firewall is blocking the connection
-
-### **Build failing?**
-
-1. Clear your cache: `bunx expo start --clear`
-2. Delete `node_modules` and reinstall: `rm -rf node_modules && bun install`
-3. Check [Expo's troubleshooting guide](https://docs.expo.dev/troubleshooting/build-errors/)
-
-### **Need help with native features?**
-
-- Check [Expo's documentation](https://docs.expo.dev/) for native APIs
-- Browse [React Native's documentation](https://reactnative.dev/docs/getting-started) for core components
-- Visit [Rork's FAQ](https://rork.com/faq) for platform-specific questions
-
-## About Rork
-
-Rork builds fully native mobile apps using React Native and Expo - the same technology stack used by Discord, Shopify, Coinbase, Instagram, and nearly 30% of the top 100 apps on the App Store.
-
-Your Rork app is production-ready and can be published to both the App Store and Google Play Store. You can also export your app to run on the web, making it truly cross-platform.

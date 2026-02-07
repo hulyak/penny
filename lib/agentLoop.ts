@@ -277,6 +277,7 @@ function calculateAllocationDrift(
     commodity: 0,
     real_asset: 0,
     cash: 0,
+    other: 0,
   };
 
   let totalValue = 0;

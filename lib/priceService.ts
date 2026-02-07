@@ -108,9 +108,15 @@ async function retryWithBackoff<T>(
  */
 async function fetchYahooFinancePrice(symbol: string): Promise<PriceResult | null> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
+      { signal: controller.signal }
     );
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Yahoo Finance API error: ${response.status}`);
@@ -137,8 +143,12 @@ async function fetchYahooFinancePrice(symbol: string): Promise<PriceResult | nul
     }
 
     return null;
-  } catch (error) {
-    console.error(`[PriceService] Yahoo Finance error for ${symbol}:`, error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.warn(`[PriceService] Yahoo Finance timeout for ${symbol}`);
+    } else {
+      console.warn(`[PriceService] Yahoo Finance error for ${symbol}:`, error.message || error);
+    }
     return null;
   }
 }
@@ -190,6 +200,9 @@ async function fetchFinnhubPrice(symbol: string): Promise<PriceResult | null> {
  * Fetch stock price with Yahoo Finance as primary and Finnhub as fallback
  */
 async function fetchStockPrice(symbol: string): Promise<PriceResult | null> {
+  const upperSymbol = symbol.toUpperCase();
+  const fallbackPrice = STOCK_FALLBACK_PRICES[upperSymbol];
+
   // Try Yahoo Finance first (primary)
   try {
     const yahooResult = await retryWithBackoff(() => fetchYahooFinancePrice(symbol), 2);
@@ -207,45 +220,149 @@ async function fetchStockPrice(symbol: string): Promise<PriceResult | null> {
       return finnhubResult;
     }
   } catch (error) {
-    console.error(`[PriceService] All sources failed for ${symbol}`);
+    console.warn(`[PriceService] Finnhub failed for ${symbol}`);
   }
 
+  // Use fallback price if available
+  if (fallbackPrice) {
+    console.warn(`[PriceService] Using fallback price for ${symbol}`);
+    return {
+      price: fallbackPrice,
+      source: 'fallback',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  console.error(`[PriceService] All sources failed for ${symbol}, no fallback available`);
   return null;
 }
 
-/**
- * Fetch cryptocurrency price from CoinGecko
- */
-async function fetchCryptoPrice(symbol: string): Promise<PriceResult | null> {
-  try {
-    // Map common symbols to CoinGecko IDs
-    const symbolToId: Record<string, string> = {
-      BTC: 'bitcoin',
-      ETH: 'ethereum',
-      USDT: 'tether',
-      BNB: 'binancecoin',
-      XRP: 'ripple',
-      ADA: 'cardano',
-      DOGE: 'dogecoin',
-      SOL: 'solana',
-      DOT: 'polkadot',
-      MATIC: 'matic-network',
-      SHIB: 'shiba-inu',
-      LTC: 'litecoin',
-      AVAX: 'avalanche-2',
-      LINK: 'chainlink',
-      UNI: 'uniswap',
-    };
+// Fallback crypto prices (approximate, updated periodically)
+const CRYPTO_FALLBACK_PRICES: Record<string, number> = {
+  BTC: 95000,
+  ETH: 3200,
+  USDT: 1,
+  BNB: 600,
+  XRP: 2.5,
+  ADA: 0.9,
+  DOGE: 0.35,
+  SOL: 200,
+  DOT: 7,
+  MATIC: 0.5,
+  SHIB: 0.00002,
+  LTC: 120,
+  AVAX: 35,
+  LINK: 20,
+  UNI: 12,
+};
 
-    const coinId = symbolToId[symbol.toUpperCase()] || symbol.toLowerCase();
+/**
+ * Fetch cryptocurrency price from Binance public API (no API key required)
+ * Uses the /api/v3/ticker/24hr endpoint for price + 24h change data
+ */
+async function fetchBinancePrice(symbol: string): Promise<PriceResult | null> {
+  const upperSymbol = symbol.toUpperCase();
+  // Binance uses trading pairs like BTCUSDT
+  const binanceSymbol = `${upperSymbol}USDT`;
+
+  // USDT is always $1
+  if (upperSymbol === 'USDT') {
+    return {
+      price: 1,
+      change: 0,
+      changePercent: 0,
+      source: 'binance',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
+      `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`,
+      { signal: controller.signal }
     );
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      throw new Error(`CoinGecko API error: ${response.status}`);
+      throw new Error(`Binance API error: ${response.status}`);
     }
+
+    const data = await response.json();
+
+    if (data.lastPrice) {
+      const price = parseFloat(data.lastPrice);
+      const change = parseFloat(data.priceChange) || 0;
+      const changePercent = parseFloat(data.priceChangePercent) || 0;
+
+      cachePrice(symbol, price, change, changePercent);
+
+      return {
+        price,
+        change,
+        changePercent,
+        source: 'binance',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return null;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.warn(`[PriceService] Binance timeout for ${symbol}`);
+    } else {
+      console.warn(`[PriceService] Binance error for ${symbol}:`, error.message || error);
+    }
+    return null;
+  }
+}
+
+/**
+ * Fetch cryptocurrency price from CoinGecko (fallback)
+ */
+async function fetchCoinGeckoPrice(symbol: string): Promise<PriceResult | null> {
+  // Map common symbols to CoinGecko IDs
+  const symbolToId: Record<string, string> = {
+    BTC: 'bitcoin',
+    ETH: 'ethereum',
+    USDT: 'tether',
+    BNB: 'binancecoin',
+    XRP: 'ripple',
+    ADA: 'cardano',
+    DOGE: 'dogecoin',
+    SOL: 'solana',
+    DOT: 'polkadot',
+    MATIC: 'matic-network',
+    SHIB: 'shiba-inu',
+    LTC: 'litecoin',
+    AVAX: 'avalanche-2',
+    LINK: 'chainlink',
+    UNI: 'uniswap',
+  };
+
+  const upperSymbol = symbol.toUpperCase();
+  const coinId = symbolToId[upperSymbol] || symbol.toLowerCase();
+
+  try {
+    const response = await retryWithBackoff(async () => {
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
+      );
+
+      if (res.status === 429) {
+        console.warn(`[PriceService] CoinGecko rate limited, will retry...`);
+        throw new Error('Rate limited');
+      }
+
+      if (!res.ok) {
+        throw new Error(`CoinGecko API error: ${res.status}`);
+      }
+
+      return res;
+    }, 2, 2000);
 
     const data = await response.json();
     const coinData = data[coinId];
@@ -268,16 +385,80 @@ async function fetchCryptoPrice(symbol: string): Promise<PriceResult | null> {
 
     return null;
   } catch (error) {
-    console.error(`[PriceService] CoinGecko error for ${symbol}:`, error);
+    const errorMessage = String(error);
+    if (!errorMessage.includes('Rate limited')) {
+      console.warn(`[PriceService] CoinGecko error for ${symbol}:`, error);
+    }
     return null;
   }
 }
 
-// Fallback prices for commodities (approximate)
+/**
+ * Fetch cryptocurrency price with Binance as primary and CoinGecko as fallback
+ */
+async function fetchCryptoPrice(symbol: string): Promise<PriceResult | null> {
+  const upperSymbol = symbol.toUpperCase();
+  const fallbackPrice = CRYPTO_FALLBACK_PRICES[upperSymbol];
+
+  // Try Binance first (primary — no API key needed, high rate limits)
+  try {
+    const binanceResult = await retryWithBackoff(() => fetchBinancePrice(symbol), 2);
+    if (binanceResult) {
+      return binanceResult;
+    }
+  } catch (error) {
+    console.warn(`[PriceService] Binance failed for ${symbol}, trying CoinGecko`);
+  }
+
+  // Fallback to CoinGecko
+  try {
+    const coinGeckoResult = await fetchCoinGeckoPrice(symbol);
+    if (coinGeckoResult) {
+      return coinGeckoResult;
+    }
+  } catch (error) {
+    console.warn(`[PriceService] CoinGecko failed for ${symbol}`);
+  }
+
+  // Use hardcoded fallback price if available
+  if (fallbackPrice) {
+    console.warn(`[PriceService] Using fallback price for ${symbol}`);
+    return {
+      price: fallbackPrice,
+      source: 'fallback',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  console.error(`[PriceService] All crypto sources failed for ${symbol}`);
+  return null;
+}
+
+// Fallback prices for commodities (approximate - updated Feb 2025)
 const COMMODITY_FALLBACK_PRICES: Record<string, number> = {
-  GOLD: 2000,   // Gold per oz
-  SILVER: 25,   // Silver per oz
-  PLATINUM: 950, // Platinum per oz
+  GOLD: 2850,   // Gold per oz
+  SILVER: 32,   // Silver per oz
+  PLATINUM: 1000, // Platinum per oz
+};
+
+// Fallback prices for common stocks/ETFs (approximate - updated Feb 2025)
+const STOCK_FALLBACK_PRICES: Record<string, number> = {
+  AAPL: 230,
+  MSFT: 410,
+  GOOGL: 185,
+  AMZN: 225,
+  NVDA: 130,
+  TSLA: 380,
+  META: 600,
+  SPY: 600,
+  QQQ: 520,
+  VTI: 290,
+  VOO: 550,
+  DIA: 440,
+  JPM: 250,
+  V: 320,
+  JNJ: 155,
+  WMT: 95,
 };
 
 /**
@@ -293,62 +474,62 @@ async function fetchCommodityPrice(commodity: 'GOLD' | 'SILVER' | 'PLATINUM'): P
   const metalSymbol = symbolMap[commodity];
   const fallbackPrice = COMMODITY_FALLBACK_PRICES[commodity];
 
+  // Try Yahoo Finance first (more reliable without API key)
   try {
-    // Try Gold API first (goldapi.io)
-    const response = await fetch(
-      `https://www.goldapi.io/api/${metalSymbol}/USD`,
-      {
-        headers: GOLD_API_KEY ? { 'x-access-token': GOLD_API_KEY } : {},
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Gold API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data.price) {
-      cachePrice(commodity, data.price, data.ch, data.chp);
+    const yahooSymbol = commodity === 'GOLD' ? 'GC=F' : commodity === 'SILVER' ? 'SI=F' : 'PL=F';
+    const yahooResult = await fetchYahooFinancePrice(yahooSymbol);
+    if (yahooResult) {
+      cachePrice(commodity, yahooResult.price, yahooResult.change, yahooResult.changePercent);
       return {
-        price: data.price,
-        change: data.ch,
-        changePercent: data.chp,
-        source: 'goldapi',
-        timestamp: new Date().toISOString(),
+        ...yahooResult,
+        source: 'yahoo',
       };
     }
-
-    throw new Error('No price data received');
-  } catch (error) {
-    // Silently handle 403 errors (API key issues) - use fallback instead
-    const errorMessage = String(error);
-    if (!errorMessage.includes('403')) {
-      console.warn(`[PriceService] ${commodity} price fetch failed, using fallback`);
-    }
-
-    // Try Yahoo Finance as fallback for commodities
-    try {
-      const yahooSymbol = commodity === 'GOLD' ? 'GC=F' : commodity === 'SILVER' ? 'SI=F' : 'PL=F';
-      const yahooResult = await fetchYahooFinancePrice(yahooSymbol);
-      if (yahooResult) {
-        cachePrice(commodity, yahooResult.price, yahooResult.change, yahooResult.changePercent);
-        return {
-          ...yahooResult,
-          source: 'yahoo',
-        };
-      }
-    } catch (yahooError) {
-      console.warn(`[PriceService] Yahoo fallback failed for ${commodity}`);
-    }
-
-    // Return fallback price
-    return {
-      price: fallbackPrice,
-      source: 'fallback',
-      timestamp: new Date().toISOString(),
-    };
+  } catch (yahooError) {
+    console.warn(`[PriceService] Yahoo failed for ${commodity}`);
   }
+
+  // Try Gold API as secondary (requires API key)
+  if (GOLD_API_KEY) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(
+        `https://www.goldapi.io/api/${metalSymbol}/USD`,
+        {
+          headers: { 'x-access-token': GOLD_API_KEY },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.price) {
+          cachePrice(commodity, data.price, data.ch, data.chp);
+          return {
+            price: data.price,
+            change: data.ch,
+            changePercent: data.chp,
+            source: 'goldapi',
+            timestamp: new Date().toISOString(),
+          };
+        }
+      }
+    } catch (error) {
+      // Silently handle - will use fallback
+    }
+  }
+
+  // Return fallback price
+  console.warn(`[PriceService] Using fallback price for ${commodity}`);
+  return {
+    price: fallbackPrice,
+    source: 'fallback',
+    timestamp: new Date().toISOString(),
+  };
 }
 
 /**
@@ -414,14 +595,40 @@ export async function searchSymbols(query: string): Promise<{ symbol: string; de
 export async function searchCrypto(query: string): Promise<{ symbol: string; name: string }[]> {
   if (query.length < 2) return [];
 
-  try {
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(query)}`
-    );
+  // Common cryptos for offline/fallback search
+  const commonCryptos = [
+    { symbol: 'BTC', name: 'Bitcoin' },
+    { symbol: 'ETH', name: 'Ethereum' },
+    { symbol: 'USDT', name: 'Tether' },
+    { symbol: 'BNB', name: 'BNB' },
+    { symbol: 'XRP', name: 'XRP' },
+    { symbol: 'ADA', name: 'Cardano' },
+    { symbol: 'DOGE', name: 'Dogecoin' },
+    { symbol: 'SOL', name: 'Solana' },
+    { symbol: 'DOT', name: 'Polkadot' },
+    { symbol: 'MATIC', name: 'Polygon' },
+    { symbol: 'LTC', name: 'Litecoin' },
+    { symbol: 'AVAX', name: 'Avalanche' },
+    { symbol: 'LINK', name: 'Chainlink' },
+    { symbol: 'UNI', name: 'Uniswap' },
+  ];
 
-    if (!response.ok) {
-      throw new Error(`CoinGecko search error: ${response.status}`);
-    }
+  try {
+    const response = await retryWithBackoff(async () => {
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(query)}`
+      );
+
+      if (res.status === 429) {
+        throw new Error('Rate limited');
+      }
+
+      if (!res.ok) {
+        throw new Error(`CoinGecko search error: ${res.status}`);
+      }
+
+      return res;
+    }, 2, 1000);
 
     const data = await response.json();
 
@@ -434,8 +641,14 @@ export async function searchCrypto(query: string): Promise<{ symbol: string; nam
 
     return [];
   } catch (error) {
-    console.error('[PriceService] Crypto search error:', error);
-    return [];
+    console.warn('[PriceService] Crypto search failed, using local list');
+    // Fallback to local search
+    const lowerQuery = query.toLowerCase();
+    return commonCryptos.filter(
+      (c) =>
+        c.symbol.toLowerCase().includes(lowerQuery) ||
+        c.name.toLowerCase().includes(lowerQuery)
+    );
   }
 }
 
@@ -581,7 +794,7 @@ export function getPriceSource(assetType: AssetType): string {
     case 'etf':
       return 'Yahoo Finance';
     case 'crypto':
-      return 'CoinGecko';
+      return 'Binance';
     case 'gold':
     case 'silver':
     case 'platinum':

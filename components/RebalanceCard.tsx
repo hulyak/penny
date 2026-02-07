@@ -32,6 +32,7 @@ const ASSET_CLASS_COLORS: Record<AssetClass, string> = {
   commodity: Colors.gold,
   real_asset: Colors.purple,
   cash: Colors.textSecondary,
+  other: Colors.textSecondary,
 };
 
 export function RebalanceCard({ plan, isLoading, onRefresh, riskTolerance = 'moderate' }: Props) {
@@ -170,14 +171,14 @@ export function RebalanceCard({ plan, isLoading, onRefresh, riskTolerance = 'mod
                   </Text>
                 </View>
                 <View style={styles.allocationValues}>
-                  <Text style={styles.currentValue}>{current.toFixed(0)}%</Text>
+                  <Text style={styles.currentValue}>{(current || 0).toFixed(0)}%</Text>
                   <Text style={styles.arrow}>→</Text>
-                  <Text style={styles.targetValue}>{target}%</Text>
-                  {Math.abs(diff) >= 3 && (
+                  <Text style={styles.targetValue}>{target || 0}%</Text>
+                  {!isNaN(diff) && Math.abs(diff) >= 3 ? (
                     <Text style={[styles.diffValue, { color: diff > 0 ? Colors.danger : Colors.success }]}>
                       ({diff > 0 ? '+' : ''}{diff.toFixed(0)}%)
                     </Text>
-                  )}
+                  ) : null}
                 </View>
               </View>
             );

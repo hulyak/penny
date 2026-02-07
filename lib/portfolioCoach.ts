@@ -377,6 +377,7 @@ export async function generatePortfolioInsights(
     commodity: 0,
     real_asset: 0,
     cash: 0,
+    other: 0,
   }
   Object.entries(metrics.assetClassDistribution).forEach(([cls, data]) => {
     currentAllocation[cls as AssetClass] = data.percent

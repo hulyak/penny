@@ -25,7 +25,7 @@ import {
   Crown,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { Holding, ASSET_CLASS_COLORS, AssetClass, RebalancePlan, PeerComparison, MarketEvent } from '@/types';
+import { Holding, ASSET_CLASS_COLORS, AssetClass, RebalancePlan, PeerComparison } from '@/types';
 import {
   getAIAnalysis,
   getQuickAnalysis,
@@ -35,20 +35,18 @@ import {
 } from '@/lib/portfolioAnalysis';
 import { generateRebalanceActions, getAIRebalanceRecommendations } from '@/lib/rebalanceService';
 import { getPeerComparison } from '@/lib/communityBenchmarks';
-import { getUpcomingEvents, getNewsAnalysis } from '@/lib/marketEvents';
 import { PortfolioReportCard } from '@/components/PortfolioReportCard';
 import { PeerBenchmark, generateBenchmarkMetrics } from '@/components/PeerBenchmark';
 import { RebalanceCard } from '@/components/RebalanceCard';
 import { CommunityBenchmarkCard } from '@/components/CommunityBenchmarkCard';
-import { MarketEventsCard } from '@/components/MarketEventsCard';
-import { usePurchases, useRequireTier, ENTITLEMENTS } from '@/context/PurchasesContext';
+import { usePurchases } from '@/context/PurchasesContext';
 import { PremiumBadge, PremiumCard } from '@/components/PremiumBadge';
 import portfolioService from '@/lib/portfolioService';
 
 export default function AnalysisScreen() {
   const router = useRouter();
-  const { isPremium, showPaywall, subscriptionTier, hasEntitlement } = usePurchases();
-  const isPremiumTier = subscriptionTier === 'premium';
+  const { showPaywall, subscriptionTier } = usePurchases();
+  const isPremiumTier = subscriptionTier === 'pro';
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysisResult | null>(null);
@@ -61,14 +59,7 @@ export default function AnalysisScreen() {
   // New feature states
   const [rebalancePlan, setRebalancePlan] = useState<RebalancePlan | null>(null);
   const [peerComparison, setPeerComparison] = useState<PeerComparison | null>(null);
-  const [marketEvents, setMarketEvents] = useState<MarketEvent[]>([]);
-  const [newsAnalysis, setNewsAnalysis] = useState<{
-    headlines: { title: string; summary: string; impact: 'positive' | 'neutral' | 'negative'; relevantSymbols: string[] }[];
-    marketSentiment: 'bullish' | 'neutral' | 'bearish';
-    keyTakeaway: string;
-  } | null>(null);
   const [isLoadingRebalance, setIsLoadingRebalance] = useState(false);
-  const [isLoadingNews, setIsLoadingNews] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -132,12 +123,6 @@ export default function AnalysisScreen() {
         const comparison = getPeerComparison(loadedHoldings, 30); // Default age 30
         setPeerComparison(comparison);
 
-        // Load market events
-        const events = getUpcomingEvents(loadedHoldings, 30);
-        setMarketEvents(events);
-
-        // Load news analysis in background
-        loadNewsAnalysis(loadedHoldings);
       }
     } catch (error) {
       console.error('Failed to load holdings:', error);
@@ -146,24 +131,13 @@ export default function AnalysisScreen() {
     }
   };
 
-  const loadNewsAnalysis = async (holdingsToAnalyze: Holding[]) => {
-    setIsLoadingNews(true);
-    try {
-      const news = await getNewsAnalysis(holdingsToAnalyze);
-      setNewsAnalysis(news);
-    } catch (error) {
-      console.error('Failed to load news:', error);
-    } finally {
-      setIsLoadingNews(false);
-    }
-  };
 
   const refreshRebalancePlan = async () => {
     if (holdings.length === 0) return;
 
     setIsLoadingRebalance(true);
     try {
-      if (isPremium) {
+      if (isPremiumTier) {
         const aiPlan = await getAIRebalanceRecommendations(holdings, 'moderate');
         setRebalancePlan(aiPlan);
       } else {
@@ -184,8 +158,8 @@ export default function AnalysisScreen() {
     }
 
     // Check premium status for AI analysis
-    if (!isPremium) {
-      console.log('[Analysis] Not premium, showing paywall');
+    if (!isPremiumTier) {
+      console.log('[Analysis] Not premium tier, showing paywall');
       showPaywall();
       return;
     }
@@ -305,7 +279,7 @@ export default function AnalysisScreen() {
           <View style={styles.scoreHeader}>
             <Shield size={24} color={getScoreColor(analysis.diversificationScore)} />
             <Text style={styles.scoreTitle}>Diversification Score</Text>
-            {!isPremium && <PremiumBadge size="small" onPress={showPaywall} />}
+            {!isPremiumTier && <PremiumBadge size="small" onPress={showPaywall} />}
           </View>
           <View style={styles.scoreRow}>
             <View
@@ -395,9 +369,9 @@ export default function AnalysisScreen() {
           <View style={styles.sectionHeader}>
             <AlertTriangle size={20} color={Colors.warning} />
             <Text style={styles.sectionTitle}>Concentration Risks</Text>
-            {!isPremium && <Lock size={16} color={Colors.textMuted} />}
+            {!isPremiumTier && <Lock size={16} color={Colors.textMuted} />}
           </View>
-          {isPremium ? (
+          {isPremiumTier ? (
             analysis.concentrationRisks.map((risk, index) => (
               <View key={index} style={styles.riskCard}>
                 <View style={styles.riskIcon}>
@@ -446,9 +420,9 @@ export default function AnalysisScreen() {
           <View style={styles.sectionHeader}>
             <AlertTriangle size={20} color={Colors.coral} />
             <Text style={styles.sectionTitle}>Areas for Improvement</Text>
-            {!isPremium && <Lock size={16} color={Colors.textMuted} />}
+            {!isPremiumTier && <Lock size={16} color={Colors.textMuted} />}
           </View>
-          {isPremium ? (
+          {isPremiumTier ? (
             <View style={styles.listCard}>
               {analysis.concerns.map((concern, index) => (
                 <View key={index} style={styles.listItem}>
@@ -475,9 +449,9 @@ export default function AnalysisScreen() {
           <View style={styles.sectionHeader}>
             <Lightbulb size={20} color={Colors.accent} />
             <Text style={styles.sectionTitle}>Recommendations</Text>
-            {!isPremium && <Lock size={16} color={Colors.textMuted} />}
+            {!isPremiumTier && <Lock size={16} color={Colors.textMuted} />}
           </View>
-          {isPremium ? (
+          {isPremiumTier ? (
             <View style={styles.listCard}>
               {analysis.recommendations.map((rec, index) => (
                 <View key={index} style={styles.recommendationItem}>
@@ -522,16 +496,6 @@ export default function AnalysisScreen() {
         </View>
       )}
 
-      {/* Market Events & News - NEW */}
-      {holdings.length >= 1 && (
-        <View style={styles.section}>
-          <MarketEventsCard
-            events={marketEvents}
-            newsAnalysis={newsAnalysis || undefined}
-            onViewAll={() => router.push('/portfolio/alerts' as any)}
-          />
-        </View>
-      )}
 
       {/* Legacy Peer Benchmark */}
       {viralityData && (
@@ -572,16 +536,16 @@ export default function AnalysisScreen() {
       {/* AI Analysis Button */}
       {!isAnalyzing && (
         <Pressable style={styles.aiButton} onPress={runAIAnalysis}>
-          {!isPremium && <Crown size={18} color={Colors.warning} style={{ marginRight: 4 }} />}
+          {!isPremiumTier && <Crown size={18} color={Colors.warning} style={{ marginRight: 4 }} />}
           <TrendingUp size={20} color={Colors.textLight} />
           <Text style={styles.aiButtonText}>
-            {isPremium ? 'Get AI-Powered Insights' : 'Unlock AI Analysis'}
+            {isPremiumTier ? 'Get AI-Powered Insights' : 'Unlock AI Analysis'}
           </Text>
         </Pressable>
       )}
 
       {/* Premium Upsell Card for Free Users */}
-      {!isPremium && (
+      {!isPremiumTier && (
         <View style={styles.section}>
           <PremiumCard
             title="Unlock Full Analysis"

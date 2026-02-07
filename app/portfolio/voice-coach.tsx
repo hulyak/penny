@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import { playTextToSpeech } from '@/lib/elevenLabs';
 import * as Speech from 'expo-speech'; // Fallback
 import {
@@ -197,21 +198,34 @@ ${holdingsSummary}`;
   };
 
   const processAudioInput = async (audioUri: string) => {
-    // Simulate speech-to-text (in production, use Google Cloud Speech-to-Text API)
-    // For hackathon demo, we'll use a simulated transcript
-    const simulatedQuestions = [
-      "How is my portfolio doing?",
-      "What should I invest in?",
-      "Explain my asset allocation",
-      "Am I diversified enough?",
-      "What's my biggest holding?",
-    ];
+    try {
+      setCurrentTranscript('Transcribing...');
 
-    // For demo, randomly select a question to simulate voice input
-    const transcript = simulatedQuestions[Math.floor(Math.random() * simulatedQuestions.length)];
-    setCurrentTranscript('');
+      // Read the audio file as base64
+      const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
+        encoding: 'base64',
+      });
 
-    await handleUserMessage(transcript);
+      // Use Gemini to transcribe the audio
+      const transcript = await generateWithGemini({
+        prompt: 'Transcribe this audio recording exactly. Output only the spoken text, nothing else. If the audio is unclear or silent, output "Could not understand audio".',
+        audio: `data:audio/m4a;base64,${base64Audio}`,
+      });
+
+      const trimmed = transcript.trim();
+      if (!trimmed || trimmed.toLowerCase().includes('could not understand')) {
+        setCurrentTranscript('');
+        setError('Could not understand audio. Please try again.');
+        return;
+      }
+
+      setCurrentTranscript('');
+      await handleUserMessage(trimmed);
+    } catch (err) {
+      console.error('Transcription failed:', err);
+      setCurrentTranscript('');
+      setError('Transcription failed. Try using a quick question instead.');
+    }
   };
 
   const handleUserMessage = async (content: string) => {

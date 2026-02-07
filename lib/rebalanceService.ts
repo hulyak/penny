@@ -10,6 +10,7 @@ const TARGET_ALLOCATIONS: Record<string, Record<AssetClass, number>> = {
     commodity: 10,
     real_asset: 10,
     cash: 5,
+    other: 0,
   },
   moderate: {
     equity: 50,
@@ -17,6 +18,7 @@ const TARGET_ALLOCATIONS: Record<string, Record<AssetClass, number>> = {
     commodity: 10,
     real_asset: 10,
     cash: 5,
+    other: 0,
   },
   aggressive: {
     equity: 70,
@@ -24,6 +26,7 @@ const TARGET_ALLOCATIONS: Record<string, Record<AssetClass, number>> = {
     commodity: 10,
     real_asset: 5,
     cash: 5,
+    other: 0,
   },
 };
 
@@ -46,6 +49,7 @@ function calculateCurrentAllocation(holdings: Holding[]): { allocation: Record<A
     commodity: 0,
     real_asset: 0,
     cash: 0,
+    other: 0,
   };
 
   Object.keys(allocation).forEach((key) => {
@@ -282,6 +286,7 @@ function getDefaultSuggestion(assetClass: AssetClass): string {
     commodity: 'Gold ETF (e.g., GLD, IAU)',
     real_asset: 'Real Estate ETF (e.g., VNQ, SCHH)',
     cash: 'High-Yield Savings or Money Market',
+    other: 'Diversified Fund',
   };
   return suggestions[assetClass] || 'Diversified Fund';
 }

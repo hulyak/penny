@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import {
   ArrowLeft,
   Camera,
@@ -88,7 +89,7 @@ const ASSET_TYPE_ICONS: Record<string, any> = {
 export default function StatementParseScreen() {
   const router = useRouter();
   const { hasEntitlement, showPaywall, subscriptionTier } = usePurchases();
-  const hasPremium = subscriptionTier === 'premium';
+  const hasPremium = subscriptionTier === 'pro';
   const [permission, requestPermission] = useCameraPermissions();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -141,12 +142,28 @@ export default function StatementParseScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        // For PDF, we'd need to convert to image first
-        // For now, show a message
-        Alert.alert(
-          'PDF Support',
-          'PDF parsing is coming soon. Please use an image of your statement for now.',
-        );
+        const asset = result.assets[0];
+        const mimeType = asset.mimeType || '';
+
+        if (mimeType.startsWith('image/')) {
+          // Handle image files directly
+          const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: 'base64',
+          });
+          const imageUri = `data:${mimeType};base64,${base64}`;
+          setCapturedImage(imageUri);
+          analyzeStatement(imageUri);
+        } else if (mimeType === 'application/pdf') {
+          // For PDFs: read as base64 and send directly to Gemini (supports PDF input)
+          const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: 'base64',
+          });
+          const pdfDataUri = `data:application/pdf;base64,${base64}`;
+          setCapturedImage(pdfDataUri);
+          analyzeStatement(pdfDataUri);
+        } else {
+          Alert.alert('Unsupported Format', 'Please select a PDF or image file.');
+        }
       }
     } catch (error) {
       console.error('Failed to pick document:', error);
@@ -263,16 +280,44 @@ For confidence scores: 1.0 = very clear, 0.8 = clear, 0.6 = somewhat clear, 0.4 
     try {
       // Convert to app's holding format and save
       for (const holding of holdingsToImport) {
-        await portfolioService.addHolding({
-          symbol: holding.symbol,
+        const assetTypeMap: Record<string, string> = {
+          stock: 'stock',
+          bond: 'bond',
+          mutual_fund: 'mutual_fund',
+          etf: 'etf',
+          option: 'other',
+          crypto: 'crypto',
+          other: 'other',
+        };
+
+        const assetClassMap: Record<string, string> = {
+          stock: 'equity',
+          etf: 'equity',
+          mutual_fund: 'equity',
+          bond: 'debt',
+          option: 'alternative',
+          crypto: 'alternative',
+          other: 'alternative',
+        };
+
+        const now = new Date().toISOString();
+        await portfolioService.saveHolding({
+          id: `stmt_${holding.symbol}_${Date.now()}`,
+          type: (assetTypeMap[holding.assetType] || 'other') as any,
           name: holding.name,
+          symbol: holding.symbol,
           quantity: holding.quantity,
           purchasePrice: holding.price,
+          purchaseDate: analysis.statementDate || now,
+          currency: 'USD',
           currentPrice: holding.price,
-          assetClass: holding.assetType === 'stock' || holding.assetType === 'etf' ? 'equity' : 
-                      holding.assetType === 'bond' ? 'debt' : 'alternative',
-          sector: 'Unknown', // Would need additional API call to get sector
+          currentValue: holding.value,
+          isManualPricing: false,
+          assetClass: (assetClassMap[holding.assetType] || 'alternative') as any,
+          sector: 'Unknown',
           country: 'US',
+          createdAt: now,
+          updatedAt: now,
         });
       }
 

@@ -7,7 +7,7 @@ import { Share2, Shield, PieChart, Globe, Briefcase } from 'lucide-react-native'
 import Colors from '@/constants/colors';
 import { Holding, AssetClass, ASSET_CLASS_COLORS } from '@/types';
 
-const PENNY_ICON = require('@/assets/images/bird-penny.png');
+const PENNY_ICON = require('@/assets/images/icon.png');
 
 interface PortfolioReportCardProps {
   holdings: Holding[];

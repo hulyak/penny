@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
   // Demo section - prominent for hackathon judges
   demoSection: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 40,
     width: '100%',
   },
   demoLabelRow: {

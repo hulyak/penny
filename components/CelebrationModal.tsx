@@ -16,7 +16,7 @@ import { cacheDirectory, copyAsync } from 'expo-file-system/legacy';
 import { X, Share2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
-const PENNY_ICON = require('@/assets/images/bird-penny.png');
+const PENNY_ICON = require('@/assets/images/icon.png');
 
 // Define CelebrationData locally (previously from milestones)
 export interface MilestoneData {

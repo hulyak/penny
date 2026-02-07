@@ -120,7 +120,7 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="creator"
+          name="ask-penny"
           options={{
             headerShown: false,
           }}

@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
-import { Heart, MessageCircle, Share2, Play } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, Linking } from 'react-native';
+import { Heart, MessageCircle, Share2, Play, ExternalLink, Video } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import haptics from '@/lib/haptics';
 
@@ -16,6 +16,9 @@ export interface FeedPost {
   content: string;
   mediaUrl?: string;
   thumbnail?: any; // Can be string URL or require() for local images
+  youtubeId?: string; // YouTube video ID for direct linking
+  duration?: string; // Video duration display
+  views?: string; // View count
   likes: number;
   comments: number;
   shares: number;
@@ -38,6 +41,8 @@ export default function FeedPostCard({
   onShare,
   onPress,
 }: FeedPostCardProps) {
+  const [thumbnailError, setThumbnailError] = useState(false);
+
   const handleLike = () => {
     haptics.lightTap();
     onLike?.();
@@ -53,12 +58,22 @@ export default function FeedPostCard({
     onShare?.();
   };
 
+  const handleVideoPress = () => {
+    haptics.lightTap();
+    if (post.youtubeId) {
+      Linking.openURL(`https://www.youtube.com/watch?v=${post.youtubeId}`);
+    } else {
+      onPress?.();
+    }
+  };
+
+  // Generate YouTube thumbnail URL from video ID (use hqdefault for better compatibility)
+  const thumbnailUrl = post.youtubeId
+    ? `https://img.youtube.com/vi/${post.youtubeId}/hqdefault.jpg`
+    : null;
+
   return (
-    <Pressable
-      style={styles.card}
-      onPress={onPress}
-      android_ripple={{ color: Colors.primary + '20' }}
-    >
+    <View style={styles.card}>
       {/* Creator Header */}
       <View style={styles.header}>
         <Image source={typeof post.creator.avatar === 'string' ? { uri: post.creator.avatar } : post.creator.avatar} style={styles.avatar} />
@@ -76,17 +91,55 @@ export default function FeedPostCard({
         <Text style={styles.timestamp}>{post.timestamp}</Text>
       </View>
 
-      {/* Content */}
-      <Text style={styles.content}>{post.content}</Text>
-
-      {/* Media (Video/Image) */}
-      {post.type === 'video' && post.thumbnail && (
-        <View style={styles.mediaContainer}>
-          <Image source={typeof post.thumbnail === 'string' ? { uri: post.thumbnail } : post.thumbnail} style={styles.mediaThumbnail} />
-          <View style={styles.playButton}>
-            <Play size={32} color={Colors.text} fill={Colors.text} />
+      {/* Video Thumbnail - YouTube Style */}
+      {post.type === 'video' && (
+        <Pressable onPress={handleVideoPress} style={styles.videoContainer}>
+          {post.thumbnail ? (
+            <Image
+              source={typeof post.thumbnail === 'string' ? { uri: post.thumbnail } : post.thumbnail}
+              style={styles.mediaThumbnail}
+              resizeMode="cover"
+            />
+          ) : !thumbnailError && thumbnailUrl ? (
+            <Image
+              source={{ uri: thumbnailUrl }}
+              style={styles.mediaThumbnail}
+              resizeMode="cover"
+              onError={() => setThumbnailError(true)}
+            />
+          ) : (
+            <View style={styles.thumbnailFallback}>
+              <Video size={48} color={Colors.textSecondary} />
+              <Text style={styles.fallbackText}>Tap to watch on YouTube</Text>
+            </View>
+          )}
+          <View style={styles.videoOverlay}>
+            <View style={styles.playButton}>
+              <Play size={28} color="#FFFFFF" fill="#FFFFFF" />
+            </View>
           </View>
-        </View>
+          {post.duration && (
+            <View style={styles.durationBadge}>
+              <Text style={styles.durationText}>{post.duration}</Text>
+            </View>
+          )}
+          {post.youtubeId && (
+            <View style={styles.youtubeBadge}>
+              <ExternalLink size={12} color="#FFFFFF" />
+              <Text style={styles.youtubeText}>YouTube</Text>
+            </View>
+          )}
+        </Pressable>
+      )}
+
+      {/* Video Title */}
+      <Pressable onPress={handleVideoPress}>
+        <Text style={styles.videoTitle} numberOfLines={2}>{post.content}</Text>
+      </Pressable>
+
+      {/* Video Stats */}
+      {post.views && (
+        <Text style={styles.videoStats}>{post.views} views</Text>
       )}
 
       {post.type === 'image' && post.mediaUrl && (
@@ -107,22 +160,39 @@ export default function FeedPostCard({
               post.isLiked && { color: Colors.danger },
             ]}
           >
-            {post.likes}
+            {formatNumber(post.likes)}
           </Text>
         </Pressable>
 
         <Pressable style={styles.engagementButton} onPress={handleComment}>
           <MessageCircle size={20} color={Colors.textSecondary} />
-          <Text style={styles.engagementText}>{post.comments}</Text>
+          <Text style={styles.engagementText}>{formatNumber(post.comments)}</Text>
         </Pressable>
 
         <Pressable style={styles.engagementButton} onPress={handleShare}>
           <Share2 size={20} color={Colors.textSecondary} />
-          <Text style={styles.engagementText}>{post.shares}</Text>
+          <Text style={styles.engagementText}>{formatNumber(post.shares)}</Text>
         </Pressable>
+
+        {post.youtubeId && (
+          <Pressable style={styles.watchButton} onPress={handleVideoPress}>
+            <Text style={styles.watchButtonText}>Watch</Text>
+            <ExternalLink size={14} color={Colors.primary} />
+          </Pressable>
+        )}
       </View>
-    </Pressable>
+    </View>
   );
+}
+
+function formatNumber(num: number): string {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toString();
 }
 
 const styles = StyleSheet.create({
@@ -130,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -140,14 +210,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.border,
   },
   creatorInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
   nameRow: {
     flexDirection: 'row',
@@ -155,42 +225,36 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   creatorName: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: Colors.text,
   },
   verifiedBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   verifiedText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
     color: Colors.text,
   },
   username: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   timestamp: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSecondary,
   },
-  content: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  mediaContainer: {
+  videoContainer: {
     position: 'relative',
     width: '100%',
-    height: 200,
+    aspectRatio: 16 / 9,
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
@@ -200,17 +264,81 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  thumbnailFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fallbackText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   playButton: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -24 }, { translateY: -24 }],
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 0, 0, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingLeft: 4,
+  },
+  durationBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  durationText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  youtubeBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255, 0, 0, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  youtubeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  videoTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 21,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  videoStats: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  content: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.text,
+    marginBottom: 12,
   },
   mediaImage: {
     width: '100%',
@@ -222,7 +350,7 @@ const styles = StyleSheet.create({
   engagementBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 24,
+    gap: 20,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
@@ -230,11 +358,26 @@ const styles = StyleSheet.create({
   engagementButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   engagementText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.textSecondary,
+  },
+  watchButton: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primary + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  watchButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

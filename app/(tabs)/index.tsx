@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,12 @@ import {
   Plus,
   RefreshCw,
   BarChart3,
-  Bot,
   Bell,
   Star,
   ShoppingCart,
   Sparkles,
   Upload,
+  PieChart,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { PortfolioCoachCard } from '@/components/PortfolioCoachCard';
@@ -31,21 +31,22 @@ import { PortfolioSkeleton } from '@/components/SkeletonLoader';
 import Colors from '@/constants/colors';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
 import haptics from '@/lib/haptics';
-import { generateMockChartData } from '@/components/onboarding';
 import EnhancedCard from '@/components/ui/EnhancedCard';
 import Button from '@/components/ui/Button';
 import TimePeriodSelector, { TimePeriod } from '@/components/ui/TimePeriodSelector';
 import HoldingListItem from '@/components/ui/HoldingListItem';
 import PortfolioChart from '@/components/ui/PortfolioChart';
-import { AgentActivityLog } from '@/components/AgentActivityLog';
+
 import { ASSET_CLASS_COLORS, AssetClass } from '@/types';
-import { PieChart } from 'lucide-react-native';
+import portfolioHistory, { PerformanceData } from '@/lib/portfolioHistory';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [celebration, setCelebration] = useState<CelebrationData | null>(null);
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('1D');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('1M');
+  const [chartPerformance, setChartPerformance] = useState<PerformanceData>({ labels: [], values: [], gains: [], gainPercents: [] });
+  const [periodReturn, setPeriodReturn] = useState<{ change: number; percent: number } | null>(null);
 
   const {
     holdings,
@@ -94,24 +95,44 @@ export default function HomeScreen() {
       .sort((a, b) => b.value - a.value);
   }, [holdings]);
 
-  // Generate chart data based on selected period
-  const chartData = useMemo(() => {
-    const baseValue = summary.totalValue - summary.totalGain;
-    const data = generateMockChartData(baseValue, summary.totalGainPercent);
-    return data;
-  }, [summary, selectedPeriod]);
-
-  const chartLabels = useMemo(() => {
-    switch (selectedPeriod) {
-      case '1D': return ['9AM', '12PM', '3PM', '6PM'];
-      case '1W': return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-      case '1M': return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-      case '3M': return ['Month 1', 'Month 2', 'Month 3'];
-      case '1Y': return ['Q1', 'Q2', 'Q3', 'Q4'];
-      case 'ALL': return ['Start', 'Q1', 'Q2', 'Now'];
-      default: return [];
-    }
+  // Map TimePeriod to portfolioHistory period keys
+  const historyPeriod = useMemo(() => {
+    const map: Record<TimePeriod, '1W' | '1M' | '3M' | '1Y' | 'ALL'> = {
+      '1D': '1W', // Show last week data for 1D (no intraday data available)
+      '1W': '1W',
+      '1M': '1M',
+      '3M': '3M',
+      '1Y': '1Y',
+      'ALL': 'ALL',
+    };
+    return map[selectedPeriod];
   }, [selectedPeriod]);
+
+  // Load real chart data from portfolio history
+  const loadChartData = useCallback(async () => {
+    if (holdings.length === 0) return;
+    try {
+      const perfData = await portfolioHistory.getPerformanceData(historyPeriod);
+      setChartPerformance(perfData);
+
+      if (perfData.values.length >= 2) {
+        const startVal = perfData.values[0];
+        const endVal = perfData.values[perfData.values.length - 1];
+        const change = endVal - startVal;
+        const percent = startVal > 0 ? (change / startVal) * 100 : 0;
+        setPeriodReturn({
+          change: Math.round(change * 100) / 100,
+          percent: Math.round(percent * 100) / 100,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load chart data:', err);
+    }
+  }, [holdings.length, historyPeriod]);
+
+  useEffect(() => {
+    loadChartData();
+  }, [loadChartData]);
 
   if (isLoading || authLoading) {
     return (
@@ -126,10 +147,9 @@ export default function HomeScreen() {
   const isGain = summary.totalGain >= 0;
   const firstName = user?.displayName?.split(' ')[0] || 'there';
 
-  // Calculate quick stats
-  const dayChangePercent = dayChange?.percentChange || 0;
-  const weekChangePercent = summary.totalGainPercent * 0.7; // Mock data
-  const monthChangePercent = summary.totalGainPercent * 0.9; // Mock data
+  // Use real period return for the selected period, fall back to all-time gain
+  const displayChange = periodReturn || { change: summary.totalGain, percent: summary.totalGainPercent };
+  const isPeriodPositive = displayChange.change >= 0;
 
   return (
     <ScrollView
@@ -157,30 +177,6 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Ask Penny Button - Compact */}
-      <Pressable
-        style={styles.askPennyButton}
-        onPress={() => {
-          haptics.lightTap();
-          router.push('/ask-penny' as any);
-        }}
-      >
-        <View style={styles.askPennyContent}>
-          <View style={styles.askPennyIcon}>
-            <Image
-              source={require('@/assets/images/bird-penny.png')}
-              style={styles.pennyImage}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.askPennyText}>
-            <Text style={styles.askPennyTitle}>Ask Penny</Text>
-            <Text style={styles.askPennySubtitle}>Get AI-powered investment advice</Text>
-          </View>
-          <ChevronRight size={20} color={Colors.textSecondary} />
-        </View>
-      </Pressable>
-
       <CelebrationModal
         visible={!!celebration}
         onClose={() => setCelebration(null)}
@@ -189,39 +185,21 @@ export default function HomeScreen() {
 
       {holdings.length > 0 ? (
         <>
-          {/* Portfolio Value Header - TradingView Style */}
+          {/* Portfolio Value Header */}
           <View style={styles.portfolioHeader}>
             <Text style={styles.portfolioValue}>
               ${summary.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Text>
             <View style={styles.changeRow}>
-              {isGain ? (
+              {isPeriodPositive ? (
                 <TrendingUp size={16} color={Colors.success} />
               ) : (
                 <TrendingDown size={16} color={Colors.danger} />
               )}
-              <Text style={[styles.changeText, { color: isGain ? Colors.success : Colors.danger }]}>
-                {isGain ? '+' : ''}${Math.abs(summary.totalGain).toFixed(2)} ({isGain ? '+' : ''}{summary.totalGainPercent.toFixed(2)}%) Today
+              <Text style={[styles.changeText, { color: isPeriodPositive ? Colors.success : Colors.danger }]}>
+                {isPeriodPositive ? '+' : ''}${Math.abs(displayChange.change).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({isPeriodPositive ? '+' : ''}{displayChange.percent.toFixed(2)}%)
               </Text>
-            </View>
-
-            {/* Quick Stats Row */}
-            <View style={styles.quickStats}>
-              <Text style={styles.quickStat}>
-                Day: <Text style={{ color: dayChangePercent >= 0 ? Colors.success : Colors.danger }}>
-                  {dayChangePercent >= 0 ? '+' : ''}{dayChangePercent.toFixed(2)}%
-                </Text>
-              </Text>
-              <Text style={styles.quickStat}>
-                Week: <Text style={{ color: weekChangePercent >= 0 ? Colors.success : Colors.danger }}>
-                  {weekChangePercent >= 0 ? '+' : ''}{weekChangePercent.toFixed(2)}%
-                </Text>
-              </Text>
-              <Text style={styles.quickStat}>
-                Month: <Text style={{ color: monthChangePercent >= 0 ? Colors.success : Colors.danger }}>
-                  {monthChangePercent >= 0 ? '+' : ''}{monthChangePercent.toFixed(2)}%
-                </Text>
-              </Text>
+              <Text style={styles.periodLabel}>{selectedPeriod === 'ALL' ? 'All time' : selectedPeriod}</Text>
             </View>
           </View>
 
@@ -230,7 +208,19 @@ export default function HomeScreen() {
 
           {/* Portfolio Chart */}
           <View style={styles.chartContainer}>
-            <PortfolioChart data={chartData} labels={chartLabels} />
+            {chartPerformance.values.length > 1 ? (
+              <PortfolioChart
+                data={chartPerformance.values}
+                labels={chartPerformance.labels}
+                isPositive={isPeriodPositive}
+              />
+            ) : (
+              <View style={styles.chartPlaceholder}>
+                <Text style={styles.chartPlaceholderText}>
+                  Chart data is building up. Pull to refresh.
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Your Portfolio Section */}
@@ -269,84 +259,28 @@ export default function HomeScreen() {
             </EnhancedCard>
           </View>
 
-          {/* Quick Actions Bar */}
-          <View style={styles.actionsBar}>
-            <Button
-              title="Buy"
-              onPress={() => router.push('/portfolio/add' as any)}
-              variant="primary"
-              size="medium"
-              style={styles.actionButton}
-              icon={<Plus size={18} color={Colors.text} />}
-            />
-            <Button
-              title="Refresh"
-              onPress={refresh}
-              variant="secondary"
-              size="medium"
-              style={styles.actionButton}
-              icon={<RefreshCw size={18} color={Colors.text} />}
-            />
-            <Button
-              title="Reports"
-              onPress={() => router.push('/portfolio/analysis' as any)}
-              variant="secondary"
-              size="medium"
-              style={styles.actionButton}
-              icon={<BarChart3 size={18} color={Colors.text} />}
-            />
-            <Button
-              title="AI"
-              onPress={() => router.push('/ask-penny' as any)}
-              variant="secondary"
-              size="medium"
-              style={styles.actionButton}
-              icon={<Bot size={18} color={Colors.text} />}
-            />
-          </View>
-
-          {/* Creator Hub Banner - Preserved */}
+          {/* Ask Penny Button */}
           <Pressable
-            style={styles.creatorBanner}
-            onPress={() => router.push('/creator' as any)}
+            style={styles.askPennyButton}
+            onPress={() => {
+              haptics.lightTap();
+              router.push('/ask-penny' as any);
+            }}
           >
-            <EnhancedCard style={styles.creatorCard}>
-              <View style={styles.creatorContent}>
-                <View style={styles.creatorIcon}>
-                  <Star size={20} color="#FFD700" fill="#FFD700" />
-                </View>
-                <View style={styles.creatorText}>
-                  <Text style={styles.creatorTitle}>Josh's Model Portfolio</Text>
-                  <Text style={styles.creatorSubtitle}>View insights from @VisualFaktory</Text>
-                </View>
+            <View style={styles.askPennyContent}>
+              <View style={styles.askPennyIcon}>
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.pennyImage}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={styles.askPennyText}>
+                <Text style={styles.askPennyTitle}>Ask Penny</Text>
+                <Text style={styles.askPennySubtitle}>Get AI-powered investment advice</Text>
               </View>
               <ChevronRight size={20} color={Colors.textSecondary} />
-            </EnhancedCard>
-          </Pressable>
-
-          {/* Ask Before I Buy - Preserved */}
-          <Pressable
-            style={styles.askBuyBanner}
-            onPress={() => router.push('/portfolio/ask-before-buy' as any)}
-          >
-            <EnhancedCard style={styles.askBuyCard}>
-              <View style={styles.askBuyIcon}>
-                <ShoppingCart size={22} color={Colors.purple} />
-              </View>
-              <View style={styles.askBuyContent}>
-                <View style={styles.askBuyTitleRow}>
-                  <Text style={styles.askBuyTitle}>Ask Before I Buy</Text>
-                  <View style={styles.askBuyBadge}>
-                    <Sparkles size={10} color={Colors.purple} />
-                    <Text style={styles.askBuyBadgeText}>GEMINI 3</Text>
-                  </View>
-                </View>
-                <Text style={styles.askBuySubtitle}>
-                  Buy this or invest? AI analyzes any purchase
-                </Text>
-              </View>
-              <ChevronRight size={20} color={Colors.textSecondary} />
-            </EnhancedCard>
+            </View>
           </Pressable>
 
           {/* Asset Allocation */}
@@ -396,12 +330,70 @@ export default function HomeScreen() {
             </Pressable>
           )}
 
-          {/* Portfolio Monitor */}
-          <AgentActivityLog
-            compact
-            maxItems={3}
-            onViewAll={() => router.push('/portfolio/agent-activity' as any)}
-          />
+          {/* Quick Actions Bar */}
+          <View style={styles.actionsBar}>
+            <Button
+              title="Buy"
+              onPress={() => router.push('/portfolio/add' as any)}
+              variant="primary"
+              size="medium"
+              style={styles.actionButton}
+              icon={<Plus size={18} color={Colors.text} />}
+            />
+            <Button
+              title="Refresh"
+              onPress={refresh}
+              variant="secondary"
+              size="medium"
+              style={styles.actionButton}
+              icon={<RefreshCw size={18} color={Colors.text} />}
+            />
+          </View>
+
+          {/* Ask Before I Buy */}
+          <Pressable
+            style={styles.askBuyBanner}
+            onPress={() => router.push('/portfolio/ask-before-buy' as any)}
+          >
+            <EnhancedCard style={styles.askBuyCard}>
+              <View style={styles.askBuyIcon}>
+                <ShoppingCart size={22} color={Colors.purple} />
+              </View>
+              <View style={styles.askBuyContent}>
+                <View style={styles.askBuyTitleRow}>
+                  <Text style={styles.askBuyTitle}>Ask Before I Buy</Text>
+                  <View style={styles.askBuyBadge}>
+                    <Sparkles size={10} color={Colors.purple} />
+                    <Text style={styles.askBuyBadgeText}>GEMINI 3</Text>
+                  </View>
+                </View>
+                <Text style={styles.askBuySubtitle}>
+                  Buy this or invest? AI analyzes any purchase
+                </Text>
+              </View>
+              <ChevronRight size={20} color={Colors.textSecondary} />
+            </EnhancedCard>
+          </Pressable>
+
+          {/* Creator Hub Banner */}
+          <Pressable
+            style={styles.creatorBanner}
+            onPress={() => router.push('/(tabs)/creator' as any)}
+          >
+            <EnhancedCard style={styles.creatorCard}>
+              <View style={styles.creatorContent}>
+                <View style={styles.creatorIcon}>
+                  <Star size={20} color="#FFD700" fill="#FFD700" />
+                </View>
+                <View style={styles.creatorText}>
+                  <Text style={styles.creatorTitle}>VisualPolitik EN</Text>
+                  <Text style={styles.creatorSubtitle}>Geopolitics & finance explained</Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={Colors.textSecondary} />
+            </EnhancedCard>
+          </Pressable>
+
         </>
       ) : (
         /* Empty State - Preserved */
@@ -446,6 +438,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingTop: 60,
     paddingBottom: 40,
   },
   header: {
@@ -476,6 +469,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 12,
+    marginTop: 24,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.purple + '30',
@@ -530,16 +524,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  quickStats: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  quickStat: {
+  periodLabel: {
     fontSize: 14,
     color: Colors.textSecondary,
+    marginLeft: 4,
   },
   chartContainer: {
     marginVertical: 16,
+  },
+  chartPlaceholder: {
+    height: 200,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  chartPlaceholderText: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: 'center',
   },
   portfolioSection: {
     marginTop: 24,

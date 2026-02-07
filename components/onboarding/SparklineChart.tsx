@@ -112,20 +112,36 @@ const styles = StyleSheet.create({
   },
 });
 
-// Generate mock historical data for an asset
+/**
+ * Generate deterministic sparkline data for a holding.
+ * Uses a seeded pseudo-random number generator so the same holding
+ * always produces the same chart shape (no more random noise on re-render).
+ */
 export function generateMockChartData(
   currentPrice: number,
   changePercent: number,
-  points: number = 20
+  points: number = 20,
+  seed?: string
 ): number[] {
   const data: number[] = [];
   const startPrice = currentPrice / (1 + changePercent / 100);
   const priceRange = currentPrice - startPrice;
 
+  // Simple seeded PRNG (deterministic based on seed)
+  let hash = 0;
+  const seedStr = seed || `${currentPrice}-${changePercent}`;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = ((hash << 5) - hash + seedStr.charCodeAt(i)) | 0;
+  }
+  const seededRandom = () => {
+    hash = (hash * 1103515245 + 12345) & 0x7fffffff;
+    return (hash / 0x7fffffff);
+  };
+
   for (let i = 0; i < points; i++) {
     const progress = i / (points - 1);
-    // Add some noise to make it look realistic
-    const noise = (Math.random() - 0.5) * Math.abs(priceRange) * 0.3;
+    // Deterministic noise based on seed
+    const noise = (seededRandom() - 0.5) * Math.abs(priceRange) * 0.3;
     const trendValue = startPrice + priceRange * progress;
     data.push(trendValue + noise);
   }

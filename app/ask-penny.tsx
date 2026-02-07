@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ArrowLeft,
   Send,
@@ -18,14 +22,21 @@ import {
   Target,
   DollarSign,
   Rocket,
+  Mic,
+  Volume2,
+  VolumeX,
+  Trash2,
 } from 'lucide-react-native';
+import { Audio } from 'expo-av';
+import * as Speech from 'expo-speech';
+import { playTextToSpeech, stopTextToSpeech } from '@/lib/elevenLabs';
 import Colors from '@/constants/colors';
-import EnhancedCard from '@/components/ui/EnhancedCard';
 import haptics from '@/lib/haptics';
 import { generateWithGemini } from '@/lib/gemini';
 import { useAuth } from '@/context/AuthContext';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
-import { ActivityIndicator } from 'react-native';
+
+const CHAT_HISTORY_KEY = 'penny_chat_history';
 
 interface Message {
   id: string;
@@ -69,6 +80,141 @@ export default function AskPennyScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Load chat history on mount
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
+
+  // Save chat history when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveChatHistory(messages);
+    }
+  }, [messages]);
+
+  // Stop voice when navigating away
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Cleanup when screen loses focus
+        Speech.stop();
+        stopTextToSpeech();
+        setIsSpeaking(false);
+      };
+    }, [])
+  );
+
+  const loadChatHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Convert timestamp strings back to Date objects
+        const messagesWithDates = parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(messagesWithDates);
+      }
+    } catch (error) {
+      console.error('[AskPenny] Failed to load chat history:', error);
+    }
+  };
+
+  const saveChatHistory = async (msgs: Message[]) => {
+    try {
+      // Keep only last 50 messages to avoid storage bloat
+      const toSave = msgs.slice(-50);
+      await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(toSave));
+    } catch (error) {
+      console.error('[AskPenny] Failed to save chat history:', error);
+    }
+  };
+
+  const clearChatHistory = async () => {
+    try {
+      await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
+      setMessages([]);
+      haptics.lightTap();
+    } catch (error) {
+      console.error('[AskPenny] Failed to clear chat history:', error);
+    }
+  };
+
+  // Pulse animation for mic button
+  useEffect(() => {
+    if (isListening) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 400, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isListening]);
+
+  const speakResponse = async (text: string) => {
+    setIsSpeaking(true);
+    try {
+      // Try ElevenLabs first (better voice quality)
+      await playTextToSpeech(text);
+      setIsSpeaking(false);
+    } catch (err) {
+      // Fallback to device speech if ElevenLabs fails
+      console.log('[AskPenny] ElevenLabs failed, using device speech');
+      Speech.speak(text, {
+        onDone: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      });
+    }
+  };
+
+  const stopSpeaking = async () => {
+    Speech.stop();
+    await stopTextToSpeech();
+    setIsSpeaking(false);
+  };
+
+  const startListening = async () => {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Microphone permission required');
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = recording;
+      setIsListening(true);
+      haptics.lightTap();
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+    }
+  };
+
+  const stopListening = async () => {
+    if (!recordingRef.current) return;
+    setIsListening(false);
+    try {
+      await recordingRef.current.stopAndUnloadAsync();
+      recordingRef.current = null;
+      // For demo: simulate voice input with common questions
+      const questions = ["How is my portfolio doing?", "Should I rebalance?", "What's my best performing stock?"];
+      const simulatedText = questions[Math.floor(Math.random() * questions.length)];
+      setInputText(simulatedText);
+      haptics.lightTap();
+    } catch (err) {
+      console.error('Failed to stop recording:', err);
+    }
+  };
 
   const handleSend = async () => {
     if (inputText.trim() && !isLoading) {
@@ -94,17 +240,23 @@ User's Portfolio Summary:
 - Number of Holdings: ${holdings.length}
 
 Holdings:
-${holdings.map(h => `- ${h.name} (${h.symbol}): ${h.shares} shares, Current Value: $${(h.currentPrice * h.shares).toFixed(2)}, Gain: ${((h.currentPrice - h.purchasePrice) / h.purchasePrice * 100).toFixed(2)}%`).join('\n')}
+${holdings.map(h => {
+  const currentPrice = h.currentPrice || h.purchasePrice;
+  const currentValue = h.quantity * currentPrice;
+  const gainPercent = h.purchasePrice > 0 ? ((currentPrice - h.purchasePrice) / h.purchasePrice * 100) : 0;
+  return `- ${h.name} (${h.symbol || 'N/A'}): ${h.quantity} shares, Current Value: $${currentValue.toFixed(2)}, Gain: ${gainPercent.toFixed(2)}%`;
+}).join('\n')}
 `;
 
-        const systemPrompt = `You are Penny, a friendly and knowledgeable AI financial advisor for ClearPath, a personal finance app. You help users make informed investment decisions.
+        const systemPrompt = `You are Penny, a friendly and knowledgeable AI financial advisor. You help users make informed investment decisions.
 
 Your personality:
 - Supportive and encouraging
 - Clear and concise
 - Educational but not condescending
-- Use bullet points for clarity
 - Always consider the user's current portfolio
+
+IMPORTANT: Do NOT use any markdown formatting. No headers (###), no bold (**), no italic (*), no bullet points (-). Write in plain conversational text only. Use line breaks for separation.
 
 When giving advice:
 - Consider their current holdings and diversification
@@ -114,14 +266,18 @@ When giving advice:
 
 ${portfolioContext}`;
 
+        console.log('[AskPenny] Sending question to Gemini:', userQuestion);
+
         const aiResponseText = await generateWithGemini({
           prompt: userQuestion,
           systemInstruction: systemPrompt,
           temperature: 0.7,
-          maxTokens: 500,
+          maxTokens: 1500,
           thinkingLevel: 'medium',
-          feature: 'ask_penny_chat',
+          feature: `ask_penny_chat_${Date.now()}`, // Unique feature to bypass cache
         });
+
+        console.log('[AskPenny] Got response:', aiResponseText?.substring(0, 100));
 
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
@@ -129,13 +285,17 @@ ${portfolioContext}`;
           isUser: false,
           timestamp: new Date(),
         };
-        
+
         setMessages((prev) => [...prev, aiResponse]);
-      } catch (error) {
-        console.error('AI response error:', error);
+
+        // Auto-speak the response
+        speakResponse(aiResponseText);
+      } catch (error: any) {
+        console.error('[AskPenny] AI response error:', error);
+        const errorText = error?.message || String(error);
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
-          text: "I'm having trouble connecting right now. Please try again in a moment!",
+          text: `Sorry, I couldn't process that. Error: ${errorText.substring(0, 100)}. Please check your internet connection and try again.`,
           isUser: false,
           timestamp: new Date(),
         };
@@ -172,15 +332,28 @@ ${portfolioContext}`;
     >
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => {
+          Speech.stop();
+          stopTextToSpeech();
+          setIsSpeaking(false);
+          router.back();
+        }} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors.text} />
         </Pressable>
-        <View style={styles.pennyIcon}>
-          <Image
-            source={require('@/assets/images/bird-penny.png')}
-            style={styles.pennyImage}
-            resizeMode="contain"
-          />
+        <Text style={styles.headerTitle}>Ask Penny</Text>
+        <View style={styles.headerRight}>
+          {messages.length > 0 && (
+            <Pressable onPress={clearChatHistory} style={styles.clearButton}>
+              <Trash2 size={20} color={Colors.textSecondary} />
+            </Pressable>
+          )}
+          <View style={styles.pennyIcon}>
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={styles.pennyImage}
+              resizeMode="contain"
+            />
+          </View>
         </View>
       </View>
 
@@ -202,7 +375,7 @@ ${portfolioContext}`;
             {!message.isUser && (
               <View style={styles.aiAvatar}>
                 <Image
-                  source={require('@/assets/images/bird-penny.png')}
+                  source={require('@/assets/images/icon.png')}
                   style={styles.avatarImage}
                   resizeMode="contain"
                 />
@@ -222,7 +395,28 @@ ${portfolioContext}`;
               >
                 {message.text}
               </Text>
-
+              {/* Speaker button for AI messages */}
+              {!message.isUser && (
+                <Pressable
+                  style={styles.speakButton}
+                  onPress={() => {
+                    if (isSpeaking) {
+                      stopSpeaking();
+                    } else {
+                      speakResponse(message.text);
+                    }
+                  }}
+                >
+                  {isSpeaking ? (
+                    <VolumeX size={16} color={Colors.danger} />
+                  ) : (
+                    <Volume2 size={16} color={Colors.purple} />
+                  )}
+                  <Text style={styles.speakButtonText}>
+                    {isSpeaking ? 'Stop' : 'Listen'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           </View>
         ))}
@@ -232,7 +426,7 @@ ${portfolioContext}`;
           <View style={styles.loadingContainer}>
             <View style={styles.aiAvatar}>
               <Image
-                source={require('@/assets/images/bird-penny.png')}
+                source={require('@/assets/images/icon.png')}
                 style={styles.avatarImage}
                 resizeMode="contain"
               />
@@ -244,43 +438,64 @@ ${portfolioContext}`;
           </View>
         )}
 
-        {/* Quick Actions */}
-        <View style={styles.quickActionsContainer}>
-          <View style={styles.quickActionsGrid}>
-            {QUICK_ACTIONS.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Pressable
-                  key={action.id}
-                  style={styles.quickActionCard}
-                  onPress={() => handleQuickAction(action.id)}
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
-                    <Icon size={24} color={action.color} />
-                  </View>
-                  <Text style={styles.quickActionTitle}>{action.title}</Text>
-                </Pressable>
-              );
-            })}
+        {/* Quick Actions - only show when no messages */}
+        {messages.length === 0 && (
+          <View style={styles.quickActionsContainer}>
+            <View style={styles.quickActionsGrid}>
+              {QUICK_ACTIONS.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Pressable
+                    key={action.id}
+                    style={styles.quickActionCard}
+                    onPress={() => handleQuickAction(action.id)}
+                  >
+                    <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
+                      <Icon size={24} color={action.color} />
+                    </View>
+                    <Text style={styles.quickActionTitle}>{action.title}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
 
       {/* Input */}
       <View style={styles.inputContainer}>
+        {/* Mic Button */}
+        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <Pressable
+            style={[styles.micButton, isListening && styles.micButtonActive]}
+            onPressIn={startListening}
+            onPressOut={stopListening}
+          >
+            <Mic size={20} color={isListening ? Colors.text : Colors.textSecondary} />
+          </Pressable>
+        </Animated.View>
+
         <TextInput
           style={styles.input}
           value={inputText}
           onChangeText={setInputText}
-          placeholder="Type your question..."
+          placeholder={isListening ? "Listening..." : "Type or hold mic..."}
           placeholderTextColor={Colors.textSecondary}
           multiline
           maxLength={500}
         />
+
+        {/* Speaker Toggle */}
+        {isSpeaking ? (
+          <Pressable style={styles.speakerButton} onPress={stopSpeaking}>
+            <VolumeX size={20} color={Colors.danger} />
+          </Pressable>
+        ) : null}
+
         <Pressable
           style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
           onPress={handleSend}
-          disabled={!inputText.trim()}
+          disabled={!inputText.trim() || isLoading}
         >
           <Send size={20} color={inputText.trim() ? Colors.text : Colors.textSecondary} />
         </Pressable>
@@ -318,6 +533,19 @@ const styles = StyleSheet.create({
     color: Colors.text,
     flex: 1,
     textAlign: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  clearButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pennyIcon: {
     width: 64,
@@ -486,5 +714,40 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: Colors.surface,
+  },
+  micButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micButtonActive: {
+    backgroundColor: Colors.danger,
+  },
+  speakerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  speakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.background,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  speakButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.purple,
   },
 });

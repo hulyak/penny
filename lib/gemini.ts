@@ -125,6 +125,7 @@ export async function generateWithGemini(params: {
   prompt: string;
   systemInstruction?: string;
   image?: string; // base64 image
+  audio?: string; // base64 audio (data:audio/m4a;base64,...)
   temperature?: number;
   maxTokens?: number;
   thinkingLevel?: ThinkingLevel;
@@ -139,14 +140,15 @@ export async function generateWithGemini(params: {
     prompt,
     systemInstruction,
     image,
+    audio,
     temperature = 0.7,
     maxTokens = 2048,
     thinkingLevel = 'medium', // Gemini 3 thinking level: minimal, low, medium, high
     feature = 'unknown',
   } = params;
 
-  // Check cache first (skip for image prompts)
-  const cacheKey = !image ? getCacheKey(prompt, feature) : null;
+  // Check cache first (skip for image/audio prompts)
+  const cacheKey = !image && !audio ? getCacheKey(prompt, feature) : null;
   if (cacheKey) {
     const cachedResponse = getCachedResponse(cacheKey);
     if (cachedResponse) {
@@ -174,6 +176,7 @@ export async function generateWithGemini(params: {
     input: {
       prompt: prompt.substring(0, 500),
       hasImage: !!image,
+      hasAudio: !!audio,
       thinkingLevel,
       experimentVariant: experimentVariant?.name,
     },
@@ -185,10 +188,24 @@ export async function generateWithGemini(params: {
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
   if (image) {
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+    const mimeMatch = image.match(/^data:([^;]+);base64,/);
+    const detectedMime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const base64Data = image.replace(/^data:[^;]+;base64,/, '');
     parts.push({
       inlineData: {
-        mimeType: 'image/jpeg',
+        mimeType: detectedMime,
+        data: base64Data,
+      },
+    });
+  }
+
+  if (audio) {
+    const mimeMatch = audio.match(/^data:(audio\/\w+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'audio/mp4';
+    const base64Data = audio.replace(/^data:audio\/\w+;base64,/, '');
+    parts.push({
+      inlineData: {
+        mimeType,
         data: base64Data,
       },
     });
