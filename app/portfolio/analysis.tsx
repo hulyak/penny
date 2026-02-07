@@ -41,13 +41,14 @@ import { PeerBenchmark, generateBenchmarkMetrics } from '@/components/PeerBenchm
 import { RebalanceCard } from '@/components/RebalanceCard';
 import { CommunityBenchmarkCard } from '@/components/CommunityBenchmarkCard';
 import { MarketEventsCard } from '@/components/MarketEventsCard';
-import { usePurchases } from '@/context/PurchasesContext';
+import { usePurchases, useRequireTier, ENTITLEMENTS } from '@/context/PurchasesContext';
 import { PremiumBadge, PremiumCard } from '@/components/PremiumBadge';
 import portfolioService from '@/lib/portfolioService';
 
 export default function AnalysisScreen() {
   const router = useRouter();
-  const { isPremium, showPaywall } = usePurchases();
+  const { isPremium, showPaywall, subscriptionTier, hasEntitlement } = usePurchases();
+  const isPremiumTier = subscriptionTier === 'premium';
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysisResult | null>(null);

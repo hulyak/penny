@@ -9,19 +9,27 @@ import {
   ScrollView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { X, Sparkles, Crown, Zap, MessageCircle, BarChart3 } from 'lucide-react-native';
+import { X, Sparkles, Crown, Zap, MessageCircle, BarChart3, FileText, TrendingUp, Check } from 'lucide-react-native';
 import { usePurchases } from '@/context/PurchasesContext';
 import { Mascot } from '@/components/Mascot';
 import Colors from '@/constants/colors';
 
-
-
-const FEATURES = [
-  { icon: MessageCircle, text: 'Unlimited coaching sessions' },
-  { icon: BarChart3, text: 'Advanced scenario planning' },
-  { icon: Zap, text: 'Unlimited "Ask Before I Buy"' },
-  { icon: Sparkles, text: 'Priority weekly insights' },
+const PRO_FEATURES = [
+  { icon: TrendingUp, text: 'Real-time price updates' },
+  { icon: Zap, text: 'Advanced alerts & notifications' },
+  { icon: FileText, text: 'AI receipt scanning' },
+  { icon: MessageCircle, text: 'Priority support' },
 ];
+
+const PREMIUM_FEATURES = [
+  { icon: BarChart3, text: 'Advanced diversification analysis' },
+  { icon: FileText, text: 'Automatic statement parsing' },
+  { icon: Sparkles, text: 'AI-powered insights' },
+  { icon: TrendingUp, text: 'Tax loss harvesting alerts' },
+  { icon: MessageCircle, text: 'Peer comparison & benchmarking' },
+];
+
+type PlanType = 'pro_monthly' | 'pro_annual' | 'premium_monthly' | 'premium_annual';
 
 export function PaywallModal() {
   const {
@@ -29,29 +37,51 @@ export function PaywallModal() {
     hidePaywall,
     isPurchasing,
     isRestoring,
-    monthlyPackage,
-    annualPackage,
+    proMonthlyPackage,
+    proAnnualPackage,
+    premiumMonthlyPackage,
+    premiumAnnualPackage,
     purchase,
     restore,
     purchaseError,
+    subscriptionTier,
+    isTrialActive,
+    trialDaysRemaining,
   } = usePurchases();
 
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const [selectedTier, setSelectedTier] = useState<'pro' | 'premium'>('premium');
+  const [selectedPeriod, setSelectedPeriod] = useState<'monthly' | 'annual'>('annual');
 
   const handlePurchase = () => {
-    const pkg = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
+    let pkg = null;
+    
+    if (selectedTier === 'pro') {
+      pkg = selectedPeriod === 'annual' ? proAnnualPackage : proMonthlyPackage;
+    } else {
+      pkg = selectedPeriod === 'annual' ? premiumAnnualPackage : premiumMonthlyPackage;
+    }
+    
     if (pkg) {
       purchase(pkg);
     }
   };
 
-  const monthlyPrice = monthlyPackage?.product.priceString ?? '$4.99';
-  const annualPrice = annualPackage?.product.priceString ?? '$29.99';
-  const annualMonthly = annualPackage?.product.price 
-    ? `$${(annualPackage.product.price / 12).toFixed(2)}`
-    : '$2.50';
+  const proMonthlyPrice = proMonthlyPackage?.product.priceString ?? '$4.99';
+  const proAnnualPrice = proAnnualPackage?.product.priceString ?? '$49.99';
+  const proAnnualMonthly = proAnnualPackage?.product.price 
+    ? `$${(proAnnualPackage.product.price / 12).toFixed(2)}`
+    : '$4.17';
+
+  const premiumMonthlyPrice = premiumMonthlyPackage?.product.priceString ?? '$9.99';
+  const premiumAnnualPrice = premiumAnnualPackage?.product.priceString ?? '$99.99';
+  const premiumAnnualMonthly = premiumAnnualPackage?.product.price 
+    ? `$${(premiumAnnualPackage.product.price / 12).toFixed(2)}`
+    : '$8.33';
 
   const isProcessing = isPurchasing || isRestoring;
+
+  const features = selectedTier === 'pro' ? PRO_FEATURES : PREMIUM_FEATURES;
+  const tierColor = selectedTier === 'pro' ? Colors.primary : Colors.gold;
 
   return (
     <Modal
@@ -79,73 +109,147 @@ export function PaywallModal() {
                 <Mascot size="medium" mood="happy" />
               </View>
               <View style={styles.crownBadge}>
-                <Crown size={16} color="#FFD700" />
+                {selectedTier === 'premium' ? (
+                  <Crown size={16} color={Colors.gold} />
+                ) : (
+                  <Zap size={16} color={Colors.primary} />
+                )}
               </View>
             </View>
 
-            <Text style={styles.title}>Unlock Coach Plus</Text>
+            <Text style={styles.title}>
+              {selectedTier === 'premium' ? 'Unlock Premium' : 'Upgrade to Pro'}
+            </Text>
             <Text style={styles.subtitle}>
-              Get unlimited access to your personal financial coach
+              {selectedTier === 'premium' 
+                ? 'Get the most powerful financial insights and automation'
+                : 'Get real-time updates and advanced features'}
             </Text>
 
+            {/* Tier Selection */}
+            <View style={styles.tierSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.tierOption,
+                  selectedTier === 'pro' && styles.tierOptionSelected,
+                ]}
+                onPress={() => setSelectedTier('pro')}
+                disabled={isProcessing}
+              >
+                <Zap size={18} color={selectedTier === 'pro' ? Colors.primary : Colors.textMuted} />
+                <Text style={[
+                  styles.tierOptionText,
+                  selectedTier === 'pro' && styles.tierOptionTextSelected,
+                ]}>
+                  Pro
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tierOption,
+                  selectedTier === 'premium' && styles.tierOptionSelected,
+                ]}
+                onPress={() => setSelectedTier('premium')}
+                disabled={isProcessing}
+              >
+                <Crown size={18} color={selectedTier === 'premium' ? Colors.gold : Colors.textMuted} />
+                <Text style={[
+                  styles.tierOptionText,
+                  selectedTier === 'premium' && styles.tierOptionTextSelected,
+                ]}>
+                  Premium
+                </Text>
+                <View style={styles.popularBadge}>
+                  <Text style={styles.popularBadgeText}>POPULAR</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Features */}
             <View style={styles.featuresContainer}>
-              {FEATURES.map((feature, index) => (
+              {features.map((feature, index) => (
                 <View key={index} style={styles.featureRow}>
-                  <View style={styles.featureIcon}>
-                    <feature.icon size={18} color={Colors.primary} />
+                  <View style={[styles.featureIcon, { backgroundColor: `${tierColor}15` }]}>
+                    <feature.icon size={18} color={tierColor} />
                   </View>
                   <Text style={styles.featureText}>{feature.text}</Text>
                 </View>
               ))}
+              {selectedTier === 'premium' && (
+                <View style={styles.proIncludedNote}>
+                  <Check size={14} color={Colors.success} />
+                  <Text style={styles.proIncludedText}>Plus all Pro features</Text>
+                </View>
+              )}
             </View>
 
+            {/* Trial Notice */}
+            {!isTrialActive && subscriptionTier === 'free' && selectedTier === 'premium' && (
+              <View style={styles.trialNotice}>
+                <Sparkles size={16} color={Colors.success} />
+                <Text style={styles.trialNoticeText}>
+                  Start with a 7-day free trial
+                </Text>
+              </View>
+            )}
+
+            {/* Plan Selection */}
             <View style={styles.plansContainer}>
               <TouchableOpacity
                 style={[
                   styles.planCard,
-                  selectedPlan === 'annual' && styles.planCardSelected,
+                  selectedPeriod === 'annual' && styles.planCardSelected,
                 ]}
-                onPress={() => setSelectedPlan('annual')}
+                onPress={() => setSelectedPeriod('annual')}
                 disabled={isProcessing}
               >
                 <View style={styles.saveBadge}>
-                  <Text style={styles.saveBadgeText}>SAVE 50%</Text>
+                  <Text style={styles.saveBadgeText}>
+                    {selectedTier === 'pro' ? 'SAVE 17%' : 'SAVE 17%'}
+                  </Text>
                 </View>
                 <View style={styles.planHeader}>
                   <View style={[
                     styles.radioOuter,
-                    selectedPlan === 'annual' && styles.radioOuterSelected,
+                    selectedPeriod === 'annual' && styles.radioOuterSelected,
                   ]}>
-                    {selectedPlan === 'annual' && (
-                      <View style={styles.radioInner} />
+                    {selectedPeriod === 'annual' && (
+                      <View style={[styles.radioInner, { backgroundColor: tierColor }]} />
                     )}
                   </View>
                   <Text style={styles.planName}>Annual</Text>
                 </View>
-                <Text style={styles.planPrice}>{annualPrice}</Text>
-                <Text style={styles.planPeriod}>{annualMonthly}/month</Text>
+                <Text style={styles.planPrice}>
+                  {selectedTier === 'pro' ? proAnnualPrice : premiumAnnualPrice}
+                </Text>
+                <Text style={styles.planPeriod}>
+                  {selectedTier === 'pro' ? proAnnualMonthly : premiumAnnualMonthly}/month
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.planCard,
-                  selectedPlan === 'monthly' && styles.planCardSelected,
+                  selectedPeriod === 'monthly' && styles.planCardSelected,
                 ]}
-                onPress={() => setSelectedPlan('monthly')}
+                onPress={() => setSelectedPeriod('monthly')}
                 disabled={isProcessing}
               >
                 <View style={styles.planHeader}>
                   <View style={[
                     styles.radioOuter,
-                    selectedPlan === 'monthly' && styles.radioOuterSelected,
+                    selectedPeriod === 'monthly' && styles.radioOuterSelected,
                   ]}>
-                    {selectedPlan === 'monthly' && (
-                      <View style={styles.radioInner} />
+                    {selectedPeriod === 'monthly' && (
+                      <View style={[styles.radioInner, { backgroundColor: tierColor }]} />
                     )}
                   </View>
                   <Text style={styles.planName}>Monthly</Text>
                 </View>
-                <Text style={styles.planPrice}>{monthlyPrice}</Text>
+                <Text style={styles.planPrice}>
+                  {selectedTier === 'pro' ? proMonthlyPrice : premiumMonthlyPrice}
+                </Text>
                 <Text style={styles.planPeriod}>per month</Text>
               </TouchableOpacity>
             </View>
@@ -155,7 +259,11 @@ export function PaywallModal() {
             )}
 
             <TouchableOpacity
-              style={[styles.purchaseButton, isProcessing && styles.buttonDisabled]}
+              style={[
+                styles.purchaseButton,
+                { backgroundColor: tierColor },
+                isProcessing && styles.buttonDisabled,
+              ]}
               onPress={handlePurchase}
               disabled={isProcessing}
             >
@@ -163,9 +271,15 @@ export function PaywallModal() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Sparkles size={20} color="#fff" />
+                  {selectedTier === 'premium' ? (
+                    <Crown size={20} color="#fff" />
+                  ) : (
+                    <Zap size={20} color="#fff" />
+                  )}
                   <Text style={styles.purchaseButtonText}>
-                    Start Coach Plus
+                    {!isTrialActive && subscriptionTier === 'free' && selectedTier === 'premium'
+                      ? 'Start Free Trial'
+                      : `Subscribe to ${selectedTier === 'pro' ? 'Pro' : 'Premium'}`}
                   </Text>
                 </>
               )}
@@ -184,6 +298,9 @@ export function PaywallModal() {
             </TouchableOpacity>
 
             <Text style={styles.legalText}>
+              {!isTrialActive && subscriptionTier === 'free' && selectedTier === 'premium'
+                ? 'Free for 7 days, then '
+                : ''}
               Cancel anytime. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.
             </Text>
           </ScrollView>
@@ -253,14 +370,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     lineHeight: 22,
+  },
+  tierSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  tierOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  tierOptionSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: `${Colors.primary}08`,
+  },
+  tierOptionText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+  },
+  tierOptionTextSelected: {
+    color: Colors.text,
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 8,
+    backgroundColor: Colors.gold,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  popularBadgeText: {
+    fontSize: 8,
+    fontWeight: '700' as const,
+    color: '#fff',
   },
   featuresContainer: {
     backgroundColor: Colors.background,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   featureRow: {
     flexDirection: 'row',
@@ -271,7 +432,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: `${Colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -280,6 +440,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     fontWeight: '500' as const,
+  },
+  proIncludedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  proIncludedText: {
+    fontSize: 13,
+    color: Colors.success,
+    fontWeight: '600' as const,
+  },
+  trialNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.successMuted,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  trialNoticeText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.success,
   },
   plansContainer: {
     flexDirection: 'row',
@@ -335,7 +525,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.primary,
   },
   planName: {
     fontSize: 15,
@@ -359,7 +548,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   purchaseButton: {
-    backgroundColor: Colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
     flexDirection: 'row',
