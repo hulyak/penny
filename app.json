@@ -4,7 +4,7 @@
     "slug": "clearpath-financial-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon-square.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "penny",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.penny.financialapp",
       "usesAppleSignIn": true,
-      "icon": "./assets/images/icon-square.png",
+      "icon": "./assets/images/icon.png",
       "splash": {
         "image": "./assets/images/icon.png",
         "resizeMode": "contain",
@@ -40,7 +40,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-square.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0A0E17"
       },
       "splash": {
