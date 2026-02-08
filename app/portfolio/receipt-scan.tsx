@@ -32,12 +32,15 @@ import {
   Utensils,
   Plane,
   Heart,
+  List,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
 import { generateStructuredWithGemini } from '@/lib/gemini';
 import { usePurchases } from '@/context/PurchasesContext';
 import { PremiumCard } from '@/components/PremiumBadge';
+import { expenseService } from '@/lib/expenseService';
+import { Expense } from '@/types';
 import { z } from 'zod';
 
 // Schema for extracted receipt data
@@ -104,6 +107,49 @@ export default function ReceiptScanScreen() {
 
   const addAgentStep = (step: string) => {
     setAgentSteps(prev => [...prev, step]);
+  };
+
+  const loadSampleReceipt = async () => {
+    setIsAnalyzing(true);
+    setCapturedImage('sample');
+    setAgentSteps([]);
+    setAnalysis(null);
+
+    addAgentStep('Loading sample receipt...');
+    await new Promise(r => setTimeout(r, 500));
+    addAgentStep('Detecting receipt format...');
+    await new Promise(r => setTimeout(r, 400));
+    addAgentStep('Reading text via OCR...');
+    await new Promise(r => setTimeout(r, 400));
+    addAgentStep('Gemini 3 analyzing (thinking: high)...');
+    await new Promise(r => setTimeout(r, 1000));
+    addAgentStep('Validating amounts...');
+    await new Promise(r => setTimeout(r, 300));
+
+    const sampleResult: ReceiptAnalysis = {
+      merchant: 'Whole Foods Market',
+      category: 'groceries',
+      date: 'February 5, 2026',
+      items: [
+        { name: 'Organic Avocados (3pk)', quantity: 1, unitPrice: 4.99, totalPrice: 4.99 },
+        { name: 'Wild Caught Salmon Fillet', quantity: 1, unitPrice: 12.99, totalPrice: 12.99 },
+        { name: 'Organic Baby Spinach', quantity: 2, unitPrice: 3.49, totalPrice: 6.98 },
+        { name: 'Sourdough Bread', quantity: 1, unitPrice: 5.49, totalPrice: 5.49 },
+        { name: 'Oat Milk (64oz)', quantity: 1, unitPrice: 4.29, totalPrice: 4.29 },
+        { name: 'Free Range Eggs (dozen)', quantity: 1, unitPrice: 6.99, totalPrice: 6.99 },
+        { name: 'Organic Blueberries', quantity: 1, unitPrice: 5.99, totalPrice: 5.99 },
+      ],
+      subtotal: 47.72,
+      tax: 2.86,
+      total: 50.58,
+      paymentMethod: 'Visa ending in 4821',
+      reasoning: 'Successfully extracted 7 line items from Whole Foods Market receipt. All prices and quantities matched the subtotal. Tax rate of approximately 6% is consistent with local sales tax.',
+      budgetInsight: 'This $50.58 grocery trip is about 12% of a typical $400 monthly grocery budget. Your per-item average of $7.23 suggests premium product choices. Consider buying staples in bulk to reduce costs.',
+    };
+
+    addAgentStep(`Categorized as ${sampleResult.category}`);
+    setAnalysis(sampleResult);
+    setIsAnalyzing(false);
   };
 
   const takePicture = async () => {
@@ -194,15 +240,39 @@ Be thorough and accurate with numbers.`,
     setAgentSteps([]);
   };
 
-  const saveExpense = () => {
+  const saveExpense = async () => {
     if (!analysis) return;
 
-    // In a real app, this would save to expense tracking
-    Alert.alert(
-      'Expense Logged',
-      `$${analysis.total.toFixed(2)} at ${analysis.merchant} has been recorded.`,
-      [{ text: 'Great!', onPress: () => router.back() }]
-    );
+    const expense: Expense = {
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
+      merchant: analysis.merchant,
+      category: analysis.category,
+      date: analysis.date,
+      items: analysis.items,
+      subtotal: analysis.subtotal,
+      tax: analysis.tax,
+      tip: analysis.tip,
+      total: analysis.total,
+      paymentMethod: analysis.paymentMethod,
+      reasoning: analysis.reasoning,
+      budgetInsight: analysis.budgetInsight,
+      createdAt: new Date().toISOString(),
+    };
+
+    const success = await expenseService.saveExpense(expense);
+
+    if (success) {
+      Alert.alert(
+        'Expense Logged',
+        `$${analysis.total.toFixed(2)} at ${analysis.merchant} has been recorded.`,
+        [
+          { text: 'View Expenses', onPress: () => router.replace('/portfolio/expenses') },
+          { text: 'Done', onPress: () => router.back() },
+        ]
+      );
+    } else {
+      Alert.alert('Error', 'Failed to save expense. Please try again.');
+    }
   };
 
   // Permission handling
@@ -229,6 +299,10 @@ Be thorough and accurate with numbers.`,
           <Pressable style={styles.galleryButton} onPress={pickImage}>
             <ImageIcon size={18} color={Colors.primary} />
             <Text style={styles.galleryButtonText}>Choose from Gallery</Text>
+          </Pressable>
+          <Pressable style={styles.sampleButton} onPress={loadSampleReceipt}>
+            <Sparkles size={18} color="#4285F4" />
+            <Text style={styles.sampleButtonText}>Load Sample Receipt</Text>
           </Pressable>
         </View>
       </View>
@@ -309,6 +383,10 @@ Be thorough and accurate with numbers.`,
             colors={['transparent', Colors.background]}
             style={styles.featureHighlight}
           >
+            <Pressable style={styles.sampleButtonCamera} onPress={loadSampleReceipt}>
+              <Sparkles size={16} color="#4285F4" />
+              <Text style={styles.sampleButtonCameraText}>Load Sample Receipt</Text>
+            </Pressable>
             <View style={styles.featureCard}>
               <Brain size={20} color={Colors.primary} />
               <View style={styles.featureContent}>
@@ -324,13 +402,15 @@ Be thorough and accurate with numbers.`,
         // Analysis View
         <ScrollView style={styles.analysisContainer} showsVerticalScrollIndicator={false}>
           {/* Image Preview */}
-          <View style={styles.imagePreview}>
-            <Image source={{ uri: capturedImage }} style={styles.previewImage} />
-            <Pressable style={styles.retakeButton} onPress={resetScan}>
-              <RefreshCw size={18} color={Colors.text} />
-              <Text style={styles.retakeText}>Retake</Text>
-            </Pressable>
-          </View>
+          {capturedImage && capturedImage !== 'sample' && (
+            <View style={styles.imagePreview}>
+              <Image source={{ uri: capturedImage }} style={styles.previewImage} />
+              <Pressable style={styles.retakeButton} onPress={resetScan}>
+                <RefreshCw size={18} color={Colors.text} />
+                <Text style={styles.retakeText}>Retake</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Agent Steps */}
           <View style={styles.agentCard}>
@@ -442,10 +522,19 @@ Be thorough and accurate with numbers.`,
       {/* Save Button */}
       {analysis && (
         <View style={styles.footer}>
-          <Pressable style={styles.saveButton} onPress={saveExpense}>
-            <Check size={20} color={Colors.textLight} />
-            <Text style={styles.saveButtonText}>Log Expense</Text>
-          </Pressable>
+          <View style={styles.footerButtons}>
+            <Pressable
+              style={styles.viewExpensesButton}
+              onPress={() => router.push('/portfolio/expenses')}
+            >
+              <List size={18} color={Colors.primary} />
+              <Text style={styles.viewExpensesText}>Expenses</Text>
+            </Pressable>
+            <Pressable style={styles.saveButton} onPress={saveExpense}>
+              <Check size={20} color={Colors.textLight} />
+              <Text style={styles.saveButtonText}>Log Expense</Text>
+            </Pressable>
+          </View>
         </View>
       )}
     </View>
@@ -890,7 +979,26 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
+  footerButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  viewExpensesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.primaryMuted,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+  },
+  viewExpensesText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
   saveButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -934,5 +1042,36 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 24,
     paddingHorizontal: 16,
+  },
+  sampleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  sampleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4285F4',
+  },
+  sampleButtonCamera: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  sampleButtonCameraText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4285F4',
   },
 });

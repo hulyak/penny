@@ -37,18 +37,30 @@ export default function PortfolioChart({
   // Ensure we have valid data
   const chartData = data.length > 0 ? data : [0];
 
-  // Show max 5 X-axis labels to avoid clutter
-  const maxLabels = 5;
+  // Show max 4 X-axis labels to avoid clutter and overlap
+  const maxLabels = 4;
   const chartLabels = labels.length > 0 ? labels : [''];
   const displayLabels = chartLabels.length <= maxLabels
     ? chartLabels
-    : chartLabels.map((label, i) => {
-        const step = Math.floor(chartLabels.length / (maxLabels - 1));
-        if (i === 0 || i === chartLabels.length - 1 || i % step === 0) {
-          return label;
+    : (() => {
+        // Pick evenly spaced indices including first and last
+        const indices = new Set<number>();
+        indices.add(0);
+        indices.add(chartLabels.length - 1);
+        const innerCount = maxLabels - 2; // labels between first and last
+        for (let j = 1; j <= innerCount; j++) {
+          const idx = Math.round((j * (chartLabels.length - 1)) / (innerCount + 1));
+          indices.add(idx);
         }
-        return '';
-      });
+        // Ensure no two visible labels are adjacent (suppress the earlier one)
+        const sorted = Array.from(indices).sort((a, b) => a - b);
+        for (let k = sorted.length - 1; k > 0; k--) {
+          if (sorted[k] - sorted[k - 1] <= 1 && k - 1 > 0) {
+            indices.delete(sorted[k - 1]);
+          }
+        }
+        return chartLabels.map((label, i) => indices.has(i) ? label : '');
+      })();
 
   const lineColor = isPositive
     ? (opacity = 1) => `rgba(16, 185, 129, ${opacity})`   // green
@@ -88,9 +100,13 @@ export default function PortfolioChart({
           fillShadowGradientOpacity: 0.15,
           fillShadowGradientFromOffset: 0,
           fillShadowGradientTo: 'transparent',
+          propsForLabels: {
+            fontSize: 10,
+          },
         }}
         bezier
         style={styles.chart}
+        xLabelsOffset={-4}
         withVerticalLines={false}
         withHorizontalLines={true}
         withInnerLines={true}

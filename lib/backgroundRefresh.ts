@@ -5,6 +5,7 @@ import { Holding } from '@/types';
 import { batchGetPrices, hasLivePricing } from './priceService';
 import { checkPriceAlerts, checkDateAlerts } from './alertService';
 import portfolioService from './portfolioService';
+import { triggerAgentCheck } from './agentLoop';
 import logger from './logger';
 
 const BACKGROUND_FETCH_TASK = 'PORTFOLIO_PRICE_REFRESH';
@@ -73,6 +74,14 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     // Check date-based alerts (maturity reminders)
     const triggeredDateAlerts = await checkDateAlerts();
     logger.debug('BackgroundRefresh', `Triggered ${triggeredDateAlerts.length} date alerts`);
+
+    // Run agent loop for drift detection and proactive notifications
+    try {
+      const agentResult = await triggerAgentCheck();
+      logger.debug('BackgroundRefresh', `Agent check: ${agentResult.message}`, agentResult.checks);
+    } catch (agentError) {
+      logger.warn('BackgroundRefresh', 'Agent loop failed during background refresh', agentError);
+    }
 
     logger.debug('BackgroundRefresh', 'Background refresh completed successfully');
     return BackgroundFetch.BackgroundFetchResult.NewData;

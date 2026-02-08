@@ -69,6 +69,52 @@ export default function ScanScreen() {
     setAgentSteps(prev => [...prev, step]);
   };
 
+  const loadSampleStatement = async () => {
+    setIsAnalyzing(true);
+    setCapturedImage('sample');
+    setAgentSteps([]);
+    setAnalysis(null);
+    setSelectedHoldings(new Set());
+
+    addAgentStep('🔍 Loading sample Fidelity statement...');
+    await new Promise(r => setTimeout(r, 600));
+    addAgentStep('📝 Extracting text and tables...');
+    await new Promise(r => setTimeout(r, 500));
+    addAgentStep('🧠 Gemini 3 reasoning (thinking: high)...');
+    await new Promise(r => setTimeout(r, 1200));
+    addAgentStep('✅ Validating extracted data...');
+    await new Promise(r => setTimeout(r, 400));
+
+    const sampleResult: DocumentAnalysis = {
+      holdings: [
+        { name: 'Apple Inc', symbol: 'AAPL', quantity: 50, price: 185.50, type: 'stock', confidence: 0.98 },
+        { name: 'Microsoft Corporation', symbol: 'MSFT', quantity: 30, price: 420.00, type: 'stock', confidence: 0.97 },
+        { name: 'Alphabet Inc Class A', symbol: 'GOOGL', quantity: 20, price: 175.25, type: 'stock', confidence: 0.95 },
+        { name: 'Vanguard Total Stock Market ETF', symbol: 'VTI', quantity: 100, price: 245.80, type: 'etf', confidence: 0.99 },
+        { name: 'Vanguard Total Bond Market ETF', symbol: 'BND', quantity: 75, price: 72.50, type: 'bond', confidence: 0.96 },
+        { name: 'Amazon.com Inc', symbol: 'AMZN', quantity: 15, price: 198.30, type: 'stock', confidence: 0.93 },
+        { name: 'Berkshire Hathaway Class B', symbol: 'BRK.B', quantity: 8, price: 412.00, type: 'stock', confidence: 0.72 },
+        { name: 'Schwab US Dividend Equity ETF', symbol: 'SCHD', quantity: 40, price: 78.90, type: 'etf', confidence: 0.48 },
+      ],
+      documentType: 'Brokerage Statement',
+      brokerName: 'Fidelity Investments',
+      accountType: 'Individual Brokerage',
+      totalValue: 64824,
+      asOfDate: '2026-01-31',
+      reasoning: 'Successfully extracted 8 holdings from Fidelity brokerage statement. The document contained a clear holdings table with symbols, quantities, current prices, and market values. Two holdings (BRK.B and SCHD) had lower confidence due to partially obscured text near the page fold.',
+    };
+
+    addAgentStep(`📊 Found ${sampleResult.holdings.length} holdings`);
+
+    setAnalysis(sampleResult);
+    const highConfidence = new Set<number>();
+    sampleResult.holdings.forEach((h, i) => {
+      if (h.confidence >= 0.7) highConfidence.add(i);
+    });
+    setSelectedHoldings(highConfidence);
+    setIsAnalyzing(false);
+  };
+
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
@@ -252,6 +298,10 @@ Be thorough - extract EVERY holding you can identify, even if partially visible.
             <ImageIcon size={18} color={Colors.primary} />
             <Text style={styles.galleryButtonText}>Choose from Gallery</Text>
           </Pressable>
+          <Pressable style={styles.sampleButton} onPress={loadSampleStatement}>
+            <Sparkles size={18} color="#4285F4" />
+            <Text style={styles.sampleButtonText}>Load Sample Statement</Text>
+          </Pressable>
         </View>
       </View>
     );
@@ -297,11 +347,15 @@ Be thorough - extract EVERY holding you can identify, even if partially visible.
             <View style={{ width: 56 }} />
           </View>
 
-          {/* Multimodal Feature Highlight */}
+          {/* Sample + Feature Highlight */}
           <LinearGradient
             colors={['transparent', Colors.background]}
             style={styles.featureHighlight}
           >
+            <Pressable style={styles.sampleButtonCamera} onPress={loadSampleStatement}>
+              <Sparkles size={16} color="#4285F4" />
+              <Text style={styles.sampleButtonCameraText}>Load Sample Statement</Text>
+            </Pressable>
             <View style={styles.featureCard}>
               <Brain size={20} color={Colors.primary} />
               <View style={styles.featureContent}>
@@ -317,13 +371,15 @@ Be thorough - extract EVERY holding you can identify, even if partially visible.
         // Analysis View
         <ScrollView style={styles.analysisContainer} showsVerticalScrollIndicator={false}>
           {/* Captured Image Preview */}
-          <View style={styles.imagePreview}>
-            <Image source={{ uri: capturedImage }} style={styles.previewImage} />
-            <Pressable style={styles.retakeButton} onPress={resetScan}>
-              <RefreshCw size={18} color={Colors.text} />
-              <Text style={styles.retakeText}>Retake</Text>
-            </Pressable>
-          </View>
+          {capturedImage && capturedImage !== 'sample' && (
+            <View style={styles.imagePreview}>
+              <Image source={{ uri: capturedImage }} style={styles.previewImage} />
+              <Pressable style={styles.retakeButton} onPress={resetScan}>
+                <RefreshCw size={18} color={Colors.text} />
+                <Text style={styles.retakeText}>Retake</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Agent Reasoning Steps */}
           <View style={styles.agentCard}>
@@ -849,5 +905,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.textLight,
+  },
+  sampleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  sampleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4285F4',
+  },
+  sampleButtonCamera: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  sampleButtonCameraText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4285F4',
   },
 });

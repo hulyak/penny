@@ -415,6 +415,41 @@ export const ASSET_TYPE_CONFIG: Record<AssetType, { label: string; icon: string;
   other: { label: 'Other', icon: 'box', assetClass: 'other' },
 };
 
+// Expense Types
+export type ExpenseCategory =
+  | 'groceries'
+  | 'dining'
+  | 'transportation'
+  | 'entertainment'
+  | 'shopping'
+  | 'healthcare'
+  | 'utilities'
+  | 'travel'
+  | 'other';
+
+export interface ExpenseItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface Expense {
+  id: string;
+  merchant: string;
+  category: ExpenseCategory;
+  date?: string;
+  items: ExpenseItem[];
+  subtotal: number;
+  tax?: number;
+  tip?: number;
+  total: number;
+  paymentMethod?: string;
+  reasoning: string;
+  budgetInsight: string;
+  createdAt: string;
+}
+
 export const ASSET_CLASS_COLORS: Record<AssetClass, string> = {
   equity: '#4CAF50',
   debt: '#2196F3',

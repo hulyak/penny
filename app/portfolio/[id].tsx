@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
@@ -227,7 +228,12 @@ export default function HoldingDetailScreen() {
         style={styles.pennyCard}
       >
         <View style={styles.pennyHeader}>
-          <Text style={styles.pennyTitle}>🐦 Penny's Analysis</Text>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.pennyIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.pennyTitle}>Penny's Analysis</Text>
         </View>
         <Text style={styles.pennyText}>
           {holding.symbol} is performing {isGain ? 'well' : 'below expectations'} today, {todayGainPercent >= 0 ? 'up' : 'down'} {Math.abs(todayGainPercent).toFixed(2)}%. Your position is {isGain ? 'up' : 'down'} {Math.abs(gainPercent).toFixed(2)}% overall. {isGain ? `Consider taking profits if it reaches your target of $${(currentPrice * 1.02).toFixed(2)}.` : 'Hold steady and consider averaging down if fundamentals remain strong.'}
@@ -468,7 +474,15 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   pennyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
+  },
+  pennyIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   pennyTitle: {
     fontSize: 20,

@@ -102,6 +102,64 @@ export default function StatementParseScreen() {
     setAgentSteps(prev => [...prev, step]);
   };
 
+  const loadSampleStatement = async () => {
+    setIsAnalyzing(true);
+    setCapturedImage('sample');
+    setAgentSteps([]);
+    setAnalysis(null);
+    setSelectedHoldings(new Set());
+
+    addAgentStep('Loading sample Fidelity statement...');
+    await new Promise(r => setTimeout(r, 600));
+    addAgentStep('Detecting statement format...');
+    await new Promise(r => setTimeout(r, 500));
+    addAgentStep('Identifying broker and account type...');
+    await new Promise(r => setTimeout(r, 500));
+    addAgentStep('Extracting holdings table...');
+    await new Promise(r => setTimeout(r, 500));
+    addAgentStep('Gemini 3 Vision analyzing (thinking: high)...');
+    await new Promise(r => setTimeout(r, 1200));
+    addAgentStep('Validating extracted data...');
+    await new Promise(r => setTimeout(r, 400));
+
+    const sampleAnalysis: StatementAnalysis = {
+      broker: 'Fidelity',
+      accountNumber: '***4821',
+      statementDate: 'January 31, 2026',
+      accountType: 'brokerage',
+      holdings: [
+        { symbol: 'AAPL', name: 'Apple Inc', quantity: 50, price: 185.50, value: 9275, assetType: 'stock', confidence: 0.98 },
+        { symbol: 'MSFT', name: 'Microsoft Corporation', quantity: 30, price: 420.00, value: 12600, assetType: 'stock', confidence: 0.97 },
+        { symbol: 'GOOGL', name: 'Alphabet Inc Class A', quantity: 20, price: 175.25, value: 3505, assetType: 'stock', confidence: 0.95 },
+        { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', quantity: 100, price: 245.80, value: 24580, assetType: 'etf', confidence: 0.99 },
+        { symbol: 'BND', name: 'Vanguard Total Bond Market ETF', quantity: 75, price: 72.50, value: 5437.50, assetType: 'etf', confidence: 0.96 },
+        { symbol: 'AMZN', name: 'Amazon.com Inc', quantity: 15, price: 198.30, value: 2974.50, assetType: 'stock', confidence: 0.93 },
+        { symbol: 'BRK.B', name: 'Berkshire Hathaway Class B', quantity: 8, price: 412.00, value: 3296, assetType: 'stock', confidence: 0.72 },
+        { symbol: 'SCHD', name: 'Schwab US Dividend Equity ETF', quantity: 40, price: 78.90, value: 3156, assetType: 'etf', confidence: 0.48 },
+      ],
+      totalValue: 64824,
+      cashBalance: 2150,
+      reasoning: 'Successfully extracted 8 holdings from Fidelity brokerage statement. The document contained a clear holdings table with symbols, quantities, prices, and values. Two holdings had lower confidence due to partially obscured text in the scanned document.',
+      extractionQuality: 'high',
+      warnings: [
+        'BRK.B quantity partially obscured — verify 8 shares is correct',
+        'SCHD row was near page fold — price and quantity may need verification',
+      ],
+    };
+
+    addAgentStep(`Found ${sampleAnalysis.holdings.length} holdings from ${sampleAnalysis.broker}`);
+
+    const highConfidenceIndices = new Set(
+      sampleAnalysis.holdings
+        .map((h, i) => ({ h, i }))
+        .filter(({ h }) => h.confidence >= 0.7)
+        .map(({ i }) => i)
+    );
+    setSelectedHoldings(highConfidenceIndices);
+    setAnalysis(sampleAnalysis);
+    setIsAnalyzing(false);
+  };
+
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
@@ -444,6 +502,14 @@ For confidence scores: 1.0 = very clear, 0.8 = clear, 0.6 = somewhat clear, 0.4 
             </View>
           </View>
 
+          <View style={styles.sampleSection}>
+            <Pressable style={styles.sampleButton} onPress={loadSampleStatement}>
+              <Sparkles size={20} color="#4285F4" />
+              <Text style={styles.sampleButtonText}>Load Sample Statement</Text>
+            </Pressable>
+            <Text style={styles.sampleHint}>Try with a sample Fidelity statement</Text>
+          </View>
+
           <View style={styles.tipsSection}>
             <Text style={styles.tipsTitle}>Tips for Best Results</Text>
             <View style={styles.tipItem}>
@@ -465,7 +531,9 @@ For confidence scores: 1.0 = very clear, 0.8 = clear, 0.6 = somewhat clear, 0.4 
         <ScrollView style={styles.content} contentContainerStyle={styles.resultsContainer}>
           {isAnalyzing ? (
             <View style={styles.analyzingContainer}>
-              <Image source={{ uri: capturedImage }} style={styles.previewImage} />
+              {capturedImage && capturedImage !== 'sample' && (
+                <Image source={{ uri: capturedImage }} style={styles.previewImage} />
+              )}
               <View style={styles.analyzingOverlay}>
                 <View style={styles.analyzingCard}>
                   <Brain size={32} color={Colors.primary} />
@@ -1027,5 +1095,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  sampleSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  sampleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#C2D9FC',
+  },
+  sampleButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#4285F4',
+  },
+  sampleHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 8,
   },
 });
